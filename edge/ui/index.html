@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machine Memory · Edge</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="overlay" hidden>
+  <form class="login" id="loginForm">
+    <h1>Operator sign-in</h1>
+    <p class="muted">This device holds raw technician notes. Enter the operator token printed when the device started.</p>
+    <div class="row"><input id="tok" type="password" placeholder="operator token" style="flex:1" autocomplete="current-password"></div>
+    <div class="row"><button class="primary" type="submit">Sign in</button><span id="loginErr" class="muted"></span></div>
+  </form>
+</div>
+
+<header>
+  <div class="brand">Machine Memory <span>· Edge</span></div>
+  <span class="chip">device <b id="hDev">–</b></span>
+  <span class="chip">site <b id="hSite">–</b></span>
+  <span class="chip">machine <b id="hMach">–</b></span>
+  <span class="chip" id="hModel">–</span>
+  <div class="spacer"></div>
+  <span id="hSync" class="badge b-mute">sync –</span>
+  <label class="switch" id="netSwitch" title="Simulated network partition"><span class="track"></span><span id="netLabel">network</span></label>
+  <button class="ghost" id="logout" title="Sign out">Sign out</button>
+</header>
+
+<main>
+  <section class="card s8">
+    <h2>Live vibration monitor <span class="hint muted">distance of each window to this machine's healthy baseline (z-units)</span></h2>
+    <canvas id="chart" width="1000" height="190"></canvas>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kState">–</div><div class="l">gate state</div></div>
+      <div class="kpi"><div class="v" id="kWin">0</div><div class="l">windows</div></div>
+      <div class="kpi"><div class="v" id="kNorm">0</div><div class="l">normal (not stored)</div></div>
+      <div class="kpi"><div class="v" id="kNew">0</div><div class="l">new episodes</div></div>
+      <div class="kpi"><div class="v" id="kGate">–</div><div class="l">gate p50 / p95 ms</div></div>
+      <div class="kpi"><div class="v" id="kTau">–</div><div class="l">radius normal / merge</div></div>
+    </div>
+    <div class="section">
+      <h3>Signal source <span class="muted" style="text-transform:none">replay of real CWRU recordings, as if streamed from the sensor</span></h3>
+      <div class="row">
+        <button id="fitBtn">Fit healthy baseline</button>
+        <select id="fileSel" style="min-width:260px"></select>
+        <label class="muted">windows <input id="nWin" type="number" min="1" max="500" value="40" style="width:70px"></label>
+        <label class="muted">interval s <input id="ivl" type="number" step="0.05" min="0" max="2" value="0.15" style="width:70px"></label>
+        <button class="primary" id="playBtn">Play</button><button id="stopBtn">Stop</button>
+      </div>
+      <div class="row"><div class="bar" style="flex:1"><div id="replayBar" style="width:0%"></div></div><span class="muted mono" id="replayTxt">idle</span></div>
+    </div>
+  </section>
+
+  <section class="card s4">
+    <h2>Sync &amp; network</h2>
+    <div class="kpis" style="margin-top:0">
+      <div class="kpi"><div class="v" id="oQ">0</div><div class="l">queued</div></div>
+      <div class="kpi"><div class="v" id="oS">0</div><div class="l">synced</div></div>
+      <div class="kpi"><div class="v" id="oF">0</div><div class="l">failed / retrying</div></div>
+      <div class="kpi"><div class="v" id="oR">0</div><div class="l">rejected</div></div>
+      <div class="kpi"><div class="v" id="mC">0</div><div class="l">fleet cases (mirror)</div></div>
+      <div class="kpi"><div class="v" id="pts">0</div><div class="l">local points</div></div>
+    </div>
+    <div class="section">
+      <div class="row"><span class="muted">bytes sent</span><b class="mono" id="bSent">0</b><span class="muted">· raw signal kept local</span><b class="mono" id="bRaw">0</b></div>
+      <div class="row"><span class="muted">last push</span><span class="mono" id="lPush">–</span><span class="muted">last pull</span><span class="mono" id="lPull">–</span></div>
+      <div class="row"><span id="syncErr" class="muted"></span></div>
+      <div class="row"><button id="syncNow">Sync now</button><input id="devTok" type="password" placeholder="new device token" style="flex:1"><button id="setTok">Set token</button></div>
+    </div>
+  </section>
+
+  <section class="card s4">
+    <h2>Episodes <span class="hint muted" id="epCount"></span></h2>
+    <div class="list" id="epList"><div class="empty">No episodes yet. Fit the baseline, then replay a fault file.</div></div>
+  </section>
+
+  <section class="card s8" id="detailCard">
+    <h2>Episode <span class="hint mono muted" id="dId"></span></h2>
+    <div id="detailEmpty" class="empty">Select an episode.</div>
+    <div id="detail" hidden>
+      <div class="row" id="dBadges"></div>
+      <div class="row muted" id="dMeta"></div>
+      <div class="grid2">
+        <div>
+          <div class="section">
+            <h3>Fault class</h3>
+            <div id="dHint" class="muted"></div>
+            <div class="row"><select id="fcSel"></select><button id="fcBtn">Confirm fault class</button></div>
+          </div>
+          <div class="section">
+            <h3>Technician note <span class="muted" style="text-transform:none">(raw note never leaves the device)</span></h3>
+            <textarea id="noteTxt" maxlength="2000" placeholder="What did you see? What did you do?"></textarea>
+            <div class="row"><label><input type="checkbox" id="noteOpt"> share a redacted copy if it contains no personal data</label><button id="noteBtn">Save note</button></div>
+          </div>
+        </div>
+        <div>
+          <div class="section">
+            <h3>Action</h3>
+            <div class="row"><select id="actSel"></select><select id="rcSel"></select></div>
+            <div class="row"><label class="muted">verify over <input id="reqWin" type="number" min="3" max="500" value="20" style="width:64px"> windows</label><button id="actBtn">Record action</button></div>
+          </div>
+          <div class="section">
+            <h3>Outcome verification (sensor)</h3>
+            <div class="bar"><div id="vBar" style="width:0%"></div></div>
+            <div class="row"><span id="vTxt" class="muted">no action yet</span></div>
+            <div class="row"><span class="muted">Technician says:</span><button id="okBtn">Worked</button><button id="failBtn" class="danger">Failed</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Policy decision <span class="muted" style="text-transform:none">deterministic gates · no AI in this decision</span></h3>
+        <div class="row" id="decBadge"></div>
+        <ul class="gates" id="gates"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card s7">
+    <h2>Search memory <span class="hint muted">offline · hybrid: fingerprint + dense text + BM25, fused with RRF in one Qdrant Edge query</span></h2>
+    <div class="row">
+      <input id="q" type="text" placeholder="e.g. inner race spall, bearing noise after regrease" style="flex:1" maxlength="500">
+      <label class="muted"><input type="checkbox" id="useFleet" checked> fleet mirror</label>
+      <button class="primary" id="searchBtn">Search</button><button id="simBtn">Similar to selected episode</button>
+    </div>
+    <div class="row muted mono" id="sInfo"></div>
+    <div class="grid2" style="margin-top:8px">
+      <div><h3 class="muted" style="font-size:12px">This machine</h3><div id="sLocal"></div></div>
+      <div><h3 class="muted" style="font-size:12px">Fleet evidence (from mirror)</h3><div id="sFleet"></div></div>
+    </div>
+  </section>
+
+  <section class="card s5">
+    <h2>Evidence brief <span class="badge b-violet">local AI</span> <span class="hint muted" id="llmInfo"></span></h2>
+    <div class="row"><input id="bq" type="text" value="What has been tried for this fault, and how did it turn out?" style="flex:1" maxlength="300"><button class="primary" id="briefBtn">Generate</button></div>
+    <p class="muted" style="font-size:12px">Retrieval-augmented: it summarises only the retrieved evidence. Sentences without a valid citation, or that recommend an action, are removed. Never used for decisions.</p>
+    <div id="briefOut"></div>
+  </section>
+
+  <section class="card s7">
+    <h2>Outbox <span class="hint muted">SQLite · written before the shard · per-event acks from the cloud</span></h2>
+    <div class="tablewrap"><table><thead><tr><th>event</th><th>episode</th><th>status</th><th>tries</th><th>last error</th><th></th></tr></thead><tbody id="obBody"></tbody></table></div>
+  </section>
+
+  <section class="card s5">
+    <h2>Activity</h2>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <section class="card s12">
+    <h2>Fleet mirror <span class="hint muted">read-only shard pulled from the cloud · usable offline</span></h2>
+    <div id="mirror" class="grid2"></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

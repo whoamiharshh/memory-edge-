@@ -1,0 +1,65 @@
+{
+  "machine": "Intel i5-1335U, 15.7 GB RAM, no GPU, Windows 11, Python 3.12, qdrant-edge-py 0.8.0",
+  "fingerprint": {
+    "p50_ms": 1.894,
+    "p95_ms": 3.507,
+    "n": 200
+  },
+  "embed_note": {
+    "p50_ms": 8.836,
+    "p95_ms": 15.624,
+    "n": 100
+  },
+  "durable_write": {
+    "p50_ms": 44.333,
+    "p95_ms": 77.088,
+    "n": 100
+  },
+  "gate_normal_window": {
+    "p50_ms": 0.405,
+    "p95_ms": 0.519,
+    "n": 200
+  },
+  "hybrid_edge_1000": {
+    "p50_ms": 1.79,
+    "p95_ms": 3.888,
+    "n": 200
+  },
+  "dense_server_http_1000": {
+    "p50_ms": 16.999,
+    "p95_ms": 30.856,
+    "n": 100
+  },
+  "dense_edge_1000": {
+    "p50_ms": 0.737,
+    "p95_ms": 1.187,
+    "n": 100
+  },
+  "hybrid_edge_10000": {
+    "p50_ms": 1.25,
+    "p95_ms": 2.068,
+    "n": 200
+  },
+  "dense_server_http_10000": {
+    "p50_ms": 7.975,
+    "p95_ms": 31.148,
+    "n": 100
+  },
+  "dense_edge_10000": {
+    "p50_ms": 0.72,
+    "p95_ms": 1.028,
+    "n": 100
+  },
+  "llm_brief": {
+    "p50_ms": 3966.345,
+    "p95_ms": 4557.057,
+    "n": 5,
+    "model": "Qwen2.5-1.5B-Instruct (Q4_K_M GGUF, Apache-2.0)"
+  },
+  "bandwidth": {
+    "shared_event_json_bytes": 863,
+    "raw_float32_signal_bytes_summarised": 499712,
+    "ratio": 579.0,
+    "note": "one event summarises 60 windows (~10.2 s at 12 kHz); the raw signal never leaves the device"
+  }
+}

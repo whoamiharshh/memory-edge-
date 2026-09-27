@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machine Memory · Fleet</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="overlay" hidden>
+  <form class="login" id="loginForm">
+    <h1>Fleet sign-in</h1>
+    <p class="muted">Enter an admin or device token. Admins can see individual reports, retract evidence and manage device tokens.</p>
+    <div class="row"><input id="tok" type="password" placeholder="bearer token" style="flex:1" autocomplete="current-password"></div>
+    <div class="row"><button class="primary" type="submit">Sign in</button><span id="loginErr" class="muted"></span></div>
+  </form>
+</div>
+<header>
+  <div class="brand">Machine Memory <span>· Fleet cloud</span></div>
+  <span class="chip">tenant <b id="hTen">–</b></span>
+  <span class="chip">signed in as <b id="hWho">–</b></span>
+  <span class="chip" id="hBackend">–</span>
+  <div class="spacer"></div>
+  <label class="muted"><input type="checkbox" id="onlyDisputes"> disputes only</label>
+  <button class="ghost" id="logout">Sign out</button>
+</header>
+<main>
+  <section class="card s12">
+    <h2>How to read this <span class="hint muted">evidence is counted, never averaged into a score; disagreement is kept and flagged</span></h2>
+    <div class="row muted">
+      <span class="badge b-bad">DISPUTED</span> same action reported both worked and failed
+      <span class="badge b-bad">COMPETING</span> different root causes claimed
+      <span class="badge b-info">ALTERNATIVES</span> several different actions each worked
+      <span>· every report was sensor-verified on its own machine before it was allowed to leave the device</span>
+    </div>
+  </section>
+  <section class="card s7">
+    <h2>Case groups <span class="hint muted" id="cCount"></span></h2>
+    <div id="cases" class="list" style="max-height:none"></div>
+  </section>
+  <section class="card s5">
+    <h2>Case detail</h2>
+    <div id="detail"><div class="empty">Select a case group.</div></div>
+  </section>
+  <section class="card s12" id="devCard" hidden>
+    <h2>Device tokens <span class="hint muted">only token hashes are stored; revocation takes effect on the next request</span></h2>
+    <div class="row"><input id="nDev" type="text" placeholder="device id" maxlength="40"><input id="nSite" type="text" placeholder="site id" maxlength="40"><button id="issueBtn">Issue token</button><span id="issued" class="mono"></span></div>
+    <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>device</th><th>site</th><th>role</th><th>state</th><th></th></tr></thead><tbody id="devBody"></tbody></table></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

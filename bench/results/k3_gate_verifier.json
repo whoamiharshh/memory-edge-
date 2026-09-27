@@ -1,0 +1,631 @@
+{
+  "method": "K3 kill test + novelty-gate benchmark, through the real Device (Qdrant Edge shard, real CWRU fingerprints).",
+  "required_windows": 20,
+  "tau": {
+    "tau_normal": 11.776,
+    "tau_merge": 35.329
+  },
+  "gate_false_alarm_unseen_healthy": {
+    "windows": 116,
+    "not_normal": 0,
+    "rate": 0.0
+  },
+  "gate_detection_rate_fault_windows": 1.0,
+  "episodes_per_recording_mean": 1.0,
+  "recurrence_detected_rate": 1.0,
+  "K3_fixed_verified_resolved": "36/36",
+  "K3_still_faulty_verified_persists": "36/36",
+  "K3_false_promotions": 0,
+  "windows_to_verdict_fixed_median": 20.0,
+  "distinct_faults_separated_by_healthy_gap": {
+    "separated": "11/20",
+    "pairs": [
+      {
+        "first": 185,
+        "second": 197,
+        "episodes": 1
+      },
+      {
+        "first": 186,
+        "second": 198,
+        "episodes": 2
+      },
+      {
+        "first": 187,
+        "second": 199,
+        "episodes": 1
+      },
+      {
+        "first": 188,
+        "second": 200,
+        "episodes": 1
+      },
+      {
+        "first": 105,
+        "second": 118,
+        "episodes": 2
+      },
+      {
+        "first": 106,
+        "second": 119,
+        "episodes": 2
+      },
+      {
+        "first": 107,
+        "second": 120,
+        "episodes": 2
+      },
+      {
+        "first": 108,
+        "second": 121,
+        "episodes": 2
+      },
+      {
+        "first": 169,
+        "second": 185,
+        "episodes": 2
+      },
+      {
+        "first": 170,
+        "second": 186,
+        "episodes": 1
+      },
+      {
+        "first": 171,
+        "second": 187,
+        "episodes": 1
+      },
+      {
+        "first": 172,
+        "second": 188,
+        "episodes": 1
+      },
+      {
+        "first": 209,
+        "second": 222,
+        "episodes": 2
+      },
+      {
+        "first": 210,
+        "second": 223,
+        "episodes": 2
+      },
+      {
+        "first": 211,
+        "second": 224,
+        "episodes": 2
+      },
+      {
+        "first": 212,
+        "second": 225,
+        "episodes": 2
+      },
+      {
+        "first": 234,
+        "second": 209,
+        "episodes": 1
+      },
+      {
+        "first": 235,
+        "second": 210,
+        "episodes": 1
+      },
+      {
+        "first": 236,
+        "second": 211,
+        "episodes": 2
+      },
+      {
+        "first": 237,
+        "second": 212,
+        "episodes": 1
+      }
+    ]
+  },
+  "per_recording": [
+    {
+      "fid": 105,
+      "class": "inner_race",
+      "size": 7,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.48
+    },
+    {
+      "fid": 106,
+      "class": "inner_race",
+      "size": 7,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.61
+    },
+    {
+      "fid": 107,
+      "class": "inner_race",
+      "size": 7,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.44
+    },
+    {
+      "fid": 108,
+      "class": "inner_race",
+      "size": 7,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.5
+    },
+    {
+      "fid": 118,
+      "class": "ball",
+      "size": 7,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.32
+    },
+    {
+      "fid": 119,
+      "class": "ball",
+      "size": 7,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.48
+    },
+    {
+      "fid": 120,
+      "class": "ball",
+      "size": 7,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.28
+    },
+    {
+      "fid": 121,
+      "class": "ball",
+      "size": 7,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.37
+    },
+    {
+      "fid": 130,
+      "class": "outer_race",
+      "size": 7,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.4
+    },
+    {
+      "fid": 131,
+      "class": "outer_race",
+      "size": 7,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.46
+    },
+    {
+      "fid": 132,
+      "class": "outer_race",
+      "size": 7,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.34
+    },
+    {
+      "fid": 133,
+      "class": "outer_race",
+      "size": 7,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.38
+    },
+    {
+      "fid": 169,
+      "class": "inner_race",
+      "size": 14,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.43
+    },
+    {
+      "fid": 170,
+      "class": "inner_race",
+      "size": 14,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 2.43
+    },
+    {
+      "fid": 171,
+      "class": "inner_race",
+      "size": 14,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.53
+    },
+    {
+      "fid": 172,
+      "class": "inner_race",
+      "size": 14,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 3.86
+    },
+    {
+      "fid": 185,
+      "class": "ball",
+      "size": 14,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 6.35
+    },
+    {
+      "fid": 186,
+      "class": "ball",
+      "size": 14,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 5.6
+    },
+    {
+      "fid": 187,
+      "class": "ball",
+      "size": 14,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 3.98
+    },
+    {
+      "fid": 188,
+      "class": "ball",
+      "size": 14,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 5.16
+    },
+    {
+      "fid": 197,
+      "class": "outer_race",
+      "size": 14,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.0
+    },
+    {
+      "fid": 198,
+      "class": "outer_race",
+      "size": 14,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.13
+    },
+    {
+      "fid": 199,
+      "class": "outer_race",
+      "size": 14,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.44
+    },
+    {
+      "fid": 200,
+      "class": "outer_race",
+      "size": 14,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.93
+    },
+    {
+      "fid": 209,
+      "class": "inner_race",
+      "size": 21,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.91
+    },
+    {
+      "fid": 210,
+      "class": "inner_race",
+      "size": 21,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 3.75
+    },
+    {
+      "fid": 211,
+      "class": "inner_race",
+      "size": 21,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.12
+    },
+    {
+      "fid": 212,
+      "class": "inner_race",
+      "size": 21,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 5.28
+    },
+    {
+      "fid": 222,
+      "class": "ball",
+      "size": 21,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.89
+    },
+    {
+      "fid": 223,
+      "class": "ball",
+      "size": 21,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.64
+    },
+    {
+      "fid": 224,
+      "class": "ball",
+      "size": 21,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.52
+    },
+    {
+      "fid": 225,
+      "class": "ball",
+      "size": 21,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.79
+    },
+    {
+      "fid": 234,
+      "class": "outer_race",
+      "size": 21,
+      "load": 0,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.54
+    },
+    {
+      "fid": 235,
+      "class": "outer_race",
+      "size": 21,
+      "load": 1,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 4.96
+    },
+    {
+      "fid": 236,
+      "class": "outer_race",
+      "size": 21,
+      "load": 2,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 5.85
+    },
+    {
+      "fid": 237,
+      "class": "outer_race",
+      "size": 21,
+      "load": 3,
+      "detected": 1.0,
+      "episodes_opened_first_20": 1,
+      "recurrence_detected": true,
+      "fixed_verdict": "symptom_resolved",
+      "windows_to_verdict": 20,
+      "still_faulty_verdict": "symptom_persists",
+      "still_faulty_windows_available": 20,
+      "seconds": 5.81
+    }
+  ]
+}

@@ -1,0 +1,230 @@
+{
+  "bearing_level (honest) | physics-relative (pattern) / Euclid": {
+    "P@3": 0.239,
+    "kNN5_acc": 0.235,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 0.578,
+      "inner_race": 0.116,
+      "normal": 0.259,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.099,
+    "query_ms_p95": 0.184
+  },
+  "bearing_level (honest) | physics-relative + healthy-z stats / Euclid": {
+    "P@3": 0.429,
+    "kNN5_acc": 0.429,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 1.0,
+      "inner_race": 0.0,
+      "normal": 1.0,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.103,
+    "query_ms_p95": 0.19
+  },
+  "bearing_level (honest) | v1-stats-only healthy-z / Euclid": {
+    "P@3": 0.429,
+    "kNN5_acc": 0.429,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 1.0,
+      "inner_race": 0.0,
+      "normal": 1.0,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.101,
+    "query_ms_p95": 0.183
+  },
+  "bearing_level (honest) | full(v2) healthy-z / Euclid": {
+    "P@3": 0.429,
+    "kNN5_acc": 0.429,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 1.0,
+      "inner_race": 0.0,
+      "normal": 1.0,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.104,
+    "query_ms_p95": 0.198
+  },
+  "bearing_level (honest) | full(v2) index-z / Euclid": {
+    "P@3": 0.409,
+    "kNN5_acc": 0.408,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 0.922,
+      "inner_race": 0.004,
+      "normal": 1.0,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.105,
+    "query_ms_p95": 0.271
+  },
+  "bearing_level (honest) | physics-only index-z / Euclid": {
+    "P@3": 0.391,
+    "kNN5_acc": 0.406,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 0.944,
+      "inner_race": 0.0,
+      "normal": 0.957,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.1,
+    "query_ms_p95": 0.231
+  },
+  "bearing_level (honest) | physics-only index-z / Cosine": {
+    "P@3": 0.304,
+    "kNN5_acc": 0.323,
+    "chance_P@3": 0.277,
+    "per_class_kNN5": {
+      "ball": 0.918,
+      "inner_race": 0.0,
+      "normal": 0.422,
+      "outer_race": 0.0
+    },
+    "n_index": 1479,
+    "n_query": 812,
+    "query_ms_p50": 0.105,
+    "query_ms_p95": 0.157
+  },
+  "bearing_level (honest) | RULE dominant-defect (no retrieval)": {
+    "fault_acc": 0.644,
+    "per_class": {
+      "outer_race": 0.241,
+      "inner_race": 1.0,
+      "ball": 0.69
+    },
+    "n": 696
+  },
+  "random_windows (leaky) | physics-relative (pattern) / Euclid": {
+    "P@3": 0.77,
+    "kNN5_acc": 0.793,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 0.768,
+      "inner_race": 0.992,
+      "normal": 0.162,
+      "outer_race": 0.794
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.084,
+    "query_ms_p95": 0.165
+  },
+  "random_windows (leaky) | physics-relative + healthy-z stats / Euclid": {
+    "P@3": 1.0,
+    "kNN5_acc": 1.0,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 1.0,
+      "inner_race": 1.0,
+      "normal": 1.0,
+      "outer_race": 1.0
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.089,
+    "query_ms_p95": 0.173
+  },
+  "random_windows (leaky) | v1-stats-only healthy-z / Euclid": {
+    "P@3": 0.997,
+    "kNN5_acc": 0.997,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 0.991,
+      "inner_race": 1.0,
+      "normal": 1.0,
+      "outer_race": 1.0
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.089,
+    "query_ms_p95": 0.166
+  },
+  "random_windows (leaky) | full(v2) healthy-z / Euclid": {
+    "P@3": 0.998,
+    "kNN5_acc": 0.997,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 0.991,
+      "inner_race": 1.0,
+      "normal": 1.0,
+      "outer_race": 1.0
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.094,
+    "query_ms_p95": 0.213
+  },
+  "random_windows (leaky) | full(v2) index-z / Euclid": {
+    "P@3": 1.0,
+    "kNN5_acc": 1.0,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 1.0,
+      "inner_race": 1.0,
+      "normal": 1.0,
+      "outer_race": 1.0
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.09,
+    "query_ms_p95": 0.168
+  },
+  "random_windows (leaky) | physics-only index-z / Euclid": {
+    "P@3": 0.896,
+    "kNN5_acc": 0.913,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 0.885,
+      "inner_race": 0.997,
+      "normal": 0.889,
+      "outer_race": 0.86
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.081,
+    "query_ms_p95": 0.155
+  },
+  "random_windows (leaky) | physics-only index-z / Cosine": {
+    "P@3": 0.834,
+    "kNN5_acc": 0.849,
+    "chance_P@3": 0.285,
+    "per_class_kNN5": {
+      "ball": 0.776,
+      "inner_race": 0.997,
+      "normal": 0.576,
+      "outer_race": 0.845
+    },
+    "n_index": 1145,
+    "n_query": 1146,
+    "query_ms_p50": 0.104,
+    "query_ms_p95": 0.187
+  },
+  "random_windows (leaky) | RULE dominant-defect (no retrieval)": {
+    "fault_acc": 0.685,
+    "per_class": {
+      "outer_race": 0.754,
+      "inner_race": 1.0,
+      "ball": 0.282
+    },
+    "n": 1047
+  }
+}
