@@ -61,6 +61,7 @@ class SignalBody(BaseModel):
     fs: float = Field(default=1.0, gt=0, le=200_000)
     rpm: float | None = Field(default=None, gt=0, le=100_000)
     source: str | None = Field(default=None, max_length=80)
+    operating_point: dict[str, float] | None = Field(default=None, max_length=10)   # e.g. {"load_kw": 1.2}
 
 
 class CaptureBody(BaseModel):
@@ -216,7 +217,7 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
                 raise HTTPException(422, "axes must be a rectangular list of rows")
         if device.gate is None and device.capture_state() is None:
             raise HTTPException(409, "no baseline yet: POST /api/baseline/capture first (machine known-good)")
-        res = guard(lambda: device.ingest_signal(x, b.fs, b.rpm, b.source or "live-sensor"))
+        res = guard(lambda: device.ingest_signal(x, b.fs, b.rpm, b.source or "live-sensor", b.operating_point))
         states: dict[str, int] = {}
         for r in res:
             states[r["state"]] = states.get(r["state"], 0) + 1

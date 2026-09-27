@@ -152,6 +152,10 @@ async function refreshDetail() {
   $("dBadges").replaceChildren(badge("status: " + e.status, cls(e.status)), badge("share: " + e.share_state, cls(e.share_state)),
     e.outbox_status ? badge("outbox: " + e.outbox_status, cls(e.outbox_status)) : "", e.recurrence_of ? badge("recurrence of " + short(e.recurrence_of), "b-violet") : "",
     badge("v" + e.version, "b-mute"), e.archived ? badge("archived " + (e.archived_at || "").slice(0, 10), "b-mute") : "");
+  const uo = e.untaught_operating_point;
+  $("dOp").hidden = !uo;
+  if (uo) $("dOp").textContent = "⚠ Untaught operating point (" + Object.entries(uo).filter(([k]) => k !== "suggestion")
+    .map(([k, v]) => `${k} ${v.value}, taught ${v.taught[0]}–${v.taught[1]}`).join("; ") + "): " + uo.suggestion;
   $("dMeta").textContent = `first seen ${new Date(e.first_seen).toLocaleTimeString()} · last seen ${new Date(e.last_seen).toLocaleTimeString()} · ${e.occurrences} abnormal windows · ${e.n_exemplars} exemplars stored`;
   const h = e.fault_hint || {};
   const acc = h.measured_accuracy == null ? "n/a" : (h.measured_accuracy * 100).toFixed(0) + "%";

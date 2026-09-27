@@ -107,12 +107,14 @@ class Device:
         self.recent: collections.deque[dict] = collections.deque(maxlen=240)   # recent window results (UI chart)
         self._run_episode: str | None = None       # episode of the current uninterrupted abnormal run
         self._capture: dict | None = None          # healthy-baseline capture from a live sensor (ingest_signal)
+        self.taught: dict[str, list[float]] = {}   # operating variable -> [min, max] the healthy baseline covers
         self.last_diagnosis: dict | None = None    # physics diagnosis of the latest abnormal signal window
         replayed = self._replay_journal()
         requeued = self.outbox.recover_uploading()
         bpath = root / "baseline.json"
         if bpath.exists():
             b = json.loads(bpath.read_text())
+            self.taught = b.get("taught", {})
             self.baseline = Baseline.from_dict(b["baseline"], self.profile.fp_version)
             self.gate = NoveltyGate(self.store, cfg.machine_id, GateConfig(**b["gate"]))
         self.outbox.log("boot", f"device started; journal re-applied {replayed} op(s); {requeued} upload(s) re-queued")
@@ -157,11 +159,54 @@ class Device:
     def _set(self, pid: str, **fields) -> None:
         self._write({"kind": "set_payload", "id": pid, "fields": fields})
 
+    # ---- operating points (load / speed) the healthy baseline covers ------------------------------------
+    OP_TOLERANCE = 0.02         # relative margin around a taught range (speed jitter, slip)
+
+    def _save_baseline_file(self) -> None:
+        (pathlib.Path(self.cfg.root) / "baseline.json").write_text(json.dumps(
+            {"baseline": self.baseline.to_dict(), "gate": self.gate.cfg.to_dict(), "taught": self.taught}))
+
+    def _teach_ops(self, ops: list[dict | None]) -> None:
+        """Widen the taught range of each operating variable to include these operating points."""
+        for op in ops:
+            for k, v in (op or {}).items():
+                if isinstance(v, (int, float)) and np.isfinite(v):
+                    lo, hi = self.taught.get(k, [float(v), float(v)])
+                    self.taught[k] = [min(lo, float(v)), max(hi, float(v))]
+
+    def _op_suggestion(self, u: dict) -> str:
+        """Physics decides the wording: the median fault-signature score of the episode's first windows against the
+        profile's threshold (chosen on CWRU; bench/operating_point.py measures it on HUST)."""
+        scores = u.get("sig_scores") or []
+        if not scores:
+            return "this operating point was never taught: check whether the machine is healthy"
+        med = float(np.median(scores))
+        if med >= self.profile.SIGNATURE_THRESHOLD:
+            return (f"a fault signature is present (defect score {med:.2f} >= {self.profile.SIGNATURE_THRESHOLD}) even "
+                    "though this operating point was never taught")
+        return (f"probably a new normal operating point (no fault signature, score {med:.2f}): if the machine is "
+                "healthy, press 'Not a fault: normal operation'")
+
+    def untaught(self, op: dict | None) -> dict:
+        """Operating variables whose value lies outside what the healthy baseline was taught (with a margin).
+        Empty if nothing is known: no data, no claim."""
+        out = {}
+        for k, v in (op or {}).items():
+            if k in self.taught and isinstance(v, (int, float)):
+                lo, hi = self.taught[k]
+                m = self.OP_TOLERANCE * max(abs(lo), abs(hi), 1e-9)
+                if v < lo - m or v > hi + m:
+                    out[k] = {"value": round(float(v), 3), "taught": [round(lo, 3), round(hi, 3)]}
+        return out
+
     # ---- baseline ---------------------------------------------------------------------------------------
-    def fit_baseline(self, healthy_raw: np.ndarray) -> dict:
+    def fit_baseline(self, healthy_raw: np.ndarray, ops: list[dict | None] | None = None) -> dict:
         """Fit z-scoring stats on this machine's healthy windows, store them as baseline points, calibrate the
-        gate from them. Replaces any previous baseline of this machine."""
+        gate from them. Replaces any previous baseline of this machine. `ops` (one per window, optional): the
+        operating point of each window, e.g. {"speed_hz": 29.9, "load_kw": 1.5}, remembered as taught ranges."""
         with self._lock:
+            self.taught = {}
+            self._teach_ops(ops or [])
             b = Baseline.fit(healthy_raw, self.profile.fp_version, self.profile.min_std)
             z = b.z(np.asarray(healthy_raw, dtype=np.float64))
             g = calibrate(z)
@@ -170,12 +215,12 @@ class Device:
                                "fp_version": self.profile.fp_version}, vib=z[i].tolist()) for i in range(len(z))]
             for s in range(0, len(pts), 256):
                 self._upsert(pts[s:s + 256])
-            (pathlib.Path(self.cfg.root) / "baseline.json").write_text(
-                json.dumps({"baseline": b.to_dict(), "gate": g.to_dict()}))
             self.baseline, self.gate = b, NoveltyGate(self.store, self.cfg.machine_id, g)
+            self._save_baseline_file()
             self.outbox.log("baseline", f"baseline fitted on {len(z)} healthy windows; tau_normal={g.tau_normal:.2f}, "
-                                        f"tau_merge={g.tau_merge:.2f} (calibration q99 {g.calib_q99:.2f})")
-            return g.to_dict() | {"n_windows": len(z)}
+                                        f"tau_merge={g.tau_merge:.2f} (calibration q99 {g.calib_q99:.2f})"
+                                        + (f"; taught operating points {self.taught}" if self.taught else ""))
+            return g.to_dict() | {"n_windows": len(z), "taught": self.taught}
 
     # ---- live sensor input (any profile) ----------------------------------------------------------------
     def start_baseline_capture(self, n_windows: int) -> dict:
@@ -184,7 +229,7 @@ class Device:
         if n_windows < 10:
             raise ValueError("capture at least 10 windows (the gate calibration needs them)")
         with self._lock:
-            self._capture = {"want": int(n_windows), "features": []}
+            self._capture = {"want": int(n_windows), "features": [], "ops": []}
         self.outbox.log("baseline", f"capturing {n_windows} healthy windows from the live sensor")
         return self.capture_state()
 
@@ -192,10 +237,15 @@ class Device:
         c = self._capture
         return None if c is None else {"want": c["want"], "have": len(c["features"])}
 
-    def ingest_signal(self, x, fs: float, rpm: float | None = None, source: str | None = None) -> list[dict]:
+    def ingest_signal(self, x, fs: float, rpm: float | None = None, source: str | None = None,
+                      operating_point: dict | None = None) -> list[dict]:
         """Raw sensor data (any length; the profile cuts it into windows) -> fingerprint -> gate. While a baseline
-        capture runs, windows only feed the capture. Returns one gate result per window."""
+        capture runs, windows only feed the capture. Returns one gate result per window. The operating point is
+        the shaft speed (from rpm) plus anything the caller knows, e.g. {"load_kw": 1.2}."""
         results = []
+        op = {k: float(v) for k, v in (operating_point or {}).items() if isinstance(v, (int, float))}
+        if rpm and rpm > 0:
+            op["speed_hz"] = rpm / 60.0
         fs_w = self.profile.analysis_fs or fs            # profile.windows() already resampled to the analysis rate
         for w in self.profile.windows(x, fs) if not isinstance(x, dict) else [x]:
             f = self.profile.features(w, fs_w, rpm)
@@ -204,14 +254,15 @@ class Device:
             with self._lock:
                 if self._capture is not None:
                     self._capture["features"].append(f)
+                    self._capture["ops"].append(op or None)
                     if len(self._capture["features"]) >= self._capture["want"]:
-                        feats = np.asarray(self._capture["features"])
+                        feats, ops = np.asarray(self._capture["features"]), self._capture["ops"]
                         self._capture = None
-                        results.append({"state": "baseline", "fitted": self.fit_baseline(feats)})
+                        results.append({"state": "baseline", "fitted": self.fit_baseline(feats, ops)})
                     else:
                         results.append({"state": "capturing", **self.capture_state()})
                     continue
-            r = self.ingest_window(f, source)
+            r = self.ingest_window(f, source, op or None)
             if r["state"] != "normal" and not isinstance(w, dict):
                 self.attach_diagnosis(r.get("episode_id"), w, fs_w, rpm)
             results.append(r)
@@ -231,10 +282,11 @@ class Device:
         return d
 
     # ---- the per-window path ----------------------------------------------------------------------------
-    def ingest_window(self, raw: np.ndarray, source: str | None = None) -> dict:
+    def ingest_window(self, raw: np.ndarray, source: str | None = None, op: dict | None = None) -> dict:
         if self.gate is None or self.baseline is None:
             raise RuntimeError("fit a healthy baseline first")
         with self._lock:
+            self._op = op
             z = self.baseline.z(np.asarray(raw, dtype=float))
             r = self.gate.classify(z)
             self.gate_ms.append(r.latency_ms)
@@ -288,6 +340,14 @@ class Device:
             "decision": None, "recurrence_of": recurrence_of, "schema_version": 1, "fp_version": self.profile.fp_version,
             "text_model": self.embedder.name, "version": 1,
         }
+        op = getattr(self, "_op", None)
+        if op:
+            payload["operating_point"] = {k: round(v, 4) for k, v in op.items()}
+            new_op = self.untaught(op)
+            if new_op:
+                s = self.profile.signature_score(raw)
+                payload["untaught_operating_point"] = new_op | {"sig_scores": [] if s is None else [round(s, 3)]}
+                payload["untaught_operating_point"]["suggestion"] = self._op_suggestion(payload["untaught_operating_point"])
         text = self._doc_text(payload)
         self._upsert([
             StorePoint(eid, payload, vib=z.tolist(), note=self.embedder.embed_documents([text])[0], bm25_text=text),
@@ -297,6 +357,8 @@ class Device:
         msg = "unfamiliar state: new episode opened"
         if recurrence_of:
             msg += f" (resembles closed episode {recurrence_of[:8]} on this machine)"
+        if payload.get("untaught_operating_point"):
+            msg += "; UNTAUGHT operating point: " + payload["untaught_operating_point"]["suggestion"]
         self.outbox.log("gate", msg + f"; physics hint: {hint['fault_class']}", eid)
         self._decide(eid)
         return eid
@@ -304,6 +366,12 @@ class Device:
     def _merge(self, eid: str, z: np.ndarray, raw: np.ndarray, d_episode: float | None, ts: str) -> None:
         ep = self.store.get(eid).payload
         fields: dict[str, Any] = {"occurrences": ep["occurrences"] + 1, "last_seen": ts}
+        u = ep.get("untaught_operating_point")
+        if u and ep["occurrences"] < HINT_WINDOWS:              # refine the operating-point suggestion (median)
+            s = self.profile.signature_score(raw)
+            if s is not None:
+                u = u | {"sig_scores": [*u.get("sig_scores", []), round(s, 3)]}
+                fields["untaught_operating_point"] = u | {"suggestion": self._op_suggestion(u)}
         if ep["occurrences"] < HINT_WINDOWS:                   # majority vote of the first windows' hints
             votes = dict(ep.get("hint_votes") or {})
             h = self.profile.hint(raw)
@@ -459,8 +527,12 @@ class Device:
                          "fields": {"status": "closed", "closed_at": now_iso(), "n_exemplars": 0,
                                     "dismissed": {"reason": "normal operation (not a fault)", "at": now_iso(),
                                                   "baseline_points_added": len(pts)}}})
+            self._teach_ops([ep.get("operating_point"), getattr(self, "_op", None) if self._run_episode == eid else None])
+            if self.gate is not None:
+                self._save_baseline_file()
             self.outbox.log("baseline", f"technician: normal operation, not a fault; {len(pts)} fingerprint(s) added "
-                                        f"to this machine's healthy baseline", eid)
+                                        f"to this machine's healthy baseline"
+                                        + (f"; taught operating points now {self.taught}" if self.taught else ""), eid)
             self._run_episode = None
             return self._decide(eid)
 

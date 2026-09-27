@@ -88,6 +88,20 @@ class Profile:
         """Measured accuracy of this profile's hint for a class, if a benchmark measured it."""
         return None
 
+    # Chosen on CWRU (the tuning data): healthy-window p99 of the strongest defect envelope score + 0.25 margin
+    # (spike/signature_threshold.py). Checked on HUST (held out), per recording: 12/15 healthy below, 36/42 faulty above.
+    SIGNATURE_THRESHOLD = 1.63
+
+    def signature_score(self, raw_features: np.ndarray) -> float | None:
+        """Strength of a physical fault signature in one window (None if this profile cannot tell)."""
+        return None
+
+    def fault_signature(self, raw_features: np.ndarray) -> bool | None:
+        """Does this window carry a physical fault signature (True), clearly not (False), or unknown (None)?
+        Used to word the suggestion when an episode opens at an untaught operating point."""
+        s = self.signature_score(raw_features)
+        return None if s is None else bool(s >= self.SIGNATURE_THRESHOLD)
+
     def describe(self) -> dict:
         return {"name": self.name, "fp_version": self.fp_version, "description": self.description,
                 "input_units": self.input_units, "analysis_fs": self.analysis_fs, "window": self.window,
@@ -121,6 +135,10 @@ class BearingCWRU(Profile):
 
     def measured(self, fault_class):
         return fault_hint.MEASURED["per_class"].get(fault_class)
+
+    def signature_score(self, raw_features):
+        orders = np.asarray(raw_features)[fp.PHYSICS_SLICE][1:]          # bpfo, bpfi, bsf envelope log-ratios
+        return None if not np.any(orders) else float(orders.max())
 
     def diagnose(self, x, fs, rpm=None):
         """Physics shown to the technician (display only; the hint above is the measured CWRU rule)."""
@@ -184,6 +202,10 @@ class RotatingHF(Profile):
 
     def measured(self, fault_class):
         return HF_MEASURED.get(fault_class)
+
+    def signature_score(self, raw_features):
+        r = np.asarray(raw_features)
+        return None if not np.any(r[15:23]) else float(max(r[15:18]))
 
     BEARING_MIN_SCORE = 1.0      # log10 ratio over the median envelope level (10x) to call a bearing defect
 

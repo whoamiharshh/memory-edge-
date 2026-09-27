@@ -196,7 +196,8 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   `qdrant_server\qdrant.exe` themselves)
 - Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →
   `runtime\recording\backup_demo.webm`
-- Laya experiment: `$env:HF_HOME="models_cache\hf"; .venv-laya\Scripts\python.exe -m bench.laya_experiment`
+- Laya experiment (venv + model deleted 28 Sep; recreate per docs/SETUP.md step 13 only if re-measuring):
+  `$env:HF_HOME="models_cache\hf"; .venv-laya\Scripts\python.exe -m bench.laya_experiment`
 - Demo: `powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset` then `.venv\Scripts\python.exe -m demo.scenario`.
   Do NOT pipe the launcher's output (`| Out-Null` hangs: children inherit the pipe). Stop: `demo\stop_demo.ps1`.
 - Windows PowerShell 5.1 `Get-Content -Raw` reads UTF-8 as ANSI: edit UTF-8 files with Python or the Edit tool.

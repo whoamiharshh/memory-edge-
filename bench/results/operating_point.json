@@ -1,0 +1,40 @@
+{
+  "method": "Automatic operating-point check (answers \"a healthy machine at a new load looks faulty\"): does the device tell",
+  "shaft_speeds_hz": {
+    "6204": {
+      "0W": 24.93,
+      "200W": 24.22,
+      "400W": 23.14
+    },
+    "6205": {
+      "0W": 24.93,
+      "200W": 24.22,
+      "400W": 22.99
+    },
+    "6206": {
+      "0W": 24.88,
+      "200W": 24.22,
+      "400W": 23.14
+    },
+    "6207": {
+      "0W": 24.83,
+      "200W": 24.37,
+      "400W": 22.84
+    },
+    "6208": {
+      "0W": 24.93,
+      "200W": 24.22,
+      "400W": 23.04
+    }
+  },
+  "tally": {
+    "healthy_400_episodes": 3,
+    "healthy_400_flagged_untaught": 3,
+    "healthy_400_suggested_normal": 2,
+    "fault_taught_speed_recordings": 28,
+    "fault_taught_speed_wrongly_untaught": 0,
+    "fault_400_recordings": 14,
+    "fault_400_flagged_untaught": 14,
+    "fault_400_suggested_fault": 11
+  }
+}

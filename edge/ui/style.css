@@ -89,3 +89,4 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-
 /* usefulness feedback buttons under search results */
 .fb { margin-top: 6px; gap: 6px; }
 button.mini { padding: 2px 8px; font-size: 12px; }
+.warnbox { margin: 6px 0; padding: 8px 10px; border: 1px solid #d29922; border-radius: 8px; color: #e3b341; background: rgba(210,153,34,.08); }
