@@ -67,6 +67,7 @@
     <div class="section">
       <div class="row"><span class="muted">bytes sent</span><b class="mono" id="bSent">0</b><span class="muted">· raw signal kept local</span><b class="mono" id="bRaw">0</b></div>
       <div class="row"><span class="muted">last push</span><span class="mono" id="lPush">–</span><span class="muted">last pull</span><span class="mono" id="lPull">–</span></div>
+      <div class="row"><span class="muted">mirror</span><span class="mono" id="mMode">–</span></div>
       <div class="row"><span id="syncErr" class="muted"></span></div>
       <div class="row"><button id="syncNow">Sync now</button><input id="devTok" type="password" placeholder="new device token" style="flex:1"><button id="setTok">Set token</button></div>
     </div>
@@ -150,7 +151,7 @@
   </section>
 
   <section class="card s12">
-    <h2>Fleet mirror <span class="hint muted">read-only shard pulled from the cloud · usable offline</span></h2>
+    <h2>Fleet mirror <span class="hint muted">read-only shard kept current with Qdrant partial snapshots (Qdrant's dual-shard pattern) · usable offline</span></h2>
     <div id="mirror" class="grid2"></div>
   </section>
 </main>

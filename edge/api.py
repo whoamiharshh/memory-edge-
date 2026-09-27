@@ -23,23 +23,33 @@ from shared.schema import ActionCode, FaultClass, RootCause
 UI = pathlib.Path(__file__).resolve().parent / "ui"
 
 
-class NoteBody(BaseModel):
+class Versioned(BaseModel):
+    expected_version: int | None = Field(default=None, ge=1)   # the version the screen showed; 409 if it moved
+
+
+class NoteBody(Versioned):
     text: str = Field(max_length=2000)
     share_opt_in: bool = False
 
 
-class FaultBody(BaseModel):
+class FaultBody(Versioned):
     fault_class: FaultClass
 
 
-class ActionBody(BaseModel):
+class ActionBody(Versioned):
     action_code: ActionCode
     root_cause: RootCause | None = None
     required_windows: int = Field(default=20, ge=3, le=500)
 
 
-class ConfirmBody(BaseModel):
+class ConfirmBody(Versioned):
     outcome: str = Field(pattern=r"^(worked|failed)$")
+
+
+class FeedbackBody(BaseModel):
+    result_id: str = Field(min_length=36, max_length=36)
+    kind: str = Field(pattern=r"^(local|fleet)$")
+    helped: bool
 
 
 class SearchBody(BaseModel):
@@ -119,24 +129,32 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
 
     @app.post("/api/episodes/{eid}/note", dependencies=[api])
     def note(eid: str, b: NoteBody):
-        return guard(lambda: device.set_note(eid, b.text, b.share_opt_in))
+        return guard(lambda: device.set_note(eid, b.text, b.share_opt_in, b.expected_version))
 
     @app.post("/api/episodes/{eid}/fault_class", dependencies=[api])
     def fault(eid: str, b: FaultBody):
-        return guard(lambda: device.set_fault_class(eid, b.fault_class.value))
+        return guard(lambda: device.set_fault_class(eid, b.fault_class.value, b.expected_version))
 
     @app.post("/api/episodes/{eid}/action", dependencies=[api])
     def action(eid: str, b: ActionBody):
         return guard(lambda: device.record_action(eid, b.action_code.value, b.root_cause.value if b.root_cause else None,
-                                                  b.required_windows))
+                                                  b.required_windows, b.expected_version))
 
     @app.post("/api/episodes/{eid}/confirm", dependencies=[api])
     def confirm(eid: str, b: ConfirmBody):
-        return guard(lambda: device.confirm_outcome(eid, b.outcome))
+        return guard(lambda: device.confirm_outcome(eid, b.outcome, b.expected_version))
 
     @app.post("/api/search", dependencies=[api])
     def search(b: SearchBody):
         return guard(lambda: device.search(b.text, b.episode_id, b.use_fleet, b.limit))
+
+    @app.post("/api/search/feedback", dependencies=[api])
+    def feedback(b: FeedbackBody):
+        return guard(lambda: device.record_feedback(b.result_id, b.kind, b.helped))
+
+    @app.post("/api/retention/run", dependencies=[api])
+    def retention():
+        return device.run_retention()
 
     @app.post("/api/brief", dependencies=[api])
     def brief(b: BriefBody):

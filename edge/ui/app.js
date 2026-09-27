@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 const TOKEN_KEY = "mm_operator_token";
 let token = sessionStorage.getItem(TOKEN_KEY) || "";
 let selected = null;
+let selectedVersion = null;   // episode version shown on screen: sent with every edit (409 CONFLICT if it moved)
 let enums = null;
 let lastStats = null;
 
@@ -40,7 +41,13 @@ async function api(path, body) {
   if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail || r.status));
   return data;
 }
-const act = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
+const act = (fn) => async (...a) => {
+  try { await fn(...a); }
+  catch (e) {
+    toast(e.message, true);
+    if (e.message.startsWith("CONFLICT")) { $("noteTxt").dataset.dirty = ""; $("noteTxt").dataset.ep = ""; refreshDetail().catch(() => {}); }  // reload
+  }
+};
 
 // ---------------- login ----------------
 function showLogin() { $("login").hidden = false; $("tok").focus(); }
@@ -100,6 +107,9 @@ async function refreshStats() {
   $("bSent").textContent = fmtBytes(sy.bytes_sent); $("bRaw").textContent = fmtBytes(s.raw_bytes_kept_local);
   $("lPush").textContent = fmtTime(sy.last_push); $("lPull").textContent = fmtTime(sy.last_pull);
   $("syncErr").textContent = sy.last_error ? "⚠ " + sy.last_error : "";
+  const mi = sy.mirror || {}, lr = mi.last_refresh;
+  $("mMode").textContent = (mi.mode ? mi.mode + " fill" : "not pulled yet") + (mi.needs_full ? " · full snapshot due" : "") +
+    (lr ? ` · last: ${lr.kind} snapshot, ${fmtBytes(lr.wire_bytes)} on the wire for ${fmtBytes(lr.snapshot_bytes)}, ${lr.cases_changed} case(s) changed` : "");
   $("netSwitch").classList.toggle("on", sy.online);
   $("netLabel").textContent = sy.online ? "ONLINE" : "OFFLINE";
   const hs = $("hSync");
@@ -121,7 +131,7 @@ async function refreshEpisodes() {
     const fc = e.fault_class || (e.fault_hint || {}).fault_class;
     return el("div", { class: "item" + (e.episode_id === selected ? " sel" : ""), on: { click: () => select(e.episode_id) } },
       el("div", { class: "t" }, `#${e.seq}`, badge(e.status, cls(e.status)), badge(e.share_state, cls(e.share_state)),
-        e.decision ? badge(e.decision.action, cls(e.decision.action)) : null),
+        e.decision ? badge(e.decision.action, cls(e.decision.action)) : null, e.archived ? badge("archived", "b-mute") : null),
       el("div", { class: "d" }, `${e.component} · ${fc}${e.fault_class ? " (confirmed)" : " (hint)"} · ${e.occurrences} windows`
         + (e.action_code ? ` · ${e.action_code} → ${e.outcome}` : "") + (e.recurrence_of ? " · recurrence" : "")));
   }));
@@ -135,8 +145,10 @@ async function refreshDetail() {
   const e = await api("/api/episodes/" + selected);
   $("detailEmpty").hidden = true; $("detail").hidden = false;
   $("dId").textContent = e.episode_id;
+  selectedVersion = e.version;
   $("dBadges").replaceChildren(badge("status: " + e.status, cls(e.status)), badge("share: " + e.share_state, cls(e.share_state)),
-    e.outbox_status ? badge("outbox: " + e.outbox_status, cls(e.outbox_status)) : "", e.recurrence_of ? badge("recurrence of " + short(e.recurrence_of), "b-violet") : "");
+    e.outbox_status ? badge("outbox: " + e.outbox_status, cls(e.outbox_status)) : "", e.recurrence_of ? badge("recurrence of " + short(e.recurrence_of), "b-violet") : "",
+    badge("v" + e.version, "b-mute"), e.archived ? badge("archived " + (e.archived_at || "").slice(0, 10), "b-mute") : "");
   $("dMeta").textContent = `first seen ${new Date(e.first_seen).toLocaleTimeString()} · last seen ${new Date(e.last_seen).toLocaleTimeString()} · ${e.occurrences} abnormal windows · ${e.n_exemplars} exemplars stored`;
   const h = e.fault_hint || {};
   const acc = h.measured_accuracy == null ? "n/a" : (h.measured_accuracy * 100).toFixed(0) + "%";
@@ -144,8 +156,11 @@ async function refreshDetail() {
     el("div", {}, `measured accuracy for this class on unseen bearings: ${acc} (overall ${h.measured_overall == null ? "n/a" : (h.measured_overall * 100).toFixed(0) + "%"}) · a hint, not a diagnosis`),
     el("div", {}, "Confirmed: ", el("b", {}, e.fault_class ? `${e.fault_class} (by technician)` : "not yet")));
   if (document.activeElement !== $("fcSel")) $("fcSel").value = e.fault_class || h.fault_class || "unknown";
-  if (document.activeElement !== $("noteTxt") && $("noteTxt").dataset.ep !== e.episode_id) {
+  const nt = $("noteTxt");   // reload the note unless the technician has unsaved typing in it
+  if (document.activeElement !== nt && (nt.dataset.ep !== e.episode_id || !nt.dataset.dirty)) {
+    nt.dataset.dirty = "";
     $("noteTxt").value = e.note_text || ""; $("noteOpt").checked = !!e.note_share_opt_in; $("noteTxt").dataset.ep = e.episode_id;
+    $("noteTxt").dataset.ver = e.version;   // the note being edited is based on THIS version
   }
   if (e.action_code && document.activeElement !== $("actSel")) $("actSel").value = e.action_code;
   const v = e.verify;
@@ -198,6 +213,17 @@ async function refreshMirror() {
 // ---------------- search / brief ----------------
 const legBadges = (legs) => el("div", { class: "legs" }, ...Object.entries(legs || {}).map(([k, v]) =>
   badge(`${k === "note_bm25" ? "bm25" : k} ${v ? "#" + v : "–"}`, v ? "b-info" : "b-mute")));
+// usefulness feedback: a counter on this device only; it never changes the ranking
+function feedbackRow(h, kind) {
+  const fb = h.feedback || { helped: 0, not_helped: 0 };
+  const out = el("span", { class: "muted" }, ` helped ${fb.helped} · didn't ${fb.not_helped}`);
+  const send = (helped) => act(async () => {
+    const n = await api("/api/search/feedback", { result_id: h.id, kind, helped });
+    out.textContent = ` helped ${n.helped} · didn't ${n.not_helped}`;
+  });
+  return el("div", { class: "row fb" }, el("button", { class: "mini", on: { click: send(true) } }, "Helped"),
+    el("button", { class: "mini", on: { click: send(false) } }, "Didn't help"), out);
+}
 function renderSearch(res) {
   const q = res.query;
   $("sInfo").textContent = `${res.latency_ms} ms · ${q.episode_id ? "episode " + short(q.episode_id) + " · " : ""}` +
@@ -207,9 +233,11 @@ function renderSearch(res) {
     const e = h.episode;
     return el("div", { class: "res" }, el("div", { class: "row" }, el("b", {}, `#${e.seq}`), badge(e.status, cls(e.status)),
       el("span", { class: "muted" }, `${e.fault_class || (e.fault_hint || {}).fault_class} · ${e.action_code || "no action"} → ${e.outcome}`)),
-      e.note_text ? el("div", { class: "muted" }, "“" + e.note_text + "”") : "", legBadges(h.legs), el("div", { class: "muted mono" }, "rrf " + h.rrf));
+      e.note_text ? el("div", { class: "muted" }, "“" + e.note_text + "”") : "", legBadges(h.legs), el("div", { class: "muted mono" }, "rrf " + h.rrf),
+      feedbackRow(h, "local"));
   }) : [el("div", { class: "empty" }, "no match on this machine")]));
-  $("sFleet").replaceChildren(...(res.fleet.length ? res.fleet.map((h) => caseCard(h.case, legBadges(h.legs))) : [el("div", { class: "empty" }, "no fleet evidence for this filter")]));
+  $("sFleet").replaceChildren(...(res.fleet.length ? res.fleet.map((h) => { const card = caseCard(h.case, legBadges(h.legs)); card.append(feedbackRow(h, "fleet")); return card; })
+    : [el("div", { class: "empty" }, res.fleet_error || "no fleet evidence for this filter")]));
 }
 function renderBrief(b) {
   const text = el("div", {});
@@ -232,11 +260,16 @@ function wire() {
   $("netSwitch").onclick = act(async () => { await api("/api/network", { online: !(lastStats && lastStats.sync.online) }); refreshStats(); });
   $("syncNow").onclick = act(async () => { const r = await api("/api/sync/now", {}); toast("push: " + JSON.stringify(r.push) + " · pull: " + JSON.stringify(r.pull)); });
   $("setTok").onclick = act(async () => { await api("/api/sync/token", { token: $("devTok").value.trim() }); $("devTok").value = ""; toast("device token updated"); });
-  $("fcBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/fault_class`, { fault_class: $("fcSel").value }); refreshDetail(); });
-  $("noteBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/note`, { text: $("noteTxt").value, share_opt_in: $("noteOpt").checked }); toast("note saved"); refreshDetail(); });
-  $("actBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/action`, { action_code: $("actSel").value, root_cause: $("rcSel").value || null, required_windows: +$("reqWin").value }); toast("action recorded: now replay the post-repair signal"); refreshDetail(); });
-  $("okBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "worked" }); refreshDetail(); });
-  $("failBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "failed" }); refreshDetail(); });
+  const v = () => selectedVersion;
+  $("noteTxt").addEventListener("input", () => { $("noteTxt").dataset.dirty = "1"; });
+  $("fcBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/fault_class`, { fault_class: $("fcSel").value, expected_version: v() }); refreshDetail(); });
+  $("noteBtn").onclick = act(async () => {
+    await api(`/api/episodes/${selected}/note`, { text: $("noteTxt").value, share_opt_in: $("noteOpt").checked, expected_version: +$("noteTxt").dataset.ver || v() });
+    $("noteTxt").dataset.dirty = ""; $("noteTxt").dataset.ep = ""; toast("note saved"); refreshDetail();
+  });
+  $("actBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/action`, { action_code: $("actSel").value, root_cause: $("rcSel").value || null, required_windows: +$("reqWin").value, expected_version: v() }); toast("action recorded: now replay the post-repair signal"); refreshDetail(); });
+  $("okBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "worked", expected_version: v() }); refreshDetail(); });
+  $("failBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "failed", expected_version: v() }); refreshDetail(); });
   $("searchBtn").onclick = act(async () => renderSearch(await api("/api/search", { text: $("q").value || null, use_fleet: $("useFleet").checked })));
   $("simBtn").onclick = act(async () => { if (!selected) throw new Error("select an episode first"); renderSearch(await api("/api/search", { episode_id: selected, text: $("q").value || null, use_fleet: $("useFleet").checked })); });
   $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") $("searchBtn").click(); });

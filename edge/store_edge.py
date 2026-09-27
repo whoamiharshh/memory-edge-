@@ -310,6 +310,15 @@ class EdgeStore:
             self._shard.update(UpdateOperation.set_payload_by_filter(flt, dict(fields)))
             self._shard.flush()
 
+    def delete_where(self, filter: Mapping[str, Any]) -> None:
+        """Delete every point matching `filter` (durable on return). Refuses an empty filter."""
+        flt = build_filter(filter)
+        if flt is None:
+            raise ValueError("refusing to delete every point: give a filter")
+        with self._lock:
+            self._shard.update(UpdateOperation.delete_points_by_filter(flt))
+            self._shard.flush()
+
     # ---- reads ----------------------------------------------------------------------------------------
     def retrieve(self, ids: Sequence[str], *, with_vectors: bool = False) -> list[Record]:
         """Records in the order requested; missing ids are skipped."""

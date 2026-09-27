@@ -230,6 +230,7 @@ class SyncWorker:
 
     # ---- background loop --------------------------------------------------------------------------------
     def tick(self) -> None:
+        self.device.maybe_run_retention()               # local housekeeping; runs offline too (hourly)
         if self.online and not self.auth_required:
             self.push_once()
             if time.time() - self._last_pull >= PULL_EVERY_S:

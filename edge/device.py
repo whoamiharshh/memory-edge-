@@ -28,7 +28,7 @@ from edge.fingerprint import FP_VERSION, Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
 from edge.mirror import Mirror
 from edge.outbox import Outbox
-from edge.store_edge import EdgeStore, StorePoint
+from edge.store_edge import EdgeStore, StorePoint, canonical_id
 from shared import ids
 from shared.embed import Embedder
 from shared.redact import redact
@@ -37,10 +37,20 @@ from shared.schema import ActionCode, FaultClass, RootCause
 MAX_EXEMPLARS = 30
 HINT_WINDOWS = 10          # physics-hint votes collected from the first windows of an episode
 TERMINAL = ("closed",)
+RETENTION_EVERY_S = 3600.0
 
 
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds")
+
+
+class VersionConflict(RuntimeError):
+    """The episode changed since the caller read it (another technician or tab). Nothing was written."""
+
+    def __init__(self, eid: str, expected: int, current: int):
+        super().__init__(f"CONFLICT: episode {eid[:8]} is at version {current}, you edited version {expected}; "
+                         "reload it and re-apply your change")
+        self.current = current
 
 
 @dataclass
@@ -81,6 +91,8 @@ class Device:
             self.baseline = Baseline.from_dict(b["baseline"])
             self.gate = NoveltyGate(self.store, cfg.machine_id, GateConfig(**b["gate"]))
         self.outbox.log("boot", f"device started; journal re-applied {replayed} op(s); {requeued} upload(s) re-queued")
+        self._last_retention = 0.0
+        self.maybe_run_retention()
 
     # ---- persistence: journal first, then shard ---------------------------------------------------------
     def _apply(self, body: dict) -> None:
@@ -91,6 +103,11 @@ class Device:
             self.store.modify(body["id"], lambda _p: body["fields"])
         elif kind == "set_payload_where":
             self.store.set_payload_where(body["filter"], body["fields"])
+        elif kind == "archive":                  # one journal op, so a crash cannot lose the kept exemplar
+            self.store.delete_where({"type": "exemplar", "episode_id": body["episode_id"]})
+            if body["keep"]:
+                self.store.upsert([StorePoint(**body["keep"])])
+            self.store.modify(body["episode_id"], lambda _p: body["fields"])
         else:
             raise ValueError(kind)
 
@@ -247,34 +264,40 @@ class Device:
                                  bm25_text=text)])
         return p
 
-    def _require(self, eid: str) -> dict:
+    def _require(self, eid: str, expected_version: int | None = None) -> dict:
+        """The episode payload. With expected_version (the version the technician's screen showed), refuse the
+        edit if the episode has moved on: an optimistic compare-and-set, checked under the device lock."""
         rec = self.store.get(eid)
         if rec is None or rec.payload.get("type") != "episode":
             raise KeyError(f"no episode {eid}")
+        cur = int(rec.payload.get("version", 1))
+        if expected_version is not None and int(expected_version) != cur:
+            self.outbox.log("conflict", f"edit refused: expected version {expected_version}, current {cur}", eid)
+            raise VersionConflict(eid, int(expected_version), cur)
         return rec.payload
 
-    def set_note(self, eid: str, text: str, share_opt_in: bool = False) -> dict:
+    def set_note(self, eid: str, text: str, share_opt_in: bool = False, expected_version: int | None = None) -> dict:
         with self._lock:
-            self._require(eid)
+            self._require(eid, expected_version)
             if len(text) > 2000:
                 raise ValueError("note too long (max 2000 characters)")
             self._rewrite(eid, note_text=text.strip(), note_share_opt_in=bool(share_opt_in))
             self.outbox.log("note", f"note saved ({len(text)} chars, share opt-in={bool(share_opt_in)})", eid)
             return self._decide(eid)
 
-    def set_fault_class(self, eid: str, fault_class: str) -> dict:
+    def set_fault_class(self, eid: str, fault_class: str, expected_version: int | None = None) -> dict:
         with self._lock:
-            self._require(eid)
+            self._require(eid, expected_version)
             FaultClass(fault_class)
             self._rewrite(eid, fault_class=fault_class, fault_class_source="technician")
             self.outbox.log("fault_class", f"technician confirmed fault class {fault_class}", eid)
             return self._decide(eid)
 
     def record_action(self, eid: str, action_code: str, root_cause: str | None = None,
-                      required_windows: int = V.REQUIRED_WINDOWS) -> dict:
+                      required_windows: int = V.REQUIRED_WINDOWS, expected_version: int | None = None) -> dict:
         """An intervention was made: from now on, windows are fed to this episode's outcome verifier."""
         with self._lock:
-            ep = self._require(eid)
+            ep = self._require(eid, expected_version)
             if ep["status"] in TERMINAL:
                 raise ValueError("episode is closed")
             ActionCode(action_code)
@@ -287,9 +310,9 @@ class Device:
             self.outbox.log("action", f"action {action_code} recorded; verifying over {required_windows} windows", eid)
             return self._decide(eid)
 
-    def confirm_outcome(self, eid: str, outcome: str) -> dict:
+    def confirm_outcome(self, eid: str, outcome: str, expected_version: int | None = None) -> dict:
         with self._lock:
-            ep = self._require(eid)
+            ep = self._require(eid, expected_version)
             if outcome not in ("worked", "failed"):
                 raise ValueError("outcome must be worked or failed")
             if not ep.get("action_code"):
@@ -327,6 +350,58 @@ class Device:
             self.outbox.log("policy", f"{d.action}: {last.detail}", eid)
         self._set(eid, **fields)
         return fields["decision"]
+
+    # ---- retention (docs/RESEARCH.md G.1 / G.8: separate from the share decision) -----------------------
+    def run_retention(self, now: dt.datetime | None = None) -> dict:
+        """ARCHIVE closed, decided episodes older than policy.ARCHIVE_AFTER_DAYS: keep the episode point and its
+        first exemplar (so a recurrence is still recognised), drop the other exemplar fingerprints. Knowledge is
+        never deleted; open, undecided or not-yet-uploaded episodes are never touched."""
+        now = now or dt.datetime.now(dt.timezone.utc)
+        archived, checked = [], 0
+        with self._lock:
+            for ep in self.episodes(status="closed"):
+                checked += 1
+                if ep.get("archived") or ep.get("share_state") in ("queued", "uploading"):
+                    continue
+                if policy.retention(ep, now) != "ARCHIVE":
+                    continue
+                eid = ep["episode_id"]
+                keep = self.store.get(ids.make_id("exemplar", eid, 0), with_vectors=True)
+                self._write({"kind": "archive", "episode_id": eid,
+                             "keep": {"id": keep.id, "payload": keep.payload, "vib": keep.vectors["vib"]} if keep else None,
+                             "fields": {"archived": True, "archived_at": now.isoformat(timespec="seconds"),
+                                        "n_exemplars": 1 if keep else 0}})
+                self.outbox.log("retention", f"ARCHIVE: closed + decided + last seen over {policy.ARCHIVE_AFTER_DAYS} "
+                                             f"days ago; kept the episode and 1 exemplar", eid)
+                archived.append(eid)
+        self._last_retention = time.time()
+        return {"checked": checked, "archived": archived}
+
+    def maybe_run_retention(self) -> dict | None:
+        if time.time() - self._last_retention >= RETENTION_EVERY_S:
+            return self.run_retention()
+        return None
+
+    # ---- usefulness feedback (G.1 "Evaluate usefulness": a counter, no learned model) ---------------------
+    def record_feedback(self, result_id: str, kind: str, helped: bool) -> dict:
+        """The technician marks a search result as helpful or not. Stored on this device only (SQLite kv) and
+        shown next to the result; it never changes ranking and is not shared."""
+        key = self._feedback_key(result_id, kind)
+        with self._lock:
+            fb = self.outbox.kv_get(key, {"helped": 0, "not_helped": 0})
+            fb["helped" if helped else "not_helped"] += 1
+            self.outbox.kv_set(key, fb)
+        self.outbox.log("feedback", f"{kind} result {result_id[:8]} marked {'helpful' if helped else 'not helpful'}")
+        return fb
+
+    @staticmethod
+    def _feedback_key(result_id: str, kind: str) -> str:
+        if kind not in ("local", "fleet"):
+            raise ValueError("kind must be local or fleet")
+        return f"feedback:{kind}:{canonical_id(result_id)}"          # ValueError if not a point id
+
+    def feedback_for(self, result_id: str, kind: str) -> dict:
+        return self.outbox.kv_get(self._feedback_key(result_id, kind), {"helped": 0, "not_helped": 0})
 
     # ---- reads ------------------------------------------------------------------------------------------
     def episodes(self, status: str | None = None) -> list[dict]:
@@ -378,8 +453,10 @@ class Device:
         slim = lambda p: {k: v for k, v in p.items() if k not in ("hint_votes",)}
         return {"query": {"text": text, "episode_id": episode_id, "fault_class": fc, "fault_class_source": src,
                           "fleet_filter": fleet_filter},
-                "local": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "episode": slim(h.payload)} for h in local],
-                "fleet": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "case": h.payload} for h in fleet],
+                "local": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "episode": slim(h.payload),
+                           "feedback": self.feedback_for(h.id, "local")} for h in local],
+                "fleet": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "case": h.payload,
+                           "feedback": self.feedback_for(h.id, "fleet")} for h in fleet],
                 "fleet_error": fleet_error, "latency_ms": round(ms, 2)}
 
     def set_share_state(self, event_id: str, state: str, episode_id: str) -> None:

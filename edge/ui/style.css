@@ -85,3 +85,7 @@ th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: u
 .empty { color: var(--muted); padding: 14px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; }
 .strike { text-decoration: line-through; opacity: .6; }
 details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+/* usefulness feedback buttons under search results */
+.fb { margin-top: 6px; gap: 6px; }
+button.mini { padding: 2px 8px; font-size: 12px; }
