@@ -328,7 +328,7 @@ More: `.venv\Scripts\python.exe -m demo.record_backup` records a video of the li
 - **Disk:** each Qdrant Edge shard pre-allocates ~200 MB. On Windows the device can NTFS-compress its folder
   (measured 267 MB → 1.9 MB); on Linux/macOS/Android sparse files probably do the same but that is **unverified**.
 - **Partial snapshots are not the cheapest path at our fleet sizes** (they re-ship the mutable segment), so the
-  default uto mode bootstraps with a full snapshot and uses scroll rows for small deltas.
+  default `auto` mode bootstraps with a full snapshot and uses scroll rows for small deltas.
 - **Multi-device behaviour is simulated** on one laptop; the two-computer and phone steps in FIELD_TEST.md are
   written but not yet run. Scale beyond that is reasoning, not measurement.
 - **The redactor is regex + denylist.** It misses free-form names (measured: a 421M model found only 4/60 too), so
