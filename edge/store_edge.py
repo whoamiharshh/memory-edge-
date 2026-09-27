@@ -31,6 +31,7 @@ import os
 import pathlib
 import shutil
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator, Mapping, Sequence
@@ -51,6 +52,25 @@ RRF_K = 60
 KEYWORD_INDEXES = ("type", "machine_id", "device_id", "site_id", "component", "fault_class",
                    "action_code", "outcome", "share_state", "status")
 META_FILE = "store_meta.json"
+
+
+TRANSIENT_IO = ("os error 5)", "os error 32)", "os error 33)")   # access denied / sharing / lock violation
+FLUSH_RETRIES = 6
+
+
+def _flush(shard: EdgeShard) -> None:
+    """flush() with a short retry on TRANSIENT Windows file errors. Seen live once (28 Sep 2026): 'Failed to flush
+    segment state ... Access is denied (os error 5)' while another program (typically the virus scanner) briefly
+    held a file Edge was replacing. The data is already in the shard; flush only persists it, so a retry is safe.
+    Anything else, or a lock that outlasts ~3 s, is raised (the journal then re-applies the op on the next boot)."""
+    for i in range(FLUSH_RETRIES):
+        try:
+            shard.flush()
+            return
+        except Exception as e:
+            if i == FLUSH_RETRIES - 1 or not any(t in str(e) for t in TRANSIENT_IO):
+                raise
+            time.sleep(0.05 * 2 ** i)
 
 
 class StoreConfigError(RuntimeError):
@@ -158,7 +178,7 @@ class EdgeStore:
                 sparse_vectors={NOTE_BM25: EdgeSparseVectorParams(modifier=Modifier.Idf)}))
             for key in KEYWORD_INDEXES:
                 self._shard.update(UpdateOperation.create_field_index(key, PayloadSchemaType.Keyword))
-            self._shard.flush()
+            _flush(self._shard)
             self.meta = {**wanted, "bm25_avg_len": bm25_avg_len, "schema_version": 1}
             tmp = meta_path.with_suffix(".tmp")        # meta written last + atomically: its presence = shard ready
             tmp.write_text(json.dumps(self.meta, indent=2))
@@ -169,7 +189,7 @@ class EdgeStore:
     def close(self) -> None:
         with self._lock:
             if self._shard is not None:
-                self._shard.flush()
+                _flush(self._shard)
                 self._shard.close()
                 self._shard = None
 
@@ -183,7 +203,7 @@ class EdgeStore:
         """Edge has no background optimizer; call this periodically (e.g. after bulk loads)."""
         with self._lock:
             self._shard.optimize()
-            self._shard.flush()
+            _flush(self._shard)
 
     # ---- snapshots (fleet mirror) ---------------------------------------------------------------------
     @classmethod
@@ -234,7 +254,7 @@ class EdgeStore:
         with self._lock:
             try:
                 self._shard.update_from_snapshot(str(snapshot_path), str(tmp_dir))
-                self._shard.flush()
+                _flush(self._shard)
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
             self.probe()
@@ -267,7 +287,7 @@ class EdgeStore:
             else:
                 written = ids
                 self._shard.update(UpdateOperation.upsert_points(built))
-            self._shard.flush()
+            _flush(self._shard)
         return written
 
     def cas_update(self, point: StorePoint, expected_version: int) -> bool:
@@ -284,7 +304,7 @@ class EdgeStore:
                 return False
             cond = Filter(must=[FieldCondition("version", range=RangeFloat(gte=expected_version, lte=expected_version))])
             self._shard.update(UpdateOperation.upsert_points([built], condition=cond))
-            self._shard.flush()
+            _flush(self._shard)
             return self._shard.retrieve([pid], True, False)[0].payload.get("version") == expected_version + 1
 
     def modify(self, pid: str, fn: Callable[[dict[str, Any]], Mapping[str, Any]]) -> dict[str, Any] | None:
@@ -298,7 +318,7 @@ class EdgeStore:
             changes = dict(fn(dict(cur[0].payload)))
             if changes:
                 self._shard.update(UpdateOperation.set_payload([pid], changes))
-                self._shard.flush()
+                _flush(self._shard)
             return {**cur[0].payload, **changes}
 
     def set_payload_where(self, filter: Mapping[str, Any], fields: Mapping[str, Any]) -> None:
@@ -308,7 +328,7 @@ class EdgeStore:
             raise ValueError("refusing to set payload on every point: give a filter")
         with self._lock:
             self._shard.update(UpdateOperation.set_payload_by_filter(flt, dict(fields)))
-            self._shard.flush()
+            _flush(self._shard)
 
     def delete_where(self, filter: Mapping[str, Any]) -> None:
         """Delete every point matching `filter` (durable on return). Refuses an empty filter."""
@@ -317,7 +337,7 @@ class EdgeStore:
             raise ValueError("refusing to delete every point: give a filter")
         with self._lock:
             self._shard.update(UpdateOperation.delete_points_by_filter(flt))
-            self._shard.flush()
+            _flush(self._shard)
 
     # ---- reads ----------------------------------------------------------------------------------------
     def retrieve(self, ids: Sequence[str], *, with_vectors: bool = False) -> list[Record]:

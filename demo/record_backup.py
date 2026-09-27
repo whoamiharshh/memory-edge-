@@ -53,10 +53,9 @@ def main() -> None:
         time.sleep(2.0)                   # time to read the caption before the step runs
 
     def play(c, fid, n, start=0):
-        sc.call(c, "POST", "/api/replay", {"fid": fid, "n": n, "interval": REPLAY_INTERVAL, "start": start})
-        while sc.call(c, "GET", "/api/stats")["replay"]["playing"]:
-            time.sleep(0.2)
+        orig_play(c, fid, n, start, interval=REPLAY_INTERVAL)
 
+    orig_play = sc.play
     sc.step, sc.play = step, play         # scenario.main() looks both names up at call time
 
     def run():
@@ -95,9 +94,15 @@ def main() -> None:
                     pass
                 caption(pg, f"Step {shown}: {state['title']}")
                 try:
-                    if where == "cloud":
-                        pg.wait_for_timeout(2500)             # cases appear after step 5's push
-                        pg.click("#cases .item", timeout=8000)
+                    if where == "cloud":                      # the list re-renders on a timer: click until the
+                        for _ in range(3):                    # case detail (tallies table) is really open
+                            pg.click("#cases .item", timeout=8000)
+                            try:
+                                pg.wait_for_function("document.querySelectorAll('#detail table').length > 0",
+                                                     timeout=4000)
+                                break
+                            except Exception:
+                                pg.wait_for_timeout(1000)
                     if shown == 8:                            # B is offline with its episode: show it in the UI
                         pg.click("#simBtn", timeout=8000)
                         pg.wait_for_function("document.querySelector('#sInfo').textContent.includes('ms')", timeout=20000)

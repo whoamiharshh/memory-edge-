@@ -63,17 +63,22 @@ class ReplayRunner:
         w = Recordings.windows(fid)[start:]
         w = w[:n] if n else w
         self._stop.clear()
-        self.state = {"playing": True, "fid": fid, "done": 0, "total": len(w), "last": None}
+        self.state = {"playing": True, "fid": fid, "done": 0, "total": len(w), "last": None, "error": None}
 
         def run():
-            for x in w:
-                if self._stop.is_set():
-                    break
-                self.state["last"] = self.ingest(x, f"cwru:{fid}")
-                self.state["done"] += 1
-                if interval:
-                    time.sleep(interval)
-            self.state["playing"] = False
+            try:
+                for x in w:
+                    if self._stop.is_set():
+                        break
+                    self.state["last"] = self.ingest(x, f"cwru:{fid}")
+                    self.state["done"] += 1
+                    if interval:
+                        time.sleep(interval)
+            except Exception as e:          # visible in /api/stats; never leave "playing" stuck on True
+                self.state["error"] = f"{type(e).__name__}: {e}"[:300]
+                raise
+            finally:
+                self.state["playing"] = False
 
         self._thread = threading.Thread(target=run, name="replay", daemon=True)
         self._thread.start()

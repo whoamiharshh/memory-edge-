@@ -53,8 +53,19 @@ class Outbox:
             self._db.close()
 
     def _exec(self, sql: str, args: Iterable[Any] = ()) -> sqlite3.Cursor:
+        """Statements whose result is not read. Reads use _all/_one, which FETCH under the lock too: one connection
+        is shared by the API threads and the sync worker, and a fetch outside the lock can interleave with another
+        thread's statement (seen live: kv_get read a NULL value while the stats endpoint and the worker raced)."""
         with self._lock:
             return self._db.execute(sql, tuple(args))
+
+    def _all(self, sql: str, args: Iterable[Any] = ()) -> list[tuple]:
+        with self._lock:
+            return self._db.execute(sql, tuple(args)).fetchall()
+
+    def _one(self, sql: str, args: Iterable[Any] = ()) -> tuple | None:
+        with self._lock:
+            return self._db.execute(sql, tuple(args)).fetchone()
 
     # ---- journal ----------------------------------------------------------------------------------------
     def journal_put(self, op_id: str, body: dict) -> None:
@@ -65,7 +76,7 @@ class Outbox:
         self._exec("UPDATE journal SET applied=1 WHERE op_id=?", (op_id,))
 
     def journal_pending(self) -> list[tuple[str, dict]]:
-        rows = self._exec("SELECT op_id, body FROM journal WHERE applied=0 ORDER BY created_at").fetchall()
+        rows = self._all("SELECT op_id, body FROM journal WHERE applied=0 ORDER BY created_at")
         return [(r[0], json.loads(r[1])) for r in rows]
 
     def journal_prune(self, keep: int = 5000) -> None:
@@ -81,7 +92,7 @@ class Outbox:
         return cur.rowcount == 1
 
     def known_event_ids(self) -> set[str]:
-        return {r[0] for r in self._exec("SELECT event_id FROM outbox WHERE status != 'rejected'").fetchall()}
+        return {r[0] for r in self._all("SELECT event_id FROM outbox WHERE status != 'rejected'")}
 
     def claim_due(self, limit: int = 50, now: float | None = None) -> list[dict]:
         """Atomically move due queued/failed rows to 'uploading' and return their bodies."""
@@ -95,7 +106,8 @@ class Outbox:
 
     def recover_uploading(self) -> int:
         """On boot: rows stuck in 'uploading' (crash mid-send) go back to 'queued'; the resend is idempotent."""
-        return self._exec("UPDATE outbox SET status='queued' WHERE status='uploading'").rowcount
+        with self._lock:
+            return self._db.execute("UPDATE outbox SET status='queued' WHERE status='uploading'").rowcount
 
     def mark(self, event_id: str, status: str, error: str | None = None) -> None:
         self._exec("UPDATE outbox SET status=?, last_error=?, updated_at=? WHERE event_id=?",
@@ -117,20 +129,20 @@ class Outbox:
         self._exec("UPDATE outbox SET status='queued', next_attempt_at=0 WHERE event_id=?", (event_id,))
 
     def counts(self) -> dict[str, int]:
-        return {s: n for s, n in self._exec("SELECT status, COUNT(*) FROM outbox GROUP BY status").fetchall()}
+        return {s: n for s, n in self._all("SELECT status, COUNT(*) FROM outbox GROUP BY status")}
 
     def rows(self, limit: int = 100) -> list[dict]:
         cols = ["event_id", "episode_id", "status", "attempts", "last_error", "next_attempt_at", "created_at", "updated_at"]
-        rs = self._exec(f"SELECT {','.join(cols)} FROM outbox ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        rs = self._all(f"SELECT {','.join(cols)} FROM outbox ORDER BY created_at DESC LIMIT ?", (limit,))
         return [dict(zip(cols, r)) for r in rs]
 
     def status_of(self, event_id: str) -> str | None:
-        r = self._exec("SELECT status FROM outbox WHERE event_id=?", (event_id,)).fetchone()
+        r = self._one("SELECT status FROM outbox WHERE event_id=?", (event_id,))
         return r[0] if r else None
 
     # ---- kv / activity ----------------------------------------------------------------------------------
     def kv_get(self, key: str, default: Any = None) -> Any:
-        r = self._exec("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
+        r = self._one("SELECT value FROM kv WHERE key=?", (key,))
         return json.loads(r[0]) if r else default
 
     def kv_set(self, key: str, value: Any) -> None:
@@ -141,5 +153,5 @@ class Outbox:
                    (dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), kind, episode_id, message))
 
     def activity(self, limit: int = 100) -> list[dict]:
-        rs = self._exec("SELECT ts, kind, episode_id, message FROM activity ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        rs = self._all("SELECT ts, kind, episode_id, message FROM activity ORDER BY id DESC LIMIT ?", (limit,))
         return [dict(zip(["ts", "kind", "episode_id", "message"], r)) for r in rs]

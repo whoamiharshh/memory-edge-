@@ -9,8 +9,8 @@ A "new" state that is close to an exemplar of a CLOSED episode is reported as a 
 Thresholds are prototype parameters calibrated from this machine's own healthy data (calibrate()):
   tau_normal = NORMAL_FACTOR x q99 of healthy-to-healthy nearest-neighbour distances (split-half)
   tau_merge  = MERGE_FACTOR x tau_normal
-Measured on CWRU (bench/gate_verifier.py): unseen-load healthy windows stay under ~9.3 z-units of the
-baseline, while every fault window is >= ~29.8, so the margin is wide on this dataset.
+Measured on CWRU (bench/gate_sweep.py): unseen-load healthy windows stay under 8.8 z-units of the baseline,
+while the first 20 windows of every fault recording are >= 28.7, so the margin is wide on this dataset.
 """
 from __future__ import annotations
 

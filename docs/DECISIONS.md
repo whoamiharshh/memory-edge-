@@ -8,9 +8,14 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 ### D12 · Laya: measured, kept out of the device (28 Sep 2026)
 **Question.** Should Laya (convaiinnovations/laya, Apache-2.0, 421M, ~808 MB + PyTorch) pre-fill the action-code picker
 from the technician's own note, and/or act as a second personal-data flag?
-**Evidence.** `bench/laya_experiment.py` → `bench/results/laya_experiment.json`, summarised in
-[BENCHMARKS.md](BENCHMARKS.md#laya-experiment). **Decision and reasons:** see BENCHMARKS.md; the device ships the
-winner for each role and nothing that would enter the share decision.
+**Evidence.** `bench/laya_experiment.py` → `bench/results/laya_experiment.json` ([BENCHMARKS.md §11](BENCHMARKS.md)).
+Action family from the note (319 held-out logbook notes): Laya zero-shot 0.718 accuracy vs bge-small zero-shot 0.740
+vs bge-small + logistic regression 0.981; Laya ~2 s per note on CPU vs ~15 ms. Name detection (synthetic probe):
+Laya recall 4/60.
+**Decision.** Laya is not kept for either role. The supervised bge-small classifier wins the action task but is not
+shipped, because its labels are aviation action families that do not map onto our motor action codes. The probe
+backs the existing privacy default (notes stay local; names go on the denylist). Laya stays in an isolated
+`.venv-laya` for reproducibility only.
 
 ### D11 · Novelty-gate merge radius 3.0 → 1.5 × tau_normal (28 Sep 2026)
 **Evidence.** `bench/gate_sweep.py` on all 36 CWRU fault recordings. At 3.0, only 11/20 pairs of *different* faults

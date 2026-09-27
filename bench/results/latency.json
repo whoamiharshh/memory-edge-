@@ -1,65 +1,80 @@
 {
   "machine": "Intel i5-1335U, 15.7 GB RAM, no GPU, Windows 11, Python 3.12, qdrant-edge-py 0.8.0",
   "fingerprint": {
-    "p50_ms": 1.894,
-    "p95_ms": 3.507,
+    "p50_ms": 2.275,
+    "p95_ms": 4.564,
     "n": 200
   },
   "embed_note": {
-    "p50_ms": 8.836,
-    "p95_ms": 15.624,
+    "p50_ms": 6.082,
+    "p95_ms": 7.066,
     "n": 100
   },
   "durable_write": {
-    "p50_ms": 44.333,
-    "p95_ms": 77.088,
+    "p50_ms": 32.118,
+    "p95_ms": 36.421,
     "n": 100
   },
   "gate_normal_window": {
-    "p50_ms": 0.405,
-    "p95_ms": 0.519,
+    "p50_ms": 0.213,
+    "p95_ms": 0.269,
     "n": 200
   },
   "hybrid_edge_1000": {
-    "p50_ms": 1.79,
-    "p95_ms": 3.888,
+    "p50_ms": 0.495,
+    "p95_ms": 0.634,
     "n": 200
   },
   "dense_server_http_1000": {
-    "p50_ms": 16.999,
-    "p95_ms": 30.856,
+    "p50_ms": 14.422,
+    "p95_ms": 27.591,
     "n": 100
   },
   "dense_edge_1000": {
-    "p50_ms": 0.737,
-    "p95_ms": 1.187,
+    "p50_ms": 0.301,
+    "p95_ms": 0.483,
     "n": 100
   },
   "hybrid_edge_10000": {
-    "p50_ms": 1.25,
-    "p95_ms": 2.068,
+    "p50_ms": 1.058,
+    "p95_ms": 1.533,
     "n": 200
   },
   "dense_server_http_10000": {
-    "p50_ms": 7.975,
-    "p95_ms": 31.148,
+    "p50_ms": 18.245,
+    "p95_ms": 32.615,
     "n": 100
   },
   "dense_edge_10000": {
-    "p50_ms": 0.72,
-    "p95_ms": 1.028,
+    "p50_ms": 0.352,
+    "p95_ms": 0.526,
+    "n": 100
+  },
+  "hybrid_edge_50000": {
+    "p50_ms": 1.968,
+    "p95_ms": 2.985,
+    "n": 200
+  },
+  "dense_server_http_50000": {
+    "p50_ms": 9.433,
+    "p95_ms": 31.865,
+    "n": 100
+  },
+  "dense_edge_50000": {
+    "p50_ms": 0.242,
+    "p95_ms": 0.4,
     "n": 100
   },
   "llm_brief": {
-    "p50_ms": 3966.345,
-    "p95_ms": 4557.057,
+    "p50_ms": 2603.07,
+    "p95_ms": 2681.409,
     "n": 5,
     "model": "Qwen2.5-1.5B-Instruct (Q4_K_M GGUF, Apache-2.0)"
   },
   "bandwidth": {
-    "shared_event_json_bytes": 863,
+    "shared_event_json_bytes": 855,
     "raw_float32_signal_bytes_summarised": 499712,
-    "ratio": 579.0,
+    "ratio": 584.5,
     "note": "one event summarises 60 windows (~10.2 s at 12 kHz); the raw signal never leaves the device"
   }
 }

@@ -39,9 +39,14 @@ def call(c: httpx.Client, method: str, path: str, body=None):
     return r.json()
 
 
-def play(c: httpx.Client, fid: int, n: int, start: int = 0) -> None:
-    call(c, "POST", "/api/replay", {"fid": fid, "n": n, "interval": 0.0, "start": start})
-    while call(c, "GET", "/api/stats")["replay"]["playing"]:
+def play(c: httpx.Client, fid: int, n: int, start: int = 0, interval: float = 0.0) -> None:
+    call(c, "POST", "/api/replay", {"fid": fid, "n": n, "interval": interval, "start": start})
+    while True:
+        r = call(c, "GET", "/api/stats")["replay"]
+        if r.get("error"):
+            raise RuntimeError(f"replay of file {fid} failed on the device: {r['error']}")
+        if not r["playing"]:
+            return
         time.sleep(0.2)
 
 

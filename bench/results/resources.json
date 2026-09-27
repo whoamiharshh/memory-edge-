@@ -1,0 +1,33 @@
+{
+  "method": "Resources of one edge device on THIS laptop (docs/RESEARCH.md Part O, \"Resources\").",
+  "machine": "Intel i5-1335U, 15.7 GB RAM, no GPU, Windows 11",
+  "cpu_realtime": {
+    "windows": 351,
+    "wall_s": 59.9,
+    "window_period_ms": 170.7,
+    "cpu_percent_of_one_core": 16.5,
+    "per_window_ms_p50": 16.11,
+    "per_window_ms_p95": 42.62,
+    "realtime_headroom_x": 4.0,
+    "episodes": 1,
+    "states": {
+      "normal": 177,
+      "new": 1,
+      "merge": 173
+    }
+  },
+  "disk_mb": {
+    "device_folder_after_run": 470.9,
+    "local_shard": 267.4,
+    "mirror_shard_empty": 203.4,
+    "models_cache_total": 1936.7
+  },
+  "memory_rss_mb": {
+    "python_start": 30.2,
+    "after_imports": 105.2,
+    "after_bge_small": 270.2,
+    "after_device_and_baseline": 303.8,
+    "after_realtime_run": 313.4,
+    "after_local_llm": 1973.1
+  }
+}
