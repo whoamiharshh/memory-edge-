@@ -1,6 +1,6 @@
 # Setup (Windows 11, no Docker, no GPU)
 
-Everything below was run on the build laptop on 27 Sep 2026.
+Everything below was run on the build laptop on 27-28 Sep 2026.
 
 1. **Python env**
    ```powershell
@@ -32,6 +32,27 @@ Everything below was run on the build laptop on 27 Sep 2026.
    .venv\Scripts\python.exe -m demo.scenario
    .venv\Scripts\python.exe tests\ui_check.py
    ```
+9. **Extra data sets** (optional, for the held-out and robot benchmarks; both CC BY 4.0, not redistributed):
+   ```powershell
+   .venv\Scripts\python.exe data\fetch_hust.py        # 640 MB, 99 files, SHA-256 checked
+   .venv\Scripts\python.exe data\fetch_uci_robot.py   # 58 kB
+   .venv\Scripts\python.exe -m bench.hust_holdout
+   .venv\Scripts\python.exe -m bench.robot_failures
+   ```
+10. **HTTPS** (needed for a second computer or a phone; see docs/FIELD_TEST.md):
+    ```powershell
+    .venv\Scripts\python.exe tools\make_certs.py      # runtime\tls\ca.pem, ca.key, server.pem, server.key
+    ```
+    Add `--tls` to `cloud.main` / `edge.main`; devices verify the cloud with `--ca ca.pem`. Both refuse plain HTTP on a
+    network address. Never copy `ca.key` off the laptop.
+11. **Phone as a sensor**: start a device with `--host 0.0.0.0 --tls --profile lowrate-accel --component fan`, open
+    `https://<laptop IP>:8101/sensor` on the phone. Other profiles: `rotating-hf` (with `--profile-params
+    "{\"bearing\": \"6206\", \"shaft_hz\": 29}"`), `force-torque`, `events`.
+12. **Smaller disk on Windows**: add `--compress-storage` to `edge.main` (NTFS-compresses the device folder at start and
+    hourly; a shard went from 267 MB to 1.9 MB in our test).
+13. **Laya experiment** (optional, isolated, ~1 GB): `uv venv .venv-laya --python 3.12`, then in it `torch` (CPU wheel
+    index), `laya`, `fastembed==0.8.1`, `scikit-learn`; run with `$env:HF_HOME="models_cache\hf";
+    .venv-laya\Scripts\python.exe -m bench.laya_experiment`.
 
 ## Demo walkthrough in the UI (about 5 min)
 

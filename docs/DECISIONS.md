@@ -5,6 +5,60 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D22 · Storage: compress the device folder instead of shrinking vectors (28 Sep 2026)
+**Evidence.** `bench/footprint.py`: ~203 MB per shard is fixed pre-allocation (mostly zero pages), data adds ~5.6 kB
+per point; float16 saves ~8 % disk, int8 quantization ~13 % RAM (and a little extra disk). NTFS compression of the
+folder: 267 MB → 1.9 MB with the shard open, writes/search/reopen still working. Files created later do not inherit
+compression, so the device compresses at start-up and hourly (`--compress-storage`). Linux/macOS/Android sparse-file
+behaviour: not measured (no such machine here).
+
+### D21 · HTTPS enforced off-localhost (28 Sep 2026)
+Private CA + server certificate (`tools/make_certs.py`); devices verify the cloud against `ca.pem`; the launchers
+refuse plain HTTP on any non-localhost address unless `--insecure-lan` is given. Phones need HTTPS anyway: browsers
+only expose motion sensors in a secure context. Tested (`tests/security/test_tls.py`).
+
+### D20 · "Not a fault: normal operation" (28 Sep 2026)
+**Evidence.** HUST held-out: a healthy machine at an untaught load / session looked abnormal. The technician can now
+teach a new healthy state: the episode's fingerprints become extra baseline points (no refit, so stored vectors stay
+comparable); the episode closes as dismissed and is never shared. One confirmation: false alarms 92/305 → 4/255,
+fixes verified 15/42 → 42/42.
+
+### D19 · Two bugs found by the held-out test (28 Sep 2026)
+(1) `physics.peak_near` never searches narrower than half an FFT bin (a ~10 Hz cage rate fell between 3 Hz bins).
+(2) Baseline spread floor 0.05 (log10 units) for the new profiles; bearing-12k keeps 1e-6 because every CWRU number
+was measured with it. Effect on HUST: false alarms 305 → 92 of 305 before any teaching.
+
+### D18 · Geometry physics instead of one bearing's constants (28 Sep 2026)
+Defect frequencies from the standard kinematic equations (checked against the CWRU table to 4 decimals), velocity
+severity with ISO 10816-3 group-2 rigid boundaries (indicative outside that group), order-spectrum rules for
+imbalance/misalignment/looseness that say "not assessable" when 2x is above Nyquist. On HUST's five bearing types the
+geometry hint reached 97.6 %.
+
+### D17 · Signal profiles (28 Sep 2026)
+PS3 names robots, kiosks, vehicles and mobile devices. Every profile maps its input to the same 27-float fingerprint
+slot, so gate, verifier, policy, sync and cloud are unchanged; `fp_version` keeps profiles apart. Five profiles:
+bearing-12k, rotating-hf, lowrate-accel, force-torque, events.
+
+### D16 · Cited procedure library, never generated (28 Sep 2026)
+The user asked for help to actually fix faults. Documented reference checklists (SKF 14219 for bearings, field
+balancing, shaft alignment/soft foot, looseness) are shown per fault class with their source; sites add SOPs. The
+LLM never writes procedures, and the policy still decides sharing only from verified outcomes.
+
+### D15 · LLM checker: flags verbatim, numbers must match (28 Sep 2026)
+The live 3-site demo produced "flagged as DISPUTED because different root causes" (that is COMPETING). Sentences that
+name a flag are now dropped and the cited cases' flags appended verbatim; every number must occur in the cited
+evidence.
+
+### D14 · Text model: bge-small stays (28 Sep 2026)
+`bench/embed_models.py`: hybrid P@3 bge-small 0.885, arctic-embed-xs 0.868 (4× faster), MiniLM 0.815. The plan's
+MiniLM fallback was worse than assumed.
+
+### D13 · Plan details completed (28 Sep 2026)
+All three disagreement flags tested; live demo shows DISPUTED + COMPETING across 3 sites; repair content hash stops
+one repair from counting twice; "last confirmed" per action; text-model migration (new named vector, re-embed,
+switch; the fleet dense leg is skipped while the device and cloud models differ); SQLite reads fetched under the lock
+(a live race); flush retry on transient Windows file locks; replay errors never hang.
+
 ### D12 · Laya: measured, kept out of the device (28 Sep 2026)
 **Question.** Should Laya (convaiinnovations/laya, Apache-2.0, 421M, ~808 MB + PyTorch) pre-fill the action-code picker
 from the technician's own note, and/or act as a second personal-data flag?

@@ -180,8 +180,16 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   - retention/ARCHIVE, versioned edits (409 CONFLICT), usefulness feedback; UI for all
   - benches: `gate_sweep`, `storage`, `resources`, `sync_partition`, `offline_check`, `mirror_sync`, `laya_experiment`
   - docs: THREATS.md, DECISIONS.md, DEMO.md, BENCHMARKS.md; `demo/record_backup.py` (video of the live UIs)
-  - Laya experiment runs ONLY in `.venv-laya` (torch CPU + laya 0.3.20); never imported by the device
-- [ ] still the user's decisions: LICENSE, public GitHub repo + push, LinkedIn post
+  - Laya: measured and rejected; its venv and model were deleted on the user's request (28 Sep)
+- [x] (28 Sep, second pass) plan details 1-7 (flags tests, 3-site live demo, repair content hash, last-confirmed,
+  text-model migration, embed model bench); signal profiles (bearing-12k, rotating-hf, lowrate-accel, force-torque,
+  events) + physics (edge/physics.py) + cited procedures (knowledge/); HUST held-out second machine (97.6 % physics,
+  42/42 fixes verified after one 'normal operation' confirmation); robots (UCI); HTTPS (tools/make_certs.py); phone
+  /sensor page; OS storage compression; LICENSE Apache-2.0 (chosen by Claude at the user's request, local only).
+  205 tests pass; live demo 9/9; backup video re-recorded.
+- [ ] USER: real-world field test (docs/FIELD_TEST.md) - remind them; then Claude: automatic operating-point
+  detection + robot threshold tuning
+- [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
 - Tests: `.venv\Scripts\python.exe -m pytest` (count and time: see README "Tests"; some tests start

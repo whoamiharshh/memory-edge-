@@ -101,7 +101,18 @@ class TokenBody(BaseModel):
 
 def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag.LocalLLM | None = None) -> FastAPI:
     app = FastAPI(title=f"Machine Memory - {device.cfg.device_id}", docs_url="/docs")
-    replay = ReplayRunner(device.ingest_window)
+    def _replay_physics(result: dict, fid: int, i: int) -> None:
+        """Replayed recordings carry cached fingerprints; the physics panel needs the raw window, read on demand."""
+        if device.profile.name != "bearing-12k" or not result.get("episode_id"):
+            return
+        ep = device.store.get(result["episode_id"])
+        if ep is None or ep.payload.get("physics") and ep.payload["occurrences"] > 3:
+            return                                   # enough: only the first windows of an episode are diagnosed
+        rw = Recordings.raw_window(fid, i)
+        if rw is not None:
+            device.attach_diagnosis(result["episode_id"], *rw)
+
+    replay = ReplayRunner(device.ingest_window, on_abnormal=_replay_physics)
     op_hash = hashlib.sha256(operator_token.encode()).hexdigest()
     app.state.device, app.state.worker, app.state.replay = device, worker, replay
 

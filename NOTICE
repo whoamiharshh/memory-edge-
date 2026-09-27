@@ -1,0 +1,15 @@
+Machine Memory at the Edge
+Copyright 2026 the Machine Memory at the Edge author
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It uses, and does not redistribute, the following third-party works (each under its own licence):
+- Qdrant Edge (qdrant-edge-py), Qdrant Server, qdrant-client, FastEmbed - Apache-2.0, Qdrant.
+  The two-shard sync pattern (mutable local shard + immutable mirror) is Qdrant's documented design.
+- BAAI/bge-small-en-v1.5 - MIT. Qwen2.5-1.5B-Instruct (GGUF) - Apache-2.0.
+- Data sets are downloaded by scripts in data/ and are NOT included in this repository:
+  Annotated Maintenance Logbook (Zenodo 17903357, CC BY 4.0);
+  HUST bearing (Hong & Thuan 2023, DOI 10.17632/cbv7jyx4p9.3, CC BY 4.0);
+  Robot Execution Failures (Lopes & Camarinha-Matos 1998, UCI, DOI 10.24432/C5M89N, CC BY 4.0);
+  CWRU Bearing Data Center recordings (no explicit licence found; cited, not redistributed).
+- Procedure sources are cited per entry in knowledge/procedures.json.

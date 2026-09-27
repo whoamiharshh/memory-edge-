@@ -109,7 +109,9 @@ async function refreshStats() {
   $("syncErr").textContent = sy.last_error ? "⚠ " + sy.last_error : "";
   const mi = sy.mirror || {}, lr = mi.last_refresh;
   $("mMode").textContent = (mi.mode ? mi.mode + " fill" : "not pulled yet") + (mi.needs_full ? " · full snapshot due" : "") +
-    (lr ? ` · last: ${lr.kind} snapshot, ${fmtBytes(lr.wire_bytes)} on the wire for ${fmtBytes(lr.snapshot_bytes)}, ${lr.cases_changed} case(s) changed` : "");
+    (lr ? (lr.kind === "scroll"
+      ? ` · last: scroll delta, ${fmtBytes(lr.wire_bytes)} on the wire, ${lr.cases_changed} case(s) changed`
+      : ` · last: ${lr.kind} Qdrant snapshot, ${fmtBytes(lr.wire_bytes)} on the wire for ${fmtBytes(lr.snapshot_bytes)}, ${lr.cases_changed} case(s) changed`) : "");
   $("netSwitch").classList.toggle("on", sy.online);
   $("netLabel").textContent = sy.online ? "ONLINE" : "OFFLINE";
   const hs = $("hSync");

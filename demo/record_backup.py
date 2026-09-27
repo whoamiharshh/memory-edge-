@@ -11,10 +11,13 @@ from __future__ import annotations
 import json
 import pathlib
 import shutil
+import sys
 import threading
 import time
 
 from playwright.sync_api import sync_playwright
+
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # Windows redirects default to cp1252 (no ⚑)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "runtime" / "recording"

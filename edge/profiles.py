@@ -123,8 +123,17 @@ class BearingCWRU(Profile):
         return fault_hint.MEASURED["per_class"].get(fault_class)
 
     def diagnose(self, x, fs, rpm=None):
+        """Physics shown to the technician (display only; the hint above is the measured CWRU rule)."""
         x = _resample(np.asarray(x, dtype=np.float64), fs, fp.FS)
-        return {"severity": P.severity_zone(P.velocity_rms_mm_s(x, fp.FS))}
+        out = {"severity": P.severity_zone(P.velocity_rms_mm_s(x, fp.FS))}
+        if rpm and rpm > 0:
+            shaft, geo = rpm / 60.0, P.BEARINGS["SKF6205-CWRU"]
+            freqs, amp = P.spectrum(x, fp.FS)
+            out |= {"shaft_hz": round(shaft, 3), "shaft_source": "tachometer (recording)",
+                    "defect_frequencies_hz": {k: round(v * shaft, 2) for k, v in geo.orders().items()},
+                    "bearing": P.bearing_rule(P.bearing_defect_scores(x, fp.FS, shaft, geo)),
+                    "rotating": P.rotating_rules(freqs, amp, shaft)}
+        return P.combine(out)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -209,7 +218,7 @@ class RotatingHF(Profile):
         if shaft:
             out["bearing"] = P.bearing_rule(P.bearing_defect_scores(x, self.analysis_fs, shaft, self.geometry))
             out["rotating"] = P.rotating_rules(freqs, amp, shaft)
-        return out
+        return P.combine(out)
 
 
 HF_MEASURED: dict[str, float] = {}      # filled from bench/results/hust_holdout.json when present (see _load_hf)

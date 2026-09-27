@@ -135,7 +135,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.43
+      "seconds": 2.34
     },
     {
       "fid": 106,
@@ -149,7 +149,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.37
+      "seconds": 2.37
     },
     {
       "fid": 107,
@@ -163,7 +163,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.51
+      "seconds": 2.2
     },
     {
       "fid": 108,
@@ -177,7 +177,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.4
+      "seconds": 2.49
     },
     {
       "fid": 118,
@@ -191,7 +191,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.47
+      "seconds": 2.29
     },
     {
       "fid": 119,
@@ -205,7 +205,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.21
+      "seconds": 2.28
     },
     {
       "fid": 120,
@@ -219,7 +219,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.08
+      "seconds": 2.28
     },
     {
       "fid": 121,
@@ -233,7 +233,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 3.89
+      "seconds": 2.38
     },
     {
       "fid": 130,
@@ -247,7 +247,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 3.91
+      "seconds": 2.27
     },
     {
       "fid": 131,
@@ -261,7 +261,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.19
+      "seconds": 1.79
     },
     {
       "fid": 132,
@@ -275,7 +275,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.04
+      "seconds": 2.44
     },
     {
       "fid": 133,
@@ -289,7 +289,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.32
+      "seconds": 2.34
     },
     {
       "fid": 169,
@@ -303,7 +303,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.2
+      "seconds": 2.21
     },
     {
       "fid": 170,
@@ -317,7 +317,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.21
+      "seconds": 2.62
     },
     {
       "fid": 171,
@@ -331,7 +331,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.42
+      "seconds": 2.29
     },
     {
       "fid": 172,
@@ -345,7 +345,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.6
+      "seconds": 4.21
     },
     {
       "fid": 185,
@@ -359,7 +359,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 5.94
+      "seconds": 3.33
     },
     {
       "fid": 186,
@@ -373,7 +373,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 5.11
+      "seconds": 2.87
     },
     {
       "fid": 187,
@@ -387,7 +387,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.92
+      "seconds": 2.81
     },
     {
       "fid": 188,
@@ -401,7 +401,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 5.25
+      "seconds": 2.92
     },
     {
       "fid": 197,
@@ -415,7 +415,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.18
+      "seconds": 2.31
     },
     {
       "fid": 198,
@@ -429,7 +429,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.36
+      "seconds": 2.28
     },
     {
       "fid": 199,
@@ -443,7 +443,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.08
+      "seconds": 2.18
     },
     {
       "fid": 200,
@@ -457,7 +457,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.55
+      "seconds": 2.46
     },
     {
       "fid": 209,
@@ -471,7 +471,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.06
+      "seconds": 2.45
     },
     {
       "fid": 210,
@@ -485,7 +485,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 3.85
+      "seconds": 2.48
     },
     {
       "fid": 211,
@@ -499,7 +499,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 3.93
+      "seconds": 2.42
     },
     {
       "fid": 212,
@@ -513,7 +513,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.02
+      "seconds": 2.37
     },
     {
       "fid": 222,
@@ -527,7 +527,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.32
+      "seconds": 2.82
     },
     {
       "fid": 223,
@@ -541,7 +541,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.72
+      "seconds": 2.53
     },
     {
       "fid": 224,
@@ -555,7 +555,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.08
+      "seconds": 2.61
     },
     {
       "fid": 225,
@@ -569,7 +569,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.22
+      "seconds": 2.26
     },
     {
       "fid": 234,
@@ -583,7 +583,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.52
+      "seconds": 2.57
     },
     {
       "fid": 235,
@@ -597,7 +597,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.56
+      "seconds": 2.37
     },
     {
       "fid": 236,
@@ -611,7 +611,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.77
+      "seconds": 2.33
     },
     {
       "fid": 237,
@@ -625,7 +625,7 @@
       "windows_to_verdict": 20,
       "still_faulty_verdict": "symptom_persists",
       "still_faulty_windows_available": 20,
-      "seconds": 4.53
+      "seconds": 2.64
     }
   ]
 }

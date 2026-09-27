@@ -146,7 +146,88 @@ episode writes, one window every 170.7 ms for 60 s. CPU % = process CPU time / w
 
 Without the optional LLM, one device fits in ~0.3 GB of RAM and a small fraction of one laptop core.
 
-## 11. Laya experiment (`bench/laya_experiment.py`, isolated `.venv-laya`)
+## 12. Held-out second machine: HUST bearing (`bench/hust_holdout.py`)
+The data-realism test. **Nothing was tuned on this data**: thresholds as shipped (chosen on CWRU). HUST bearing
+(Hong & Thuan 2023, Mendeley Data, CC BY 4.0, DOI 10.17632/cbv7jyx4p9.3): another lab rig, another sensor
+(PCB 325C33), 51.2 kHz, **five bearing types (6204-6208)**, 0/200/400 W; shaft speed from each file. Profile
+`rotating-hf`: defect frequencies computed from each bearing's geometry (physics, not memorised). Each bearing type is
+its own machine: baseline = healthy at 0 + 200 W; "unseen healthy" = healthy at 400 W.
+
+| Metric | First run | After the 2 bug fixes (D15) | After ONE "normal operation" confirmation (D16) |
+|---|---|---|---|
+| False alarms on healthy data at the untaught 400 W | 305 / 305 | 92 / 305 | **4 / 255 (1.6 %)** |
+| Fault windows detected (single / combined faults) | 98.5 % / 100 % | 98.1 % / 100 % | same |
+| Fix verified "symptom resolved" (fault → repair → healthy 400 W) | 0 / 42 | 15 / 42 | **42 / 42** |
+| Still-faulty verified "symptom persists" | 38 / 39 | 31 / 32 (+7 not evaluable: the fault merged into the first episode) | same |
+| **False promotions** | **0** | **0** | **0** |
+| Physics hint (defect frequency from geometry) | 97.6 % | **97.6 %** (ball 12/12, inner 15/15, outer 14/15) | same |
+
+What it taught us (the reason to run it): (1) a low cage frequency could fall between FFT bins and read as "no
+energy", making one feature a 13-million-sigma outlier; (2) a baseline spread floor of 1e-6 amplifies any
+near-constant feature; (3) even without bugs, **a healthy machine at an operating point it was never taught looks
+"abnormal"** (diagnosis: same-session windows 0 % alarms, another session or load often > 90 %). Real condition
+monitoring handles (3) by teaching new healthy states; the device now has that step, and one confirmation of 10
+windows fixed it. Caveat: the "teach" window count (10) and the 400 W state are this dataset's; a real plant has more
+operating states and each needs one confirmation.
+
+Diagnosis script: `spike/diagnose_hust_load.py`.
+
+## 13. Robots: UCI Robot Execution Failures (`bench/robot_failures.py`)
+CC BY 4.0, DOI 10.24432/C5M89N. Wrist force/torque, 15 samples × 6 channels per instance, profile `force-torque`,
+shipped gate thresholds, baseline = 60 % of the normal instances, 5 seeds averaged.
+| Task | False alarms (held-out normal) | Failures detected | Per failure type |
+|---|---|---|---|
+| lp1 approach to grasp | 0 % | **96 %** | collision 88 %, front collision 96 %, obstruction 100 % |
+| lp2 part transfer | 5 % | 55 % | back 63 %, front 70 %, left 36 %, right 60 % |
+| lp3 part position after transfer | 5 % | 55 % | lost 80 %, moved 61 %, slightly moved 36 % |
+| lp4 approach to ungrasp | 0 % | **98 %** | collision 97 %, obstruction 100 % |
+| lp5 motion with part | 0 % | 71 % | bottom collision 88 %, bottom obstruction 100 %, in part 59 %, in tool 54 % |
+
+Honest reading: gross collisions/obstructions are caught; subtle ones (a part slightly moved) are not with these
+thresholds. The data set is small (8-18 held-out normals per task).
+
+## 14. Which text model? (`bench/embed_models.py`)
+Same protocol as §4 (500 queries). Latency measured while a download ran; relative order is what matters.
+| Model (FastEmbed, 384-d) | Hybrid P@3 | Dense P@3 | Embed p50 | Files |
+|---|---|---|---|---|
+| **BAAI/bge-small-en-v1.5 (shipped)** | **0.885** | 0.794 | 33 ms | 64 MB |
+| sentence-transformers/all-MiniLM-L6-v2 (the plan's fallback) | 0.815 | 0.788 | 19 ms | 87 MB |
+| snowflake/snowflake-arctic-embed-xs | 0.868 | 0.784 | **7 ms** | 87 MB |
+bge-small stays. arctic-embed-xs is the option for weak devices (1.7 points lower, ~4× faster).
+
+## 15. Signal profiles (`tests/integration/test_profiles.py`)
+One engine, five input kinds, the same 27-number fingerprint slot. Each test runs the real device end to end.
+| Profile | Input | Tested end-to-end |
+|---|---|---|
+| bearing-12k | CWRU vibration 12 kHz | all of §1-§3 |
+| rotating-hf | any accelerometer ≥ 2 kHz, any bearing geometry | synthetic 6206 inner-race defect → hint + geometry-derived defect frequencies; HUST §12 |
+| lowrate-accel | phone / IMU ~60 Hz, 3 axes | coin-imbalance on a fan: baseline capture → NEW → hint imbalance (shaft 17 Hz) → rebalance → resolved → SHARE; Nyquist honesty (misalignment "not assessable" when 2x > 30 Hz) |
+| force-torque | robot wrist 6 channels | collision opens one episode; UCI §13 |
+| events | kiosk / vehicle / app error codes per bucket | printer jam → clear jam → codes stay away 20 buckets → resolved → SHARE |
+No licensed public data set with kiosk/vehicle error codes AND the fixes applied was found, so the events profile is
+tested with synthetic buckets only.
+
+## 16. Disk and RAM per shard (`bench/footprint.py`, Windows 11 NTFS)
+Episode-like points (27-d fingerprint, 384-d bge-small note of real logbook text, BM25). "Allocated" = what the files
+really occupy (GetCompressedFileSizeW). Fresh process per cell.
+
+| Points | Default layout | + float16 note | + int8 note (originals on disk) | **Default, folder OS-compressed** |
+|---|---|---|---|---|
+| 0 | 203 MB | 203 MB | 203 MB | **~0 MB** |
+| 1,000 | 267 MB | 267 MB | 267 MB | **3.8 MB** |
+| 10,000 | 310 MB | 268 MB | 313 MB | **39 MB** |
+| 50,000 | 482 MB (RAM 431 MB) | 446 MB (RAM 398) | 501 MB (RAM **376**) | **196 MB** |
+
+- ~203 MB per shard is **fixed pre-allocation** (32 MB page chunks, mostly zeros); real data adds ~5.6 kB/point.
+- Vector tricks help little on disk (float16 ~8 %); int8 quantization lowers RAM ~13 %.
+- **OS compression of the device folder is the big lever** (`--compress-storage`): the shard kept answering queries at
+  the same speed within noise (0.7-5 ms p50 while other benchmarks ran). Files Edge creates later are not compressed
+  until the next pass (the device re-compresses hourly).
+- Linux / macOS / Android (sparse pre-allocated files) were **not measured**: no such machine was available.
+- The top-10 agreement column in the JSON is **not a quality measure**: even two shards with the identical default
+  layout differ, because the approximate (HNSW) index is built non-deterministically.
+
+## 17. Laya experiment (`bench/laya_experiment.py`, isolated `.venv-laya`)
 Laya = convaiinnovations/laya 0.3.20 (Apache-2.0, ModernBERT-large 421M, ~808 MB, PyTorch CPU). Proposed roles:
 pre-fill the action picker from the technician's own description of what they did; second personal-data flag.
 Logbook ACTION text → 8 action families (mapping in the script), 1,592 distinct texts, split by distinct text,

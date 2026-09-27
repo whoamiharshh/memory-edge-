@@ -42,6 +42,26 @@ class Recordings:
     def baseline(cls, fids=HEALTHY_BASELINE_FILES) -> np.ndarray:
         return np.concatenate([cls.windows(f) for f in fids])
 
+    _raw: dict[int, tuple[np.ndarray, float]] = {}
+
+    @classmethod
+    def raw_window(cls, fid: int, i: int) -> tuple[np.ndarray, float, float] | None:
+        """The i-th raw 4096-sample window of a CWRU file at 12 kHz (+ fs, rpm), for the physics diagnosis. None if
+        the raw .mat file is not on this machine (the cached fingerprints still replay)."""
+        from data.splits import NOMINAL_RPM, RAW
+        from edge.fingerprint import FS, load_cwru, windows
+        with cls._lock:
+            if fid not in cls._raw:
+                path = RAW / "cwru" / f"{fid}.mat"
+                if not path.exists():
+                    return None
+                x, rpm = load_cwru(path)
+                if not np.isfinite(rpm) or rpm <= 0:
+                    rpm = NOMINAL_RPM[CWRU[fid][2]]
+                cls._raw[fid] = (windows(x), rpm)
+        ws, rpm = cls._raw[fid]
+        return (ws[i], float(FS), float(rpm)) if 0 <= i < len(ws) else None
+
     @staticmethod
     def catalogue() -> list[dict]:
         return [{"fid": f, "fault_class": c, "size_mil": s, "load_hp": l,
@@ -52,8 +72,12 @@ class Recordings:
 class ReplayRunner:
     """Background feeder: plays one file's windows into ingest(), `interval` seconds apart."""
 
-    def __init__(self, ingest: Callable[[np.ndarray, str], dict]):
+    def __init__(self, ingest: Callable[[np.ndarray, str], dict],
+                 on_abnormal: Callable[[dict, int, int], None] | None = None):
+        """on_abnormal(result, fid, window_index): called for abnormal windows (e.g. to attach the physics
+        diagnosis computed from the raw signal of that window)."""
         self.ingest = ingest
+        self.on_abnormal = on_abnormal
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self.state = {"playing": False, "fid": None, "done": 0, "total": 0, "last": None}
@@ -67,10 +91,12 @@ class ReplayRunner:
 
         def run():
             try:
-                for x in w:
+                for k, x in enumerate(w):
                     if self._stop.is_set():
                         break
                     self.state["last"] = self.ingest(x, f"cwru:{fid}")
+                    if self.on_abnormal and self.state["last"].get("state") in ("new", "merge"):
+                        self.on_abnormal(self.state["last"], fid, start + k)
                     self.state["done"] += 1
                     if interval:
                         time.sleep(interval)

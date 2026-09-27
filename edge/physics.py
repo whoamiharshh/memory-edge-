@@ -182,10 +182,24 @@ def bearing_defect_scores(x: np.ndarray, fs: float, shaft_hz: float, geometry: B
 DEFECT_TO_CLASS = {"bpfo": "outer_race", "bpfi": "inner_race", "bsf": "ball", "ftf": "cage"}
 
 
+BEARING_DOMINANT = 1.0      # log10 ratio (10x the median envelope level): a defect frequency clearly stands out
+
+
 def bearing_rule(scores: dict[str, float]) -> dict:
     """Which bearing defect frequency dominates the envelope spectrum (FTF excluded: a cage fault is rare and not in
     our fault classes)."""
     cand = {k: v for k, v in scores.items() if k in ("bpfo", "bpfi", "bsf")}
     best = max(cand, key=cand.get)
     return {"fault_class": DEFECT_TO_CLASS[best], "why": f"{best.upper()} envelope energy dominates ({cand[best]:.2f})",
-            "scores": {k: round(v, 3) for k, v in scores.items()}}
+            "scores": {k: round(v, 3) for k, v in scores.items()}, "dominant": cand[best] >= BEARING_DOMINANT}
+
+
+def combine(diag: dict) -> dict:
+    """Make the two rules and the severity zone read correctly together (display text only)."""
+    b, r, s = diag.get("bearing"), diag.get("rotating"), diag.get("severity") or {}
+    if b and b.get("dominant") and r:
+        r["why"] += " - SECONDARY: a bearing defect frequency dominates; defect impacts also create harmonics"
+    if b and b.get("dominant") and s.get("zone") in ("A", "B"):
+        s["text"] += ("; early bearing defects show in envelope/acceleration long before overall velocity rises, "
+                      "so a low zone does not mean the bearing is healthy")
+    return diag

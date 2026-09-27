@@ -13,6 +13,7 @@ import time
 
 import httpx
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # Windows redirects default to cp1252 (no ⚑)
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BOOT = json.loads((ROOT / "runtime" / "cloud" / "bootstrap.json").read_text())
 A = httpx.Client(base_url="http://127.0.0.1:8101", headers={"X-Operator-Token": "operator-devA"}, timeout=120)

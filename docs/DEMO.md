@@ -1,7 +1,8 @@
 # Demo: judge-facing run (~5 minutes), rehearsal checklist, and backup
 
 Everything runs on one laptop, offline-capable: Qdrant Server (official Windows binary), the fleet cloud (Sync API +
-fleet UI), Device A (site 1) and Device B (site 2). There is no Docker and no internet dependency at demo time.
+fleet UI), Device A (site 1), Device B (site 2) and Device C (site 3, the disagreeing report). Optional finale: a
+phone on a desk fan as a live sensor (docs/FIELD_TEST.md Part 2). There is no Docker and no internet dependency at demo time.
 
 ## Before the session (10 minutes)
 1. `powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset` (fresh state; do **not** pipe its output).
@@ -25,8 +26,9 @@ fleet UI), Device A (site 1) and Device B (site 2). There is no Docker and no in
 | 4 | Play `100 · normal · load 3` (post-repair) | "Now the machine itself checks the fix: 20 consecutive windows back inside the healthy radius." | Verification bar fills: **symptom resolved for 20 windows (not a root-cause proof)** |
 | 5 | Technician says **Worked** | "Only now may it leave the machine, and only the structured evidence: the redactor found the name, so the note stays local." | **SHARE**, note stays local, outbox **QUEUED** |
 | 6 | Switch **ONLINE** | "Connectivity returns: the outbox drains." Press **Resend**: "Same event again: the cloud says duplicate, and counts it once." | QUEUED → SYNCED; activity shows `1 duplicate` |
-| 7 | Fleet cloud tab → the case | "Grouped by component and **technician-confirmed** fault class, because we measured that vibration similarity does not transfer across bearings (43 %). Disagreement is kept, not overwritten." | Tallies per action and site, machine-verified counts, flags |
-| 8 | Device B: ONLINE → Sync now → OFFLINE; Play `169 · inner_race 14 mil` (a bearing A never saw); Similar to selected episode | "B pulled the fleet mirror: a full Qdrant shard snapshot the first time (gzip ~190 kB), then small deltas. Now it is offline and meets a new bearing." | **Fleet evidence offline**: replace_bearing worked at site1 (machine-verified); per-leg ranks vib / note / bm25 |
+| 6b | Device C tab (site 3, `operator-devC`): OFFLINE; Play `106`; confirm *inner_race*; record *replace_bearing* with root cause *lubrication_starvation*; Play `106` again from window 30; *Failed*; ONLINE | "Another site tried the same fix, and on its machine the fault persisted. That is shared too, as failed evidence." | Verification: symptom persists → SHARE as failed evidence |
+| 7 | Fleet cloud tab → the case | "Grouped by component and **technician-confirmed** fault class, because we measured that vibration similarity does not transfer across bearings (43 %). Disagreement is kept, not overwritten." | replace_bearing worked at site1, failed at site3: **DISPUTED + COMPETING** (fatigue wear vs lubrication starvation), both kept |
+| 8 | Device B: ONLINE → Sync now → OFFLINE; Play `169 · inner_race 14 mil` (a bearing A never saw); Similar to selected episode | "B pulled the fleet mirror: a full Qdrant shard snapshot the first time (gzip ~190 kB), then small deltas. Now it is offline and meets a new bearing." | **Fleet evidence offline**, including the disagreement; per-leg ranks vib / note / bm25; physics panel (severity, defect frequencies) and the cited **documented procedure** for the fault class |
 | 9 | Evidence brief → Generate | "A local 1.5B model summarises only the retrieved evidence. Every sentence must cite it, and advice is removed. It is never used for decisions." | Cited brief, removed sentences listed |
 | 10 | (optional) Wi-Fi off, repeat step 8's search | "Nothing here needs the network." | Same result |
 

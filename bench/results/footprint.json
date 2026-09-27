@@ -7,6 +7,15 @@
       "n": 0,
       "apparent_mb": 203.4,
       "allocated_mb": 203.4,
+      "rss_mb": 181.3,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "default_os_compressed",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 0.0,
       "rss_mb": 181.5,
       "hybrid_p50_ms": 0.0,
       "top10_overlap_vs_default": null
@@ -16,25 +25,25 @@
       "n": 0,
       "apparent_mb": 203.4,
       "allocated_mb": 203.4,
+      "rss_mb": 181.3,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 203.4,
       "rss_mb": 181.5,
       "hybrid_p50_ms": 0.0,
       "top10_overlap_vs_default": null
     },
     {
-      "layout": "one_segment_f16",
-      "n": 0,
-      "apparent_mb": 203.4,
-      "allocated_mb": 203.4,
-      "rss_mb": 181.7,
-      "hybrid_p50_ms": 0.0,
-      "top10_overlap_vs_default": null
-    },
-    {
       "layout": "one_segment_int8_ondisk",
       "n": 0,
       "apparent_mb": 203.4,
       "allocated_mb": 203.4,
-      "rss_mb": 180.7,
+      "rss_mb": 180.5,
       "hybrid_p50_ms": 0.0,
       "top10_overlap_vs_default": null
     },
@@ -43,108 +52,135 @@
       "n": 1000,
       "apparent_mb": 267.4,
       "allocated_mb": 267.4,
-      "rss_mb": 255.0,
-      "hybrid_p50_ms": 0.702,
-      "top10_overlap_vs_default": 1.0
-    },
-    {
-      "layout": "one_segment",
-      "n": 1000,
-      "apparent_mb": 267.4,
-      "allocated_mb": 267.4,
-      "rss_mb": 255.8,
-      "hybrid_p50_ms": 0.835,
-      "top10_overlap_vs_default": 0.906
-    },
-    {
-      "layout": "one_segment_f16",
-      "n": 1000,
-      "apparent_mb": 267.4,
-      "allocated_mb": 267.4,
-      "rss_mb": 254.6,
-      "hybrid_p50_ms": 0.609,
-      "top10_overlap_vs_default": 0.921
-    },
-    {
-      "layout": "one_segment_int8_ondisk",
-      "n": 1000,
-      "apparent_mb": 267.4,
-      "allocated_mb": 267.4,
-      "rss_mb": 223.3,
-      "hybrid_p50_ms": 0.575,
-      "top10_overlap_vs_default": 0.922
-    },
-    {
-      "layout": "default",
-      "n": 10000,
-      "apparent_mb": 309.5,
-      "allocated_mb": 309.5,
-      "rss_mb": 257.7,
+      "rss_mb": 256.1,
       "hybrid_p50_ms": 0.741,
       "top10_overlap_vs_default": 1.0
     },
     {
+      "layout": "default_os_compressed",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 3.8,
+      "rss_mb": 255.4,
+      "hybrid_p50_ms": 1.465,
+      "top10_overlap_vs_default": 0.916
+    },
+    {
+      "layout": "one_segment",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 256.5,
+      "hybrid_p50_ms": 1.202,
+      "top10_overlap_vs_default": 0.908
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 254.4,
+      "hybrid_p50_ms": 1.036,
+      "top10_overlap_vs_default": 0.91
+    },
+    {
+      "layout": "one_segment_int8_ondisk",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 222.3,
+      "hybrid_p50_ms": 0.889,
+      "top10_overlap_vs_default": 0.91
+    },
+    {
+      "layout": "default",
+      "n": 10000,
+      "apparent_mb": 309.5,
+      "allocated_mb": 309.5,
+      "rss_mb": 254.9,
+      "hybrid_p50_ms": 1.21,
+      "top10_overlap_vs_default": 1.0
+    },
+    {
+      "layout": "default_os_compressed",
+      "n": 10000,
+      "apparent_mb": 309.5,
+      "allocated_mb": 39.0,
+      "rss_mb": 256.9,
+      "hybrid_p50_ms": 1.147,
+      "top10_overlap_vs_default": 0.707
+    },
+    {
       "layout": "one_segment",
       "n": 10000,
       "apparent_mb": 309.5,
       "allocated_mb": 309.5,
-      "rss_mb": 256.7,
-      "hybrid_p50_ms": 0.727,
-      "top10_overlap_vs_default": 0.76
+      "rss_mb": 255.7,
+      "hybrid_p50_ms": 1.402,
+      "top10_overlap_vs_default": 0.705
     },
     {
       "layout": "one_segment_f16",
       "n": 10000,
       "apparent_mb": 267.7,
       "allocated_mb": 267.7,
-      "rss_mb": 288.6,
-      "hybrid_p50_ms": 1.762,
-      "top10_overlap_vs_default": 0.592
+      "rss_mb": 287.6,
+      "hybrid_p50_ms": 2.082,
+      "top10_overlap_vs_default": 0.591
     },
     {
       "layout": "one_segment_int8_ondisk",
       "n": 10000,
       "apparent_mb": 313.2,
       "allocated_mb": 313.2,
-      "rss_mb": 244.8,
-      "hybrid_p50_ms": 0.585,
-      "top10_overlap_vs_default": 0.729
+      "rss_mb": 244.7,
+      "hybrid_p50_ms": 1.396,
+      "top10_overlap_vs_default": 0.727
     },
     {
       "layout": "default",
       "n": 50000,
-      "apparent_mb": 482.4,
-      "allocated_mb": 482.4,
-      "rss_mb": 431.6,
-      "hybrid_p50_ms": 1.711,
+      "apparent_mb": 482.3,
+      "allocated_mb": 482.3,
+      "rss_mb": 431.0,
+      "hybrid_p50_ms": 5.071,
       "top10_overlap_vs_default": 1.0
+    },
+    {
+      "layout": "default_os_compressed",
+      "n": 50000,
+      "apparent_mb": 482.4,
+      "allocated_mb": 195.6,
+      "rss_mb": 431.4,
+      "hybrid_p50_ms": 2.758,
+      "top10_overlap_vs_default": 0.573
     },
     {
       "layout": "one_segment",
       "n": 50000,
       "apparent_mb": 482.4,
       "allocated_mb": 482.4,
-      "rss_mb": 432.3,
-      "hybrid_p50_ms": 2.077,
-      "top10_overlap_vs_default": 0.545
+      "rss_mb": 436.6,
+      "hybrid_p50_ms": 2.325,
+      "top10_overlap_vs_default": 0.591
     },
     {
       "layout": "one_segment_f16",
       "n": 50000,
       "apparent_mb": 445.8,
       "allocated_mb": 445.8,
-      "rss_mb": 398.1,
-      "hybrid_p50_ms": 2.013,
-      "top10_overlap_vs_default": 0.544
+      "rss_mb": 396.9,
+      "hybrid_p50_ms": 2.217,
+      "top10_overlap_vs_default": 0.584
     },
     {
       "layout": "one_segment_int8_ondisk",
       "n": 50000,
-      "apparent_mb": 500.9,
-      "allocated_mb": 500.9,
-      "rss_mb": 376.1,
-      "hybrid_p50_ms": 1.678,
-      "top10_overlap_vs_default": 0.596
+      "apparent_mb": 500.8,
+      "allocated_mb": 500.8,
+      "rss_mb": 380.5,
+      "hybrid_p50_ms": 2.138,
+      "top10_overlap_vs_default": 0.636
     }
   ]
 }

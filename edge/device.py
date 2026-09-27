@@ -213,13 +213,22 @@ class Device:
                     continue
             r = self.ingest_window(f, source)
             if r["state"] != "normal" and not isinstance(w, dict):
-                d = self.profile.diagnose(w, fs_w, rpm)
-                self.last_diagnosis = d | {"episode_id": r.get("episode_id")}
-                ep = self.store.get(r["episode_id"]) if r.get("episode_id") else None
-                if ep and ep.payload["occurrences"] <= HINT_WINDOWS:
-                    self._set(r["episode_id"], physics=_json_safe(d))
+                self.attach_diagnosis(r.get("episode_id"), w, fs_w, rpm)
             results.append(r)
         return results
+
+    def attach_diagnosis(self, eid: str | None, raw_window, fs: float, rpm: float | None) -> dict | None:
+        """Physics diagnosis of one raw abnormal window, kept on the episode while it is young (first HINT_WINDOWS
+        windows), and as `last_diagnosis` for the UI. Used by live input and by the recording replay."""
+        d = self.profile.diagnose(raw_window, fs, rpm)
+        if not d:
+            return None
+        self.last_diagnosis = _json_safe(d) | {"episode_id": eid}
+        with self._lock:
+            ep = self.store.get(eid) if eid else None
+            if ep and ep.payload.get("type") == "episode" and ep.payload["occurrences"] <= HINT_WINDOWS:
+                self._set(eid, physics=_json_safe(d))
+        return d
 
     # ---- the per-window path ----------------------------------------------------------------------------
     def ingest_window(self, raw: np.ndarray, source: str | None = None) -> dict:
