@@ -17,6 +17,7 @@ MAX_BATCH = 100
 
 
 class Component(str, Enum):
+    """What was worked on. Rotating machines first; then robots, kiosks, vehicles and mobile/app devices (PS3)."""
     bearing = "bearing"
     gearbox = "gearbox"
     coupling = "coupling"
@@ -24,23 +25,49 @@ class Component(str, Enum):
     fan = "fan"
     pump = "pump"
     motor = "motor"
+    compressor = "compressor"
+    robot_joint = "robot_joint"
+    robot_gripper = "robot_gripper"
+    conveyor = "conveyor"
+    kiosk = "kiosk"
+    printer = "printer"
+    card_reader = "card_reader"
+    touchscreen = "touchscreen"
+    engine = "engine"
+    brake = "brake"
+    wheel = "wheel"
+    battery = "battery"
+    network = "network"
+    app = "app"
+    sensor = "sensor"
 
 
 class FaultClass(str, Enum):
-    """Bearing defect location (CWRU classes) plus generic rotating-equipment faults."""
+    """Bearing defect location (CWRU classes), generic rotating-equipment faults, then robot / device faults."""
     inner_race = "inner_race"
     outer_race = "outer_race"
     ball = "ball"
+    cage = "cage"
     imbalance = "imbalance"
     misalignment = "misalignment"
     looseness = "looseness"
+    collision = "collision"
+    obstruction = "obstruction"
+    slip = "slip"
+    overheating = "overheating"
+    jam = "jam"
+    power = "power"
+    connectivity = "connectivity"
+    software_error = "software_error"
+    hardware_error = "hardware_error"
+    sensor_fault = "sensor_fault"
+    wear = "wear"
     unknown = "unknown"
 
 
 class ActionCode(str, Enum):
     """Structured intervention codes (Proposed Design). Loosely modelled on the action types in the Annotated
-    Maintenance Logbook (removed & replaced, tightened, cleaned, installed, checked) mapped to rotating
-    equipment."""
+    Maintenance Logbook (removed & replaced, tightened, cleaned, installed, checked), extended to robots and devices."""
     replace_bearing = "replace_bearing"
     lubricate = "lubricate"
     realign = "realign"
@@ -48,6 +75,13 @@ class ActionCode(str, Enum):
     tighten = "tighten"
     clean = "clean"
     replace_seal = "replace_seal"
+    replace_part = "replace_part"
+    recalibrate = "recalibrate"
+    clear_jam = "clear_jam"
+    reseat_connector = "reseat_connector"
+    restart = "restart"
+    update_firmware = "update_firmware"
+    adjust_settings = "adjust_settings"
     inspect_no_action = "inspect_no_action"
     other = "other"
 
@@ -60,6 +94,11 @@ class RootCause(str, Enum):
     fatigue_wear = "fatigue_wear"
     installation_damage = "installation_damage"
     electrical_erosion = "electrical_erosion"
+    loose_mounting = "loose_mounting"
+    software_bug = "software_bug"
+    configuration = "configuration"
+    environment = "environment"
+    operator_error = "operator_error"
     unknown = "unknown"
 
 
@@ -89,7 +128,7 @@ class ShareEvent(BaseModel):
     verify_windows_required: int = Field(ge=1, le=100_000)
     technician_confirmed: bool
     fingerprint: list[float] = Field(min_length=FP_DIM, max_length=FP_DIM)
-    fp_version: Literal["fp-v2"] = FP_VERSION
+    fp_version: Literal["fp-v2", "fp-rh1", "fp-lr1", "fp-ft1", "fp-ev1"] = FP_VERSION   # edge/profiles.py
     note_redacted: str | None = Field(default=None, max_length=MAX_NOTE_CHARS)
     occurred_at: str = Field(min_length=10, max_length=40)
     content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")   # shared.ids.repair_hash

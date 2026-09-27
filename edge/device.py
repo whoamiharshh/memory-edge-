@@ -22,9 +22,9 @@ from typing import Any
 
 import numpy as np
 
-from edge import fault_hint, policy
+from edge import policy, profiles
 from edge import verifier as V
-from edge.fingerprint import FP_VERSION, Baseline
+from edge.fingerprint import Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
 from edge.mirror import Mirror
 from edge.outbox import Outbox
@@ -45,6 +45,17 @@ def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds")
 
 
+def _json_safe(x):
+    """Round floats and drop NaN/inf so physics diagnoses can live in a payload."""
+    if isinstance(x, dict):
+        return {k: _json_safe(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_json_safe(v) for v in x]
+    if isinstance(x, float):
+        return round(x, 4) if np.isfinite(x) else None
+    return x
+
+
 class VersionConflict(RuntimeError):
     """The episode changed since the caller read it (another technician or tab). Nothing was written."""
 
@@ -61,19 +72,23 @@ class DeviceConfig:
     machine_id: str
     root: pathlib.Path
     machine_class: str = "2hp-induction-motor/SKF6205-DE"
-    component: str = "bearing"
+    component: str | None = None                # None = the profile's default component
     denylist: list[str] = field(default_factory=list)
     cloud_url: str | None = None
     device_token: str | None = None
+    profile: str = "bearing-12k"                # edge/profiles.py: what kind of signal this device watches
+    profile_params: dict = field(default_factory=dict)
 
 
 class Device:
     def __init__(self, cfg: DeviceConfig, embedder: Embedder):
         self.cfg, self.embedder = cfg, embedder
+        self.profile = profiles.make(cfg.profile, **cfg.profile_params)
+        self.component = cfg.component or self.profile.default_component
         root = pathlib.Path(cfg.root)
         root.mkdir(parents=True, exist_ok=True)
         self.store = EdgeStore(root / "local", text_model=embedder.name, note_dim=embedder.dim,
-                               allow_text_model_change=True)
+                               fp_version=self.profile.fp_version, allow_text_model_change=True)
         self.outbox = Outbox(str(root / "device.sqlite"))
         self.mirror = Mirror(root, self.outbox, text_model=FLEET_TEXT_MODEL)
         if self.store.pending_text_model:            # H.3: the device got a new text model -> re-embed its memory
@@ -90,12 +105,14 @@ class Device:
         self.last_gate: dict | None = None
         self.recent: collections.deque[dict] = collections.deque(maxlen=240)   # recent window results (UI chart)
         self._run_episode: str | None = None       # episode of the current uninterrupted abnormal run
+        self._capture: dict | None = None          # healthy-baseline capture from a live sensor (ingest_signal)
+        self.last_diagnosis: dict | None = None    # physics diagnosis of the latest abnormal signal window
         replayed = self._replay_journal()
         requeued = self.outbox.recover_uploading()
         bpath = root / "baseline.json"
         if bpath.exists():
             b = json.loads(bpath.read_text())
-            self.baseline = Baseline.from_dict(b["baseline"])
+            self.baseline = Baseline.from_dict(b["baseline"], self.profile.fp_version)
             self.gate = NoveltyGate(self.store, cfg.machine_id, GateConfig(**b["gate"]))
         self.outbox.log("boot", f"device started; journal re-applied {replayed} op(s); {requeued} upload(s) re-queued")
         self._last_retention = 0.0
@@ -144,12 +161,12 @@ class Device:
         """Fit z-scoring stats on this machine's healthy windows, store them as baseline points, calibrate the
         gate from them. Replaces any previous baseline of this machine."""
         with self._lock:
-            b = Baseline.fit(healthy_raw)
-            z = b.z(healthy_raw)
+            b = Baseline.fit(healthy_raw, self.profile.fp_version)
+            z = b.z(np.asarray(healthy_raw, dtype=np.float64))
             g = calibrate(z)
             pts = [StorePoint(ids.baseline_point_id(self.cfg.machine_id, i),
-                              {"type": "baseline", "machine_id": self.cfg.machine_id, "fp_version": FP_VERSION},
-                              vib=z[i].tolist()) for i in range(len(z))]
+                              {"type": "baseline", "machine_id": self.cfg.machine_id,
+                               "fp_version": self.profile.fp_version}, vib=z[i].tolist()) for i in range(len(z))]
             for s in range(0, len(pts), 256):
                 self._upsert(pts[s:s + 256])
             (pathlib.Path(self.cfg.root) / "baseline.json").write_text(
@@ -158,6 +175,50 @@ class Device:
             self.outbox.log("baseline", f"baseline fitted on {len(z)} healthy windows; tau_normal={g.tau_normal:.2f}, "
                                         f"tau_merge={g.tau_merge:.2f} (calibration q99 {g.calib_q99:.2f})")
             return g.to_dict() | {"n_windows": len(z)}
+
+    # ---- live sensor input (any profile) ----------------------------------------------------------------
+    def start_baseline_capture(self, n_windows: int) -> dict:
+        """The next n_windows signal windows are treated as THIS machine's healthy state (the technician says the
+        machine is known-good now); then the baseline is fitted from them."""
+        if n_windows < 10:
+            raise ValueError("capture at least 10 windows (the gate calibration needs them)")
+        with self._lock:
+            self._capture = {"want": int(n_windows), "features": []}
+        self.outbox.log("baseline", f"capturing {n_windows} healthy windows from the live sensor")
+        return self.capture_state()
+
+    def capture_state(self) -> dict | None:
+        c = self._capture
+        return None if c is None else {"want": c["want"], "have": len(c["features"])}
+
+    def ingest_signal(self, x, fs: float, rpm: float | None = None, source: str | None = None) -> list[dict]:
+        """Raw sensor data (any length; the profile cuts it into windows) -> fingerprint -> gate. While a baseline
+        capture runs, windows only feed the capture. Returns one gate result per window."""
+        results = []
+        fs_w = self.profile.analysis_fs or fs            # profile.windows() already resampled to the analysis rate
+        for w in self.profile.windows(x, fs) if not isinstance(x, dict) else [x]:
+            f = self.profile.features(w, fs_w, rpm)
+            if not np.all(np.isfinite(f)):
+                raise ValueError("signal produced non-finite features (flat or corrupt input?)")
+            with self._lock:
+                if self._capture is not None:
+                    self._capture["features"].append(f)
+                    if len(self._capture["features"]) >= self._capture["want"]:
+                        feats = np.asarray(self._capture["features"])
+                        self._capture = None
+                        results.append({"state": "baseline", "fitted": self.fit_baseline(feats)})
+                    else:
+                        results.append({"state": "capturing", **self.capture_state()})
+                    continue
+            r = self.ingest_window(f, source)
+            if r["state"] != "normal" and not isinstance(w, dict):
+                d = self.profile.diagnose(w, fs_w, rpm)
+                self.last_diagnosis = d | {"episode_id": r.get("episode_id")}
+                ep = self.store.get(r["episode_id"]) if r.get("episode_id") else None
+                if ep and ep.payload["occurrences"] <= HINT_WINDOWS:
+                    self._set(r["episode_id"], physics=_json_safe(d))
+            results.append(r)
+        return results
 
     # ---- the per-window path ----------------------------------------------------------------------------
     def ingest_window(self, raw: np.ndarray, source: str | None = None) -> dict:
@@ -205,15 +266,16 @@ class Device:
         seq = int(self.outbox.kv_get("episode_seq", 0)) + 1
         self.outbox.kv_set("episode_seq", seq)
         eid = ids.episode_id(self.cfg.device_id, seq)
-        hint = fault_hint.suggest(raw)
+        hint = self.profile.hint(raw)
         payload = {
             "type": "episode", "episode_id": eid, "seq": seq, "machine_id": self.cfg.machine_id,
-            "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "component": self.cfg.component,
+            "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "component": self.component,
+            "profile": self.profile.name,
             "first_seen": ts, "last_seen": ts, "occurrences": 1, "status": "open", "n_exemplars": 1,
             "fault_hint": hint, "hint_votes": {hint["fault_class"]: 1}, "fault_class": None, "fault_class_source": None,
             "action_code": None, "root_cause_claim": None, "action_at": None, "note_text": "", "note_share_opt_in": False,
             "outcome": "pending", "technician_confirmed": False, "verify": None, "share_state": "local",
-            "decision": None, "recurrence_of": recurrence_of, "schema_version": 1, "fp_version": FP_VERSION,
+            "decision": None, "recurrence_of": recurrence_of, "schema_version": 1, "fp_version": self.profile.fp_version,
             "text_model": self.embedder.name, "version": 1,
         }
         text = self._doc_text(payload)
@@ -222,7 +284,7 @@ class Device:
             StorePoint(ids.make_id("exemplar", eid, 0), {"type": "exemplar", "machine_id": self.cfg.machine_id,
                                                          "episode_id": eid, "episode_active": True}, vib=z.tolist()),
         ])
-        msg = "unfamiliar vibration state: new episode opened"
+        msg = "unfamiliar state: new episode opened"
         if recurrence_of:
             msg += f" (resembles closed episode {recurrence_of[:8]} on this machine)"
         self.outbox.log("gate", msg + f"; physics hint: {hint['fault_class']}", eid)
@@ -234,13 +296,14 @@ class Device:
         fields: dict[str, Any] = {"occurrences": ep["occurrences"] + 1, "last_seen": ts}
         if ep["occurrences"] < HINT_WINDOWS:                   # majority vote of the first windows' hints
             votes = dict(ep.get("hint_votes") or {})
-            h = fault_hint.suggest(raw)["fault_class"]
-            votes[h] = votes.get(h, 0) + 1
+            h = self.profile.hint(raw)
+            votes[h["fault_class"]] = votes.get(h["fault_class"], 0) + 1
             best = max(votes, key=votes.get)
             fields["hint_votes"] = votes
             fields["fault_hint"] = ep["fault_hint"] | {
-                "fault_class": best, "measured_accuracy": fault_hint.MEASURED["per_class"].get(best),
-                "why": f"dominant defect frequency in {votes[best]} of the first {sum(votes.values())} windows"}
+                "fault_class": best, "measured_accuracy": self.profile.measured(best),
+                "why": f"{h['why'] if best == h['fault_class'] else 'physics rule'}; "
+                       f"voted in {votes[best]} of the first {sum(votes.values())} windows"}
         if d_episode is not None and d_episode > self.gate.cfg.tau_normal and ep["n_exemplars"] < MAX_EXEMPLARS:
             self._upsert([StorePoint(ids.make_id("exemplar", eid, ep["n_exemplars"]),
                                      {"type": "exemplar", "machine_id": self.cfg.machine_id, "episode_id": eid,
@@ -346,7 +409,8 @@ class Device:
         d = policy.decide(ep, fingerprint=rec.vectors["vib"], redaction=red, device_id=self.cfg.device_id,
                           machine_class=self.cfg.machine_class,
                           already_queued=self.outbox.known_event_ids() - {ep.get("event_id")},   # own event is not a duplicate
-                          already_repairs={h: e for h, e in self.outbox.known_repairs().items() if e != eid})
+                          already_repairs={h: e for h, e in self.outbox.known_repairs().items() if e != eid},
+                          fp_version=self.profile.fp_version)
         fields: dict[str, Any] = {"decision": d.to_dict()}
         if d.action == "SHARE" and self.outbox.enqueue(d.event):
             fields["share_state"] = "queued"
@@ -449,7 +513,7 @@ class Device:
         fleet, fleet_filter, fleet_error = [], None, None
         try:
             if use_fleet and self.mirror.count():
-                fleet_filter = {"component": self.cfg.component, "!status": "retracted"}
+                fleet_filter = {"component": self.component, "!status": "retracted"}
                 if fc and fc != "unknown":
                     fleet_filter["fault_class"] = fc
                 # the mirror's text vectors come from the cloud's model; a query vector from another model would
@@ -485,7 +549,8 @@ class Device:
         pct = lambda xs, q: round(float(np.percentile(xs, q)), 3) if xs else None
         return {
             "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "machine_id": self.cfg.machine_id,
-            "machine_class": self.cfg.machine_class, "component": self.cfg.component,
+            "machine_class": self.cfg.machine_class, "component": self.component, "profile": self.profile.describe(),
+            "baseline_capture": self.capture_state(), "last_diagnosis": self.last_diagnosis,
             "baseline_ready": self.gate is not None, "gate": self.gate.cfg.to_dict() if self.gate else None,
             "windows": dict(self.counters), "last_gate": self.last_gate, "recent": list(self.recent),
             "gate_ms": {"p50": pct(g, 50), "p95": pct(g, 95), "n": len(g)},

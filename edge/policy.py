@@ -49,7 +49,8 @@ class Decision:
 
 
 def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction | None, device_id: str,
-           machine_class: str, already_queued: set[str], already_repairs: dict[str, str] | None = None) -> Decision:
+           machine_class: str, already_queued: set[str], already_repairs: dict[str, str] | None = None,
+           fp_version: str = FP_VERSION) -> Decision:
     """already_queued: event ids this device already queued/shared (other episodes' included).
     already_repairs: repair_hash -> episode id, for events already queued/shared from OTHER episodes."""
     d = Decision("KEEP_LOCAL")
@@ -72,8 +73,8 @@ def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction
     problems = []
     if len(fingerprint) != FP_DIM or not all(math.isfinite(x) for x in fingerprint):
         problems.append("fingerprint missing, wrong size or not finite")
-    if ep.get("fp_version") != FP_VERSION:
-        problems.append(f"fingerprint version {ep.get('fp_version')} != {FP_VERSION}")
+    if ep.get("fp_version") != fp_version:
+        problems.append(f"fingerprint version {ep.get('fp_version')} != this device's {fp_version}")
     if ep.get("action_code") and ep["action_code"] not in ActionCode.__members__:
         problems.append(f"unknown action code {ep['action_code']!r}")
     if ep.get("fault_class") and ep["fault_class"] not in FaultClass.__members__:
@@ -141,7 +142,7 @@ def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction
                 verify_windows_ok=int(v.get("consecutive_ok", 0) if outcome == "worked" else v.get("consecutive_bad", 0)),
                 verify_windows_required=int(n), technician_confirmed=True, fingerprint=[float(x) for x in fingerprint],
                 note_redacted=(redaction.text if share_note and redaction else None),
-                occurred_at=ep.get("action_at") or ep.get("first_seen"), content_hash=rh)
+                occurred_at=ep.get("action_at") or ep.get("first_seen"), content_hash=rh, fp_version=fp_version)
     try:
         d.event = ShareEvent(**body).model_dump(mode="json")
     except ValidationError as e:

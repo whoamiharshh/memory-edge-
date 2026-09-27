@@ -135,11 +135,12 @@ class Baseline:
     fp_version: str = FP_VERSION
 
     @classmethod
-    def fit(cls, healthy_raw: np.ndarray) -> "Baseline":
+    def fit(cls, healthy_raw: np.ndarray, fp_version: str = FP_VERSION) -> "Baseline":
+        healthy_raw = np.asarray(healthy_raw, dtype=np.float64)
         if len(healthy_raw) < 5:
             raise ValueError("need at least 5 healthy windows to fit a baseline")
         std = healthy_raw.std(axis=0)
-        return cls(mean=healthy_raw.mean(axis=0), std=np.where(std < 1e-6, 1e-6, std))
+        return cls(mean=healthy_raw.mean(axis=0), std=np.where(std < 1e-6, 1e-6, std), fp_version=fp_version)
 
     def z(self, raw: np.ndarray) -> np.ndarray:
         return (raw - self.mean) / self.std
@@ -148,7 +149,7 @@ class Baseline:
         return {"mean": self.mean.tolist(), "std": self.std.tolist(), "fp_version": self.fp_version}
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Baseline":
-        if d.get("fp_version") != FP_VERSION:
-            raise ValueError(f"baseline built with {d.get('fp_version')}, code is {FP_VERSION}")
-        return cls(mean=np.asarray(d["mean"]), std=np.asarray(d["std"]))
+    def from_dict(cls, d: dict, fp_version: str = FP_VERSION) -> "Baseline":
+        if d.get("fp_version") != fp_version:
+            raise ValueError(f"baseline built with {d.get('fp_version')}, code is {fp_version}")
+        return cls(mean=np.asarray(d["mean"]), std=np.asarray(d["std"]), fp_version=fp_version)
