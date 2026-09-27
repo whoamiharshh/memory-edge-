@@ -4,15 +4,23 @@ Push: claim due outbox rows (-> uploading), POST one batch, apply per-event acks
   accepted | duplicate -> synced      rejected -> rejected (reason kept, visible in the UI)
   transport error / 5xx / 429 -> failed, retried with capped exponential backoff + full jitter
   401 / 403 -> rows back to queued, worker pauses with "auth required" (no data lost)
-Pull (scroll-based mirror; see docs/RESEARCH.md H.2 / kill test K5): GET cases with seq > cursor, upsert them
-into the read-only mirror shard, advance the cursor only after the shard write returned (durable).
+Pull (fleet mirror, edge/mirror.py): GET /v1/mirror/head first. If the mirror is already at the head, nothing
+else is sent. Otherwise:
+  snapshot mode (cloud has a Qdrant Server; Qdrant's dual-shard pattern, docs/RESEARCH.md H.2):
+      first time / after a failed partial  -> GET full shard snapshot (gzip), restore beside the mirror, swap
+      afterwards                            -> POST our snapshot_manifest, apply the partial snapshot (304 = current)
+  scroll mode (in-process cloud, or mirror_mode="scroll"; kill test K5 fallback): GET cases with seq > cursor and
+      upsert them; the cursor advances only after the durable shard write.
 The `online` switch simulates a network partition for the demo: when off, no request is attempted at all.
 """
 from __future__ import annotations
 
+import pathlib
+import shutil
 import threading
 import time
 import uuid
+import zlib
 from typing import Any
 
 import httpx
@@ -21,12 +29,14 @@ from edge.device import Device
 from edge.store_edge import StorePoint
 
 PULL_EVERY_S = 5.0
+SNAPSHOT_TIMEOUT_S = 120.0
 
 
 class SyncWorker:
     def __init__(self, device: Device, cloud_url: str | None, token: str | None,
-                 client: httpx.Client | None = None, interval: float = 2.0):
+                 client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "snapshot"):
         self.device, self.cloud_url, self.token = device, (cloud_url or "").rstrip("/"), token
+        self.mirror_mode = mirror_mode              # preferred; falls back to scroll if the cloud cannot snapshot
         self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0)
         self.interval = interval
         self.auth_required = False
@@ -104,42 +114,119 @@ class SyncWorker:
             return summary
 
     # ---- pull (fleet mirror) ------------------------------------------------------------------------------
+    def _refused(self, r: httpx.Response, pulled: int = 0) -> dict | None:
+        """Common handling of a non-200 pull response; None if the response is usable."""
+        if r.status_code in (401, 403):
+            self.auth_required = True
+            self.last["error"] = f"auth required (HTTP {r.status_code})"
+            return {"auth_required": True, "pulled": pulled}
+        if r.status_code not in (200, 304):
+            self.last["error"] = f"pull HTTP {r.status_code}"
+            return {"error": self.last["error"], "pulled": pulled}
+        return None
+
     def pull_once(self) -> dict:
         with self._lock:
             if not self.online:
                 return {"skipped": "offline"}
-            ob = self.device.outbox
-            since = int(ob.kv_get("mirror_seq", 0))
-            total = 0
-            while True:
-                try:
-                    r = self.http.get("/v1/mirror/cases", params={"since": since, "limit": 200}, headers=self._headers())
-                except httpx.HTTPError as e:
-                    self.last["error"] = f"pull transport error: {type(e).__name__}"
-                    return {"error": self.last["error"], "pulled": total}
-                if r.status_code in (401, 403):
-                    self.auth_required = True
-                    self.last["error"] = f"auth required (HTTP {r.status_code})"
-                    return {"auth_required": True, "pulled": total}
-                if r.status_code != 200:
-                    self.last["error"] = f"pull HTTP {r.status_code}"
-                    return {"error": self.last["error"], "pulled": total}
-                self.bytes_received += len(r.content)
-                data = r.json()
-                items = data["items"]
-                if items:
-                    self.device.mirror.upsert([StorePoint(it["id"], it["payload"], vib=it["vib"], note=it["note"],
-                                                          bm25_text=it["text"]) for it in items])
-                    since = max(since, max(int(it["payload"]["seq"]) for it in items))
-                    ob.kv_set("mirror_seq", since)            # cursor advances only after the durable write
-                    total += len(items)
-                if not data.get("more"):
-                    break
-            if total:
-                ob.log("sync", f"mirror: pulled {total} fleet case update(s)")
-            self.last["pull"] = time.time()
-            self._last_pull = time.time()
-            return {"pulled": total, "cursor": since}
+            try:
+                r = self.http.get("/v1/mirror/head", headers=self._headers())
+            except httpx.HTTPError as e:
+                self.last["error"] = f"pull transport error: {type(e).__name__}"
+                return {"error": self.last["error"], "pulled": 0}
+            if (bad := self._refused(r)) is not None:
+                return bad
+            self.bytes_received += r.num_bytes_downloaded
+            head = r.json()
+            mode = "snapshot" if self.mirror_mode == "snapshot" and head.get("snapshots") else "scroll"
+            self.device.mirror.ensure_mode(mode)
+            out = self._pull_snapshot(head) if mode == "snapshot" else self._pull_scroll()
+            if "error" not in out and "auth_required" not in out:
+                self.last["pull"] = self._last_pull = time.time()
+                self.last["error"] = None
+            return out | {"mode": mode}
+
+    def _pull_scroll(self) -> dict:
+        mirror = self.device.mirror
+        since = mirror.seq
+        total = 0
+        while True:
+            try:
+                r = self.http.get("/v1/mirror/cases", params={"since": since, "limit": 200}, headers=self._headers())
+            except httpx.HTTPError as e:
+                self.last["error"] = f"pull transport error: {type(e).__name__}"
+                return {"error": self.last["error"], "pulled": total}
+            if (bad := self._refused(r, total)) is not None:
+                return bad
+            self.bytes_received += r.num_bytes_downloaded
+            data = r.json()
+            items = data["items"]
+            if items:
+                since = max(since, max(int(it["payload"]["seq"]) for it in items))
+                mirror.upsert_rows([StorePoint(it["id"], it["payload"], vib=it["vib"], note=it["note"],
+                                               bm25_text=it["text"]) for it in items], since)
+                total += len(items)
+            if not data.get("more"):
+                break
+        if total:
+            self.device.outbox.log("sync", f"mirror (scroll): pulled {total} fleet case update(s)")
+        return {"pulled": total, "cursor": since}
+
+    def _pull_snapshot(self, head: dict) -> dict:
+        mirror = self.device.mirror
+        before = mirror.seq
+        full = mirror.needs_full
+        if not full and int(head["seq"]) <= before:
+            return {"pulled": 0, "cursor": before, "up_to_date": True}
+        dl = pathlib.Path(self.device.cfg.root) / "mirror.dl"
+        shutil.rmtree(dl, ignore_errors=True)
+        dl.mkdir(parents=True)
+        path = dl / "shard.snapshot"
+        t0 = time.perf_counter()
+        try:
+            req = (self.http.build_request("GET", "/v1/mirror/snapshot", headers=self._headers(),
+                                           timeout=SNAPSHOT_TIMEOUT_S) if full else
+                   self.http.build_request("POST", "/v1/mirror/snapshot/partial", json=mirror.manifest(),
+                                           headers=self._headers(), timeout=SNAPSHOT_TIMEOUT_S))
+            r = self.http.send(req, stream=True)
+            try:
+                if (bad := self._refused(r)) is not None:
+                    if not full and "error" in bad:
+                        self.device.mirror.kv.kv_set("mirror_needs_full", True)   # next pull: full rebuild
+                    return bad
+                if r.status_code == 304:                   # server: nothing changed since our manifest
+                    mirror.set_seq(int(head["seq"]))
+                    return {"pulled": 0, "cursor": mirror.seq, "up_to_date": True}
+                gunzip = zlib.decompressobj(31)
+                with open(path, "wb") as f:
+                    for chunk in r.iter_bytes():
+                        f.write(gunzip.decompress(chunk))
+                    f.write(gunzip.flush())
+                wire = r.num_bytes_downloaded
+            finally:
+                r.close()
+            self.bytes_received += wire
+            raw = path.stat().st_size
+            if full:
+                mirror.replace_from_snapshot(path, int(head["seq"]))
+            else:
+                mirror.apply_partial(path, int(head["seq"]))
+        except (httpx.HTTPError, zlib.error, OSError) as e:
+            self.last["error"] = f"mirror {'full' if full else 'partial'} snapshot failed: {type(e).__name__}"
+            return {"error": self.last["error"], "pulled": 0}
+        except Exception as e:                             # Edge refused the snapshot: rebuild next time
+            mirror.kv.kv_set("mirror_needs_full", True)
+            self.last["error"] = f"mirror snapshot apply failed: {e!r}"[:300]
+            return {"error": self.last["error"], "pulled": 0}
+        finally:
+            shutil.rmtree(dl, ignore_errors=True)
+        pulled = mirror.changed_since(before)
+        kind = "full" if full else "partial"
+        mirror.last_refresh = {"kind": kind, "wire_bytes": wire, "snapshot_bytes": raw, "cases_changed": pulled,
+                               "ms": round((time.perf_counter() - t0) * 1000, 1), "at": time.time()}
+        self.device.outbox.log("sync", f"mirror ({kind} snapshot): {pulled} fleet case update(s); "
+                                       f"{wire:,} bytes on the wire for a {raw:,}-byte shard snapshot")
+        return {"pulled": pulled, "cursor": mirror.seq, "snapshot": kind, "wire_bytes": wire}
 
     # ---- background loop --------------------------------------------------------------------------------
     def tick(self) -> None:
@@ -178,4 +265,5 @@ class SyncWorker:
         return {"online": self.online, "auth_required": self.auth_required, "cloud_url": self.cloud_url or None,
                 "last_push": self.last["push"], "last_pull": self.last["pull"], "last_error": self.last["error"],
                 "bytes_sent": self.bytes_sent, "bytes_received": self.bytes_received,
-                "mirror_seq": self.device.outbox.kv_get("mirror_seq", 0), "outbox": self.device.outbox.counts()}
+                "mirror_seq": self.device.mirror.seq, "mirror": self.device.mirror.info(),
+                "outbox": self.device.outbox.counts()}

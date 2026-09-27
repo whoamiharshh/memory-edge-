@@ -35,6 +35,8 @@ def main() -> None:
     p.add_argument("--hash-embedder", action="store_true", help="use the lexical test embedder instead of bge-small")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--no-sync", action="store_true")
+    p.add_argument("--mirror-mode", choices=("snapshot", "scroll"), default="snapshot",
+                   help="fleet mirror fill: Qdrant partial snapshots (default) or the scroll fallback")
     p.add_argument("--fit-baseline", action="store_true", help="fit the healthy baseline at start if missing")
     a = p.parse_args()
 
@@ -45,7 +47,7 @@ def main() -> None:
     if a.fit_baseline and dev.gate is None:
         from edge.replay import Recordings
         dev.fit_baseline(Recordings.baseline())
-    worker = SyncWorker(dev, a.cloud, a.device_token)
+    worker = SyncWorker(dev, a.cloud, a.device_token, mirror_mode=a.mirror_mode)
     if not a.no_sync:
         worker.start()
     op = a.operator_token or secrets.token_urlsafe(12)

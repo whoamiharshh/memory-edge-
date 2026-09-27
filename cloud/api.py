@@ -1,7 +1,10 @@
 """Cloud Sync API (FastAPI).
 
   POST /v1/sync/push                 device  batch of ShareEvents -> per-event accepted|duplicate|rejected
-  GET  /v1/mirror/cases?since=&limit device  case groups with seq > since (scroll-based fleet mirror pull)
+  GET  /v1/mirror/head               device  {seq, cases, snapshots}: newest mirror change, snapshot support
+  GET  /v1/mirror/snapshot           device  full Qdrant shard snapshot of the tenant's mirror (gzip stream)
+  POST /v1/mirror/snapshot/partial   device  body = the device's snapshot_manifest -> partial snapshot (gzip), or 304
+  GET  /v1/mirror/cases?since=&limit device  case groups with seq > since (scroll fallback, kill test K5)
   GET  /v1/cases, /v1/cases/{id}     device|admin  fleet evidence (admin also sees the events)
   GET  /v1/disputes                  device|admin  cases carrying DISPUTED / COMPETING flags
   POST /v1/events/{id}/retract       admin   tombstone one piece of evidence (never hard-deleted)
@@ -12,15 +15,16 @@ Tenant always comes from the token.
 from __future__ import annotations
 
 import pathlib
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from cloud import ingest
 from cloud.auth import AuthContext, TokenRegistry
-from cloud.store_server import CloudStore
+from cloud.store_server import CloudStore, SnapshotError
 from shared.embed import Embedder
 from shared.schema import PushRequest
 
@@ -70,6 +74,31 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
     @app.post("/v1/sync/push")
     def push(req: PushRequest, ctx: AuthContext = Depends(auth)):
         return ingest.push(store, embedder, ctx, req)
+
+    @app.get("/v1/mirror/head")
+    def mirror_head(ctx: AuthContext = Depends(auth)):
+        return store.mirror_head(ctx.tenant_id)
+
+    def _snapshot_response(tenant: str, manifest: dict | None):
+        if not store.supports_snapshots:
+            raise HTTPException(501, "this cloud has no Qdrant Server behind it; use /v1/mirror/cases")
+        try:
+            status, stream = store.open_mirror_snapshot(tenant, manifest)
+        except SnapshotError as e:
+            raise HTTPException(502, str(e)[:300])
+        if status == 304:
+            return Response(status_code=304)
+        return StreamingResponse(stream, media_type="application/gzip")
+
+    @app.get("/v1/mirror/snapshot")
+    def mirror_snapshot(ctx: AuthContext = Depends(auth)):
+        return _snapshot_response(ctx.tenant_id, None)
+
+    @app.post("/v1/mirror/snapshot/partial")
+    def mirror_partial(manifest: dict[str, Any] = Body(...), ctx: AuthContext = Depends(auth)):
+        if not manifest or not all(isinstance(v, dict) for v in manifest.values()):
+            raise HTTPException(422, "body must be an Edge snapshot manifest (segment id -> segment manifest)")
+        return _snapshot_response(ctx.tenant_id, manifest)
 
     @app.get("/v1/mirror/cases")
     def mirror(since: int = 0, limit: int = 200, ctx: AuthContext = Depends(auth)):

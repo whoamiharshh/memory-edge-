@@ -26,6 +26,7 @@ from edge import fault_hint, policy
 from edge import verifier as V
 from edge.fingerprint import FP_VERSION, Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
+from edge.mirror import Mirror
 from edge.outbox import Outbox
 from edge.store_edge import EdgeStore, StorePoint
 from shared import ids
@@ -61,8 +62,8 @@ class Device:
         root = pathlib.Path(cfg.root)
         root.mkdir(parents=True, exist_ok=True)
         self.store = EdgeStore(root / "local", text_model=embedder.name)
-        self.mirror = EdgeStore(root / "mirror", text_model="BAAI/bge-small-en-v1.5")
         self.outbox = Outbox(str(root / "device.sqlite"))
+        self.mirror = Mirror(root, self.outbox, text_model="BAAI/bge-small-en-v1.5")
         self._lock = threading.RLock()
         self.baseline: Baseline | None = None
         self.gate: NoveltyGate | None = None
@@ -362,13 +363,16 @@ class Device:
         local = self.store.search(vib=vib, note=note, text=text, limit=limit + 1, explain=True,
                                   filter={"type": "episode", "machine_id": self.cfg.machine_id})
         local = [h for h in local if h.id != episode_id][:limit]
-        fleet, fleet_filter = [], None
-        if use_fleet and self.mirror.count():
-            fleet_filter = {"component": self.cfg.component, "!status": "retracted"}
-            if fc and fc != "unknown":
-                fleet_filter["fault_class"] = fc
-            fleet = self.mirror.search(vib=vib, note=note, text=text, filter=fleet_filter, limit=limit,
-                                       weights={"vib": 0.25}, explain=True)
+        fleet, fleet_filter, fleet_error = [], None, None
+        try:
+            if use_fleet and self.mirror.count():
+                fleet_filter = {"component": self.cfg.component, "!status": "retracted"}
+                if fc and fc != "unknown":
+                    fleet_filter["fault_class"] = fc
+                fleet = self.mirror.search(vib=vib, note=note, text=text, filter=fleet_filter, limit=limit,
+                                           weights={"vib": 0.25}, explain=True)
+        except Exception as e:              # a broken mirror must never take local memory down with it
+            fleet, fleet_error = [], f"fleet mirror unavailable ({type(e).__name__}); showing local memory only"
         ms = (time.perf_counter() - t0) * 1000
         self.search_ms.append(ms)
         slim = lambda p: {k: v for k, v in p.items() if k not in ("hint_votes",)}
@@ -376,7 +380,7 @@ class Device:
                           "fleet_filter": fleet_filter},
                 "local": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "episode": slim(h.payload)} for h in local],
                 "fleet": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "case": h.payload} for h in fleet],
-                "latency_ms": round(ms, 2)}
+                "fleet_error": fleet_error, "latency_ms": round(ms, 2)}
 
     def set_share_state(self, event_id: str, state: str, episode_id: str) -> None:
         with self._lock:

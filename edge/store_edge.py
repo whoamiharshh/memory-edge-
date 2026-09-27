@@ -7,6 +7,11 @@ flush() is called. Every write method here flushes before it returns, so "return
 Layout on disk:  <root>/shard/            the Edge shard
                  <root>/store_meta.json   dims, fp_version, text model, BM25 avg_len (checked on reopen)
 
+Snapshots (the fleet mirror; Qdrant's documented dual-shard pattern, spike/spike_snapshot.py): a store can be
+built from a Qdrant Server shard snapshot (from_snapshot) and brought up to date with a partial snapshot
+(snapshot_manifest -> server -> apply_snapshot). The server computes its BM25 sparse vectors with bm25_sparse()
+below, i.e. with Edge's own tokenizer, so a device's BM25 queries match the mirrored documents.
+
 Vectors on a point (all optional per point, e.g. baseline points carry only `vib`):
   vib        z-scored DSP fingerprint, Euclid (score = distance, lower is closer)
   note       dense text embedding, Cosine (computed by the caller; this module does not embed text)
@@ -24,6 +29,7 @@ import json
 import math
 import os
 import pathlib
+import shutil
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -107,6 +113,19 @@ def _check_vector(name: str, v: Sequence[float] | None, dim: int) -> list[float]
     return out
 
 
+_BM25_CACHE: dict[float, Bm25] = {}
+
+
+def bm25_sparse(text: str, avg_len: float = BM25_AVG_LEN) -> tuple[list[int], list[float]]:
+    """Edge's built-in BM25 document vector as plain lists (indices, values). Used by the cloud to fill the
+    `note_bm25` sparse vector of the server-side mirror collection, so both sides share one tokenizer."""
+    bm = _BM25_CACHE.get(float(avg_len))
+    if bm is None:
+        bm = _BM25_CACHE[float(avg_len)] = Bm25(Bm25Config(avg_len=float(avg_len)))
+    s = bm.embed_document(text)
+    return [int(i) for i in s.indices], [float(v) for v in s.values]
+
+
 def _vectors_out(v: Any) -> dict[str, Any]:
     if not v:
         return {}
@@ -165,6 +184,60 @@ class EdgeStore:
         with self._lock:
             self._shard.optimize()
             self._shard.flush()
+
+    # ---- snapshots (fleet mirror) ---------------------------------------------------------------------
+    @classmethod
+    def from_snapshot(cls, snapshot_path: str | os.PathLike, root: str | os.PathLike, **settings) -> "EdgeStore":
+        """Create a NEW store at `root` from a Qdrant Server shard snapshot, then open and probe it. `settings` are
+        the constructor's keyword settings (dims, fp_version, text_model, bm25_avg_len); the snapshot's collection
+        must have been created with the same vectors (vib Euclid, note Cosine, note_bm25 sparse IDF)."""
+        root = pathlib.Path(root)
+        if root.exists():
+            raise FileExistsError(f"{root} already exists; restore into a fresh directory")
+        defaults = {"vib_dim": FP_DIM, "note_dim": NOTE_DIM, "fp_version": FP_VERSION, "text_model": TEXT_MODEL,
+                    "bm25_avg_len": BM25_AVG_LEN}
+        meta = defaults | settings
+        root.mkdir(parents=True)
+        EdgeShard.unpack_snapshot(str(snapshot_path), str(root / "shard"))
+        meta_path = root / META_FILE
+        tmp = meta_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({**meta, "schema_version": 1, "source": "snapshot"}, indent=2))
+        tmp.replace(meta_path)
+        store = cls(root, **meta)
+        try:
+            store.probe()
+        except Exception:
+            store.close()
+            raise
+        return store
+
+    def probe(self) -> None:
+        """Run one query per named vector. Raises if the shard lacks a vector or its dims differ from the meta
+        (Edge exposes no config getter in 0.8.0, so this is how a restored snapshot is checked)."""
+        unit = [0.0] * self.meta["note_dim"]
+        unit[0] = 1.0
+        with self._lock:
+            for q in (Query.Nearest([0.0] * self.meta["vib_dim"], using=VIB), Query.Nearest(unit, using=NOTE),
+                      Query.Nearest(self._bm25.embed_query("probe"), using=NOTE_BM25)):
+                self._shard.query(QueryRequest(limit=1, query=q))
+
+    def snapshot_manifest(self) -> dict:
+        """The shard's segment manifest; the server answers it with a partial snapshot of what changed."""
+        with self._lock:
+            return self._shard.snapshot_manifest()
+
+    def apply_snapshot(self, snapshot_path: str | os.PathLike) -> None:
+        """Apply a (partial) server snapshot in place. Reads are blocked meanwhile (the store lock), as Qdrant's
+        docs require writes to pause during a restore. Raises on failure; the caller then rebuilds the mirror."""
+        tmp_dir = self.root / "snapshot_tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        with self._lock:
+            try:
+                self._shard.update_from_snapshot(str(snapshot_path), str(tmp_dir))
+                self._shard.flush()
+            finally:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            self.probe()
 
     # ---- writes (all durable on return) ---------------------------------------------------------------
     def _to_point(self, p: StorePoint) -> Point:
