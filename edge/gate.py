@@ -21,8 +21,9 @@ import numpy as np
 
 from edge.store_edge import EdgeStore
 
-NORMAL_FACTOR = 2.0
-MERGE_FACTOR = 3.0
+NORMAL_FACTOR = 2.0        # bench/gate_sweep.py: 0 false alarms and 100 % detection for 1.5 <= factor <= 4.0
+MERGE_FACTOR = 1.5         # bench/gate_sweep.py (docs/DECISIONS.md D11): 3.0 separated only 11/20 different faults;
+                           # 1.5 separates 20/20, recurrence 36/36, intermittent same fault stays 1 episode 35/36
 RECURRENCE_FACTOR = 1.0     # "seen before" if within tau_merge of a closed episode's exemplar
 
 

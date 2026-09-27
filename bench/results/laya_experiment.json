@@ -1,0 +1,78 @@
+{
+  "method": "Laya experiment (CLAUDE.md \"finals\": benchmark Laya vs bge-small + logistic regression; keep the winner).",
+  "n_distinct_texts": 1592,
+  "n_train": 1273,
+  "n_test": 319,
+  "label_counts": {
+    "replace": 693,
+    "install": 336,
+    "secure": 173,
+    "inspect_test": 154,
+    "remove": 107,
+    "repair": 51,
+    "clean_apply": 47,
+    "adjust": 31
+  },
+  "full_test": {
+    "majority": {
+      "accuracy": 0.4107,
+      "macro_f1": 0.0728
+    },
+    "bge_zero_shot": {
+      "accuracy": 0.7398,
+      "macro_f1": 0.6902
+    },
+    "bge_logreg": {
+      "accuracy": 0.9812,
+      "macro_f1": 0.9699
+    }
+  },
+  "same_subset": {
+    "n": 319,
+    "majority": {
+      "accuracy": 0.4107,
+      "macro_f1": 0.0728
+    },
+    "bge_zero_shot": {
+      "accuracy": 0.7398,
+      "macro_f1": 0.6902
+    },
+    "bge_logreg": {
+      "accuracy": 0.9812,
+      "macro_f1": 0.9699
+    },
+    "laya_zero_shot": {
+      "accuracy": 0.7179,
+      "macro_f1": 0.6927
+    },
+    "laya_mean_confidence": 0.734,
+    "laya_accuracy_when_confidence_ge_0.9": 0.908,
+    "laya_share_confidence_ge_0.9": 0.273
+  },
+  "latency_ms_per_note_cpu": {
+    "bge_embed": 14.3,
+    "bge_logreg_predict": 0.425,
+    "laya_p50": 2027.4,
+    "laya_p95": 2608.8,
+    "laya_load_s": 19.3
+  },
+  "pii_probe_synthetic": {
+    "n": 120,
+    "with_name": 60,
+    "laya_noul": {
+      "recall": 0.067,
+      "precision": 0.8,
+      "false_positives": 1
+    },
+    "regex_redactor_empty_denylist": {
+      "recall": 0.0,
+      "precision": 0.0,
+      "false_positives": 0
+    },
+    "either": {
+      "recall": 0.067,
+      "precision": 0.8,
+      "false_positives": 1
+    }
+  }
+}

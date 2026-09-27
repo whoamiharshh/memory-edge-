@@ -4,11 +4,15 @@ This is Qdrant's documented dual-shard pattern (docs: "Synchronize with a Server
 device's own memory plus an immutable mirror shard kept current from the server; queries read both and merge.
 The pattern is Qdrant's, not ours. What is ours: the swap, the crash repair and the choice of fill mode.
 
-Fill modes (the sync worker picks one per pull; a mirror is only ever filled by ONE mode, and switching modes
-rebuilds it empty):
-  snapshot  a full Qdrant shard snapshot once (EdgeShard.unpack_snapshot), then partial snapshots
-            (snapshot_manifest -> server -> update_from_snapshot). Used whenever the cloud has a Qdrant Server.
-  scroll    upsert case rows with seq > cursor (kill-test K5 fallback). Used against an in-process cloud.
+Fill modes (a mirror is only ever filled by ONE mode; switching modes rebuilds it empty):
+  auto      DEFAULT. Full Qdrant shard snapshot to bootstrap or rebuild; small deltas as scroll rows; per pull the
+            cheaper one by estimated bytes (bench/mirror_sync.py measured why: at our fleet sizes a partial
+            snapshot re-ships the whole mutable segment, ~190-400 kB, while one changed case is ~2.7 kB of rows).
+            Partial snapshots are never applied on top of scroll writes (those change the local segment versions
+            that the server's manifest comparison relies on), so a rebuild is always a full snapshot.
+  snapshot  Qdrant's pattern verbatim: a full shard snapshot once (EdgeShard.unpack_snapshot), then partial
+            snapshots (snapshot_manifest -> server -> update_from_snapshot).
+  scroll    upsert case rows with seq > cursor only (kill-test K5 fallback; used against an in-process cloud).
 
 Failure handling (docs/RESEARCH.md H.3):
   full refresh     restore into mirror.new/, probe it, THEN swap (mirror -> mirror.old, mirror.new -> mirror).
@@ -28,7 +32,8 @@ from typing import Any, Mapping, Sequence
 from edge.outbox import Outbox
 from edge.store_edge import EdgeStore, Hit, StorePoint
 
-MODES = ("snapshot", "scroll")
+MODES = ("auto", "snapshot", "scroll")
+SNAPSHOT_MODES = ("auto", "snapshot")
 
 
 class Mirror:
@@ -58,8 +63,11 @@ class Mirror:
     @property
     def needs_full(self) -> bool:
         """True until a full snapshot has been restored, and again after a failed/interrupted partial apply."""
-        return self.mode == "snapshot" and bool(self.kv.kv_get("mirror_needs_full", True)
-                                                or self.kv.kv_get("mirror_applying", False))
+        return self.mode in SNAPSHOT_MODES and bool(self.kv.kv_get("mirror_needs_full", True)
+                                                    or self.kv.kv_get("mirror_applying", False))
+
+    def request_full(self) -> None:
+        self.kv.kv_set("mirror_needs_full", True)
 
     def _repair_interrupted_swap(self) -> None:
         new, old = self.base / "mirror.new", self.base / "mirror.old"
@@ -87,7 +95,7 @@ class Mirror:
             self.kv.kv_set("mirror_mode", mode)
             self.kv.kv_set("mirror_seq", 0)
             self.kv.kv_set("mirror_applying", False)
-            self.kv.kv_set("mirror_needs_full", mode == "snapshot")
+            self.kv.kv_set("mirror_needs_full", mode in SNAPSHOT_MODES)
         self.log("mirror", f"fleet mirror reset (fill mode: {mode})")
 
     # ---- snapshot fill ----------------------------------------------------------------------------------

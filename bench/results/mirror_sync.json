@@ -1,0 +1,161 @@
+{
+  "method": "Fleet-mirror pull cost: Qdrant partial snapshots vs the scroll fallback (docs/RESEARCH.md H.2, Part L).",
+  "rows": [
+    {
+      "cases": 10,
+      "method": "snapshot",
+      "initial": {
+        "ms": 10135.7,
+        "wire_bytes": 187988,
+        "pulled": 10,
+        "kind": "full",
+        "snapshot_raw_bytes": 178637312
+      },
+      "one_change": {
+        "ms": 7232.2,
+        "wire_bytes": 188941,
+        "pulled": 1,
+        "kind": "partial",
+        "snapshot_raw_bytes": 178642944
+      },
+      "no_change": {
+        "ms": 15.5,
+        "wire_bytes": 49,
+        "pulled": 0,
+        "kind": "head only",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 245638723
+    },
+    {
+      "cases": 10,
+      "method": "scroll",
+      "initial": {
+        "ms": 943.8,
+        "wire_bytes": 25546,
+        "pulled": 10,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "one_change": {
+        "ms": 92.4,
+        "wire_bytes": 2661,
+        "pulled": 1,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "no_change": {
+        "ms": 26.3,
+        "wire_bytes": 74,
+        "pulled": 0,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 280369958
+    },
+    {
+      "cases": 100,
+      "method": "snapshot",
+      "initial": {
+        "ms": 8506.4,
+        "wire_bytes": 209888,
+        "pulled": 100,
+        "kind": "full",
+        "snapshot_raw_bytes": 178639872
+      },
+      "one_change": {
+        "ms": 7031.0,
+        "wire_bytes": 210942,
+        "pulled": 1,
+        "kind": "partial",
+        "snapshot_raw_bytes": 178645504
+      },
+      "no_change": {
+        "ms": 37.3,
+        "wire_bytes": 50,
+        "pulled": 0,
+        "kind": "head only",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 245641354
+    },
+    {
+      "cases": 100,
+      "method": "scroll",
+      "initial": {
+        "ms": 1037.6,
+        "wire_bytes": 254638,
+        "pulled": 100,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "one_change": {
+        "ms": 135.7,
+        "wire_bytes": 2662,
+        "pulled": 1,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "no_change": {
+        "ms": 35.7,
+        "wire_bytes": 75,
+        "pulled": 0,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 280372568
+    },
+    {
+      "cases": 1000,
+      "method": "snapshot",
+      "initial": {
+        "ms": 10670.4,
+        "wire_bytes": 397539,
+        "pulled": 1000,
+        "kind": "full",
+        "snapshot_raw_bytes": 178665984
+      },
+      "one_change": {
+        "ms": 8037.3,
+        "wire_bytes": 398488,
+        "pulled": 1,
+        "kind": "partial",
+        "snapshot_raw_bytes": 178671616
+      },
+      "no_change": {
+        "ms": 20.3,
+        "wire_bytes": 51,
+        "pulled": 0,
+        "kind": "head only",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 245667476
+    },
+    {
+      "cases": 1000,
+      "method": "scroll",
+      "initial": {
+        "ms": 4076.7,
+        "wire_bytes": 2546302,
+        "pulled": 1000,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "one_change": {
+        "ms": 112.6,
+        "wire_bytes": 2667,
+        "pulled": 1,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "no_change": {
+        "ms": 68.1,
+        "wire_bytes": 76,
+        "pulled": 0,
+        "kind": "scroll",
+        "snapshot_raw_bytes": null
+      },
+      "mirror_disk_bytes": 280398668
+    }
+  ]
+}

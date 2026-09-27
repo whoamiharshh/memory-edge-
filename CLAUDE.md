@@ -171,11 +171,24 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
 - [ ] `git init` + first commit (done 27 Sep if ticked in git log); create a public GitHub repo and push
   (`gh` is NOT installed; ask the user for their GitHub account); LinkedIn post draft in `docs/LINKEDIN_DRAFT.md`
   → **Round 1 submission (30 Sep)**
-- [ ] finals: partial-snapshot mirror (Qdrant dual-shard via `snapshot_manifest`/`update_from_snapshot`), Laya
-  experiment, demo rehearsal + backup recording, choose a LICENSE (user decision)
+- [x] (28 Sep) local `git init` + commits (NOT pushed; the user said to set the submission aside)
+- [x] finals build (28 Sep, see docs/DECISIONS.md D5-D12):
+  - fleet mirror via Qdrant shard snapshots: `edge/mirror.py`, cloud `mirror_<tenant>` collection + snapshot
+    endpoints; default mode `auto` (full snapshot bootstrap, then cheaper of scroll delta / full snapshot, by
+    measured bytes); pure partial-snapshot mode selectable. Tests: `tests/integration/test_mirror_snapshot.py`
+    (starts the real Qdrant binary per session on free ports).
+  - retention/ARCHIVE, versioned edits (409 CONFLICT), usefulness feedback; UI for all
+  - benches: `gate_sweep`, `storage`, `resources`, `sync_partition`, `offline_check`, `mirror_sync`, `laya_experiment`
+  - docs: THREATS.md, DECISIONS.md, DEMO.md, BENCHMARKS.md; `demo/record_backup.py` (video of the live UIs)
+  - Laya experiment runs ONLY in `.venv-laya` (torch CPU + laya 0.3.20); never imported by the device
+- [ ] still the user's decisions: LICENSE, public GitHub repo + push, LinkedIn post
 
 ## How to run (current)
-- Tests: `.venv\Scripts\python.exe -m pytest` (123 pass, ~2.5 min)
+- Tests: `.venv\Scripts\python.exe -m pytest` (count and time: see README "Tests"; some tests start
+  `qdrant_server\qdrant.exe` themselves)
+- Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →
+  `runtime\recording\backup_demo.webm`
+- Laya experiment: `$env:HF_HOME="models_cache\hf"; .venv-laya\Scripts\python.exe -m bench.laya_experiment`
 - Demo: `powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset` then `.venv\Scripts\python.exe -m demo.scenario`.
   Do NOT pipe the launcher's output (`| Out-Null` hangs: children inherit the pipe). Stop: `demo\stop_demo.ps1`.
 - Windows PowerShell 5.1 `Get-Content -Raw` reads UTF-8 as ANSI: edit UTF-8 files with Python or the Edit tool.

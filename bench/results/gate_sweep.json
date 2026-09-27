@@ -1,0 +1,114 @@
+{
+  "method": "Novelty-gate threshold sweep (docs/RESEARCH.md Part O: \"tau swept, curve published\").",
+  "shipped": {
+    "normal_factor": 2.0,
+    "merge_factor": 3.0
+  },
+  "normal_factor_sweep": {
+    "calib_q99": 5.888,
+    "healthy_windows": 116,
+    "fault_windows": 720,
+    "healthy_distance_max": 8.807,
+    "fault_distance_min": 28.693,
+    "rows": [
+      {
+        "normal_factor": 0.5,
+        "tau_normal": 2.944,
+        "false_alarm_rate": 0.5,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 0.75,
+        "tau_normal": 4.416,
+        "false_alarm_rate": 0.5,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 1.0,
+        "tau_normal": 5.888,
+        "false_alarm_rate": 0.4569,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 1.5,
+        "tau_normal": 8.832,
+        "false_alarm_rate": 0.0,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 2.0,
+        "tau_normal": 11.776,
+        "false_alarm_rate": 0.0,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 3.0,
+        "tau_normal": 17.664,
+        "false_alarm_rate": 0.0,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 4.0,
+        "tau_normal": 23.552,
+        "false_alarm_rate": 0.0,
+        "detection_rate": 1.0
+      },
+      {
+        "normal_factor": 6.0,
+        "tau_normal": 35.329,
+        "false_alarm_rate": 0.0,
+        "detection_rate": 0.8931
+      }
+    ]
+  },
+  "merge_factor_sweep": [
+    {
+      "merge_factor": 1.0,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "34/36",
+      "recurrence_after_close_detected": "33/36",
+      "distinct_faults_separated": "20/20"
+    },
+    {
+      "merge_factor": 1.5,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "35/36",
+      "recurrence_after_close_detected": "36/36",
+      "distinct_faults_separated": "20/20"
+    },
+    {
+      "merge_factor": 2.0,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "36/36",
+      "recurrence_after_close_detected": "36/36",
+      "distinct_faults_separated": "19/20"
+    },
+    {
+      "merge_factor": 3.0,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "36/36",
+      "recurrence_after_close_detected": "36/36",
+      "distinct_faults_separated": "11/20"
+    },
+    {
+      "merge_factor": 5.0,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "36/36",
+      "recurrence_after_close_detected": "36/36",
+      "distinct_faults_separated": "5/20"
+    },
+    {
+      "merge_factor": 8.0,
+      "episodes_per_recording_mean": 1.0,
+      "recordings_with_exactly_1_episode": "36/36",
+      "same_fault_after_gap_stays_1_episode": "36/36",
+      "recurrence_after_close_detected": "36/36",
+      "distinct_faults_separated": "0/20"
+    }
+  ]
+}

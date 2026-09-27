@@ -122,11 +122,17 @@ class CloudStore:
             if off is None:
                 return
 
-    def mirror_head(self, tenant: str) -> dict:
+    def mirror_head(self, tenant: str, since: int | None = None) -> dict:
+        """Newest mirror seq, case count, snapshot support; with `since`, also how many cases changed after it
+        (the device uses that to choose a scroll delta or a snapshot)."""
         self.ensure_tenant(tenant)
-        return {"seq": self._max_seq(tenant, "mirror"),
-                "cases": int(self.client.count(_cname("mirror", tenant), exact=True).count),
-                "snapshots": self.supports_snapshots}
+        mr = _cname("mirror", tenant)
+        out = {"seq": self._max_seq(tenant, "mirror"), "cases": int(self.client.count(mr, exact=True).count),
+               "snapshots": self.supports_snapshots}
+        if since is not None:
+            out["changed"] = int(self.client.count(mr, exact=True, count_filter=m.Filter(
+                must=[m.FieldCondition(key="seq", range=m.Range(gt=since))])).count)
+        return out
 
     def open_mirror_snapshot(self, tenant: str, manifest: dict | None = None) -> tuple[int, Iterator[bytes] | None]:
         """Ask Qdrant Server for a snapshot of the tenant's mirror shard: full (manifest None) or partial (the

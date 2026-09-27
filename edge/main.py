@@ -35,8 +35,9 @@ def main() -> None:
     p.add_argument("--hash-embedder", action="store_true", help="use the lexical test embedder instead of bge-small")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--no-sync", action="store_true")
-    p.add_argument("--mirror-mode", choices=("snapshot", "scroll"), default="snapshot",
-                   help="fleet mirror fill: Qdrant partial snapshots (default) or the scroll fallback")
+    p.add_argument("--mirror-mode", choices=("auto", "snapshot", "scroll"), default="auto",
+                   help="fleet mirror fill: auto (full Qdrant snapshot to bootstrap, then the cheaper of scroll delta "
+                        "or snapshot; default), snapshot (Qdrant partial snapshots), scroll (fallback)")
     p.add_argument("--fit-baseline", action="store_true", help="fit the healthy baseline at start if missing")
     a = p.parse_args()
 

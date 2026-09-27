@@ -5,7 +5,7 @@ around each operation, warm-up excluded, p50/p95 over N repetitions. Numbers are
   embed_note       bge-small (FastEmbed, CPU) on one maintenance-log problem text
   durable_write    EdgeStore.upsert of one point incl. flush() (the K4 rule)
   gate             Device.ingest_window() state decision query against 86 baseline points (no episode write)
-  hybrid_{n}       EdgeStore.search(vib+note+text, RRF) with n points in the shard
+  hybrid_{n}       EdgeStore.search(vib+note+text, RRF) with n points in the shard (n = 1k, 10k, 50k)
   server_{n}       the same dense note query against the local Qdrant Server over HTTP (if it is running)
   llm_brief        edge.rag.brief() with the local LLM on a 2-item evidence set
   bandwidth        JSON bytes of one shared event vs the raw float32 signal it summarises
@@ -86,7 +86,7 @@ def main() -> dict:
             server.get_collections()
         except Exception:
             server = None
-        for n in (1000, 10000):
+        for n in (1000, 10000, 50000):
             st = EdgeStore(root / f"h{n}")
             pts = [StorePoint(ids.make_id("h", i), {"type": "episode"}, vib=rng.normal(size=DIM).tolist(),
                               note=vec_cache[i % len(vec_cache)], bm25_text=texts[i % len(texts)]) for i in range(n)]

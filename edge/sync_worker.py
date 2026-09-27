@@ -4,9 +4,11 @@ Push: claim due outbox rows (-> uploading), POST one batch, apply per-event acks
   accepted | duplicate -> synced      rejected -> rejected (reason kept, visible in the UI)
   transport error / 5xx / 429 -> failed, retried with capped exponential backoff + full jitter
   401 / 403 -> rows back to queued, worker pauses with "auth required" (no data lost)
-Pull (fleet mirror, edge/mirror.py): GET /v1/mirror/head first. If the mirror is already at the head, nothing
-else is sent. Otherwise:
-  snapshot mode (cloud has a Qdrant Server; Qdrant's dual-shard pattern, docs/RESEARCH.md H.2):
+Pull (fleet mirror, edge/mirror.py): GET /v1/mirror/head?since=cursor first. If the mirror is already at the
+head, nothing else is sent. Otherwise:
+  auto mode (default; cloud has a Qdrant Server): full shard snapshot to bootstrap or rebuild; after that each
+      delta goes by scroll or by a new full snapshot, whichever this device's measured costs say is cheaper
+  snapshot mode (Qdrant's dual-shard pattern verbatim, docs/RESEARCH.md H.2):
       first time / after a failed partial  -> GET full shard snapshot (gzip), restore beside the mirror, swap
       afterwards                            -> POST our snapshot_manifest, apply the partial snapshot (304 = current)
   scroll mode (in-process cloud, or mirror_mode="scroll"; kill test K5 fallback): GET cases with seq > cursor and
@@ -30,11 +32,13 @@ from edge.store_edge import StorePoint
 
 PULL_EVERY_S = 5.0
 SNAPSHOT_TIMEOUT_S = 120.0
+ROW_BYTES_DEFAULT = 2600          # bench/mirror_sync.py: ~2.5-2.7 kB per case row (JSON incl. two vectors)
+SNAPSHOT_BYTES_DEFAULT = 400_000  # bench/mirror_sync.py: gzip full snapshot, 188 kB (10 cases) - 398 kB (1,000)
 
 
 class SyncWorker:
     def __init__(self, device: Device, cloud_url: str | None, token: str | None,
-                 client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "snapshot"):
+                 client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "auto"):
         self.device, self.cloud_url, self.token = device, (cloud_url or "").rstrip("/"), token
         self.mirror_mode = mirror_mode              # preferred; falls back to scroll if the cloud cannot snapshot
         self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0)
@@ -130,7 +134,7 @@ class SyncWorker:
             if not self.online:
                 return {"skipped": "offline"}
             try:
-                r = self.http.get("/v1/mirror/head", headers=self._headers())
+                r = self.http.get("/v1/mirror/head", params={"since": self.device.mirror.seq}, headers=self._headers())
             except httpx.HTTPError as e:
                 self.last["error"] = f"pull transport error: {type(e).__name__}"
                 return {"error": self.last["error"], "pulled": 0}
@@ -138,18 +142,36 @@ class SyncWorker:
                 return bad
             self.bytes_received += r.num_bytes_downloaded
             head = r.json()
-            mode = "snapshot" if self.mirror_mode == "snapshot" and head.get("snapshots") else "scroll"
+            mode = self.mirror_mode if self.mirror_mode != "scroll" and head.get("snapshots") else "scroll"
             self.device.mirror.ensure_mode(mode)
-            out = self._pull_snapshot(head) if mode == "snapshot" else self._pull_scroll()
+            out = {"scroll": self._pull_scroll, "snapshot": lambda: self._pull_snapshot(head),
+                   "auto": lambda: self._pull_auto(head)}[mode]()
             if "error" not in out and "auth_required" not in out:
                 self.last["pull"] = self._last_pull = time.time()
                 self.last["error"] = None
             return out | {"mode": mode}
 
+    def _pull_auto(self, head: dict) -> dict:
+        """Full snapshot to bootstrap/rebuild; otherwise the cheaper of a scroll delta and a full snapshot, by
+        bytes estimated from THIS device's last measured costs (defaults from bench/mirror_sync.py)."""
+        mirror = self.device.mirror
+        if mirror.needs_full:
+            return self._pull_snapshot(head)
+        if int(head["seq"]) <= mirror.seq:
+            return {"pulled": 0, "cursor": mirror.seq, "up_to_date": True}
+        est_rows = int(head.get("changed", 1)) * float(mirror.kv.kv_get("mirror_row_bytes", ROW_BYTES_DEFAULT))
+        est_snap = float(mirror.kv.kv_get("mirror_full_wire_bytes", SNAPSHOT_BYTES_DEFAULT))
+        est = {"changed": head.get("changed"), "scroll_bytes_est": int(est_rows), "snapshot_bytes_est": int(est_snap)}
+        if est_rows <= est_snap:
+            return self._pull_scroll() | {"delta": "scroll", "estimate": est}
+        mirror.request_full()
+        return self._pull_snapshot(head) | {"estimate": est}
+
     def _pull_scroll(self) -> dict:
         mirror = self.device.mirror
         since = mirror.seq
         total = 0
+        wire0 = self.bytes_received
         while True:
             try:
                 r = self.http.get("/v1/mirror/cases", params={"since": since, "limit": 200}, headers=self._headers())
@@ -169,7 +191,11 @@ class SyncWorker:
             if not data.get("more"):
                 break
         if total:
-            self.device.outbox.log("sync", f"mirror (scroll): pulled {total} fleet case update(s)")
+            wire = self.bytes_received - wire0
+            mirror.kv.kv_set("mirror_row_bytes", round(wire / total, 1))       # measured cost for _pull_auto
+            mirror.last_refresh = {"kind": "scroll", "wire_bytes": wire, "snapshot_bytes": None,
+                                   "cases_changed": total, "at": time.time()}
+            self.device.outbox.log("sync", f"mirror (scroll): pulled {total} fleet case update(s), {wire:,} bytes")
         return {"pulled": total, "cursor": since}
 
     def _pull_snapshot(self, head: dict) -> dict:
@@ -207,10 +233,13 @@ class SyncWorker:
                 r.close()
             self.bytes_received += wire
             raw = path.stat().st_size
+            t_apply = time.perf_counter()
             if full:
                 mirror.replace_from_snapshot(path, int(head["seq"]))
+                mirror.kv.kv_set("mirror_full_wire_bytes", wire)                 # measured cost for _pull_auto
             else:
                 mirror.apply_partial(path, int(head["seq"]))
+            apply_ms = round((time.perf_counter() - t_apply) * 1000, 1)
         except (httpx.HTTPError, zlib.error, OSError) as e:
             self.last["error"] = f"mirror {'full' if full else 'partial'} snapshot failed: {type(e).__name__}"
             return {"error": self.last["error"], "pulled": 0}
@@ -223,7 +252,8 @@ class SyncWorker:
         pulled = mirror.changed_since(before)
         kind = "full" if full else "partial"
         mirror.last_refresh = {"kind": kind, "wire_bytes": wire, "snapshot_bytes": raw, "cases_changed": pulled,
-                               "ms": round((time.perf_counter() - t0) * 1000, 1), "at": time.time()}
+                               "ms": round((time.perf_counter() - t0) * 1000, 1), "apply_ms": apply_ms,
+                               "at": time.time()}
         self.device.outbox.log("sync", f"mirror ({kind} snapshot): {pulled} fleet case update(s); "
                                        f"{wire:,} bytes on the wire for a {raw:,}-byte shard snapshot")
         return {"pulled": pulled, "cursor": mirror.seq, "snapshot": kind, "wire_bytes": wire}

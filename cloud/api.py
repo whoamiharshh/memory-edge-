@@ -1,7 +1,7 @@
 """Cloud Sync API (FastAPI).
 
   POST /v1/sync/push                 device  batch of ShareEvents -> per-event accepted|duplicate|rejected
-  GET  /v1/mirror/head               device  {seq, cases, snapshots}: newest mirror change, snapshot support
+  GET  /v1/mirror/head?since=        device  {seq, cases, snapshots[, changed]}: newest change, snapshot support
   GET  /v1/mirror/snapshot           device  full Qdrant shard snapshot of the tenant's mirror (gzip stream)
   POST /v1/mirror/snapshot/partial   device  body = the device's snapshot_manifest -> partial snapshot (gzip), or 304
   GET  /v1/mirror/cases?since=&limit device  case groups with seq > since (scroll fallback, kill test K5)
@@ -76,8 +76,8 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
         return ingest.push(store, embedder, ctx, req)
 
     @app.get("/v1/mirror/head")
-    def mirror_head(ctx: AuthContext = Depends(auth)):
-        return store.mirror_head(ctx.tenant_id)
+    def mirror_head(since: int | None = None, ctx: AuthContext = Depends(auth)):
+        return store.mirror_head(ctx.tenant_id, since)
 
     def _snapshot_response(tenant: str, manifest: dict | None):
         if not store.supports_snapshots:

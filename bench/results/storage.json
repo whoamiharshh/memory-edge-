@@ -1,0 +1,29 @@
+{
+  "method": "Storage: what the novelty gate saves (docs/RESEARCH.md Part O, \"Storage\").",
+  "hours_simulated": 1.0,
+  "windows": 21093,
+  "fault_windows": 2997,
+  "gate_on": {
+    "points": 164,
+    "points_after_baseline": 86,
+    "by_type": {
+      "baseline": 86,
+      "exemplar": 73,
+      "episode": 5
+    },
+    "episodes": 5,
+    "states": {
+      "normal": 18096,
+      "merge": 2992,
+      "new": 5
+    },
+    "shard_bytes": 280374446,
+    "ingest_seconds": 162.9
+  },
+  "gate_off": {
+    "points": 21093,
+    "shard_bytes": 280981365,
+    "ingest_seconds": 10.4
+  },
+  "points_ratio_off_vs_on": 128.6
+}

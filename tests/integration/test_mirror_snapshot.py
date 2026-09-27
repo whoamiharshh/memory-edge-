@@ -154,6 +154,26 @@ def test_partial_endpoint_validates_manifest(server_cloud):
     assert c.get("/v1/mirror/snapshot").status_code == 401
 
 
+def test_auto_mode_bootstraps_by_snapshot_then_picks_the_cheaper_delta(make_server_device):
+    share_fix(make_server_device, "devA", "site1")
+    b, wb = make_server_device("devB", "site2", mirror_mode="auto")
+    first = wb.pull_once()
+    assert (first["mode"], first["snapshot"], first["pulled"]) == ("auto", "full", 1)
+    assert b.mirror.kv.kv_get("mirror_full_wire_bytes") == first["wire_bytes"]
+    # one changed case: ~2.6 kB of rows is far cheaper than a ~200 kB snapshot -> scroll delta
+    share_fix(make_server_device, "devC", "site3", outcome="failed", fault=106, after=106)
+    second = wb.pull_once()
+    assert second["delta"] == "scroll" and second["pulled"] == 1
+    assert second["estimate"]["scroll_bytes_est"] < second["estimate"]["snapshot_bytes_est"]
+    assert {f["kind"] for f in b.mirror.scroll()[0].payload["flags"]} == {"DISPUTED"}
+    # if rows would cost more than a snapshot (e.g. a device offline for long), it rebuilds from a FULL snapshot
+    b.mirror.kv.kv_set("mirror_full_wire_bytes", 10)
+    share_fix(make_server_device, "devD", "site4")
+    third = wb.pull_once()
+    assert third["snapshot"] == "full" and third["pulled"] == 1 and b.mirror.count() == 1
+    assert wb.pull_once()["up_to_date"] is True
+
+
 def test_scroll_mode_still_works_against_a_server(make_server_device):
     share_fix(make_server_device, "devA", "site1")
     b, wb = make_server_device("devB", "site2", mirror_mode="scroll")

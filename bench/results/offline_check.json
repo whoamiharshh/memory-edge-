@@ -1,0 +1,116 @@
+{
+  "method": "Offline checklist (docs/RESEARCH.md M.4 + Part O \"Offline\"): every device function with the network switched off,",
+  "real_models": true,
+  "passed": "15/15",
+  "connection_attempts_total": 0,
+  "guard_self_test_caught_a_deliberate_request": true,
+  "checks": [
+    {
+      "check": "load bge-small text model from disk",
+      "ok": true,
+      "detail": "BAAI/bge-small-en-v1.5",
+      "connection_attempts": [],
+      "ms": 639.2
+    },
+    {
+      "check": "load local LLM from disk",
+      "ok": true,
+      "detail": "Qwen2.5-1.5B-Instruct (Q4_K_M GGUF, Apache-2.0)",
+      "connection_attempts": [],
+      "ms": 0.3
+    },
+    {
+      "check": "mirror from last sync is present",
+      "ok": true,
+      "detail": "1 fleet case(s)",
+      "connection_attempts": [],
+      "ms": 0.1
+    },
+    {
+      "check": "fit healthy baseline",
+      "ok": true,
+      "detail": "tau_normal 11.78",
+      "connection_attempts": [],
+      "ms": 87.3
+    },
+    {
+      "check": "gate: unseen healthy windows are normal",
+      "ok": true,
+      "detail": "20/20 normal",
+      "connection_attempts": [],
+      "ms": 6.2
+    },
+    {
+      "check": "gate: fault opens ONE episode (unseen 14-mil bearing, CWRU 169)",
+      "ok": true,
+      "detail": "1 new + 14 merged",
+      "connection_attempts": [],
+      "ms": 450.1
+    },
+    {
+      "check": "technician note saved",
+      "ok": true,
+      "detail": "KEEP_LOCAL",
+      "connection_attempts": [],
+      "ms": 94.5
+    },
+    {
+      "check": "fault class confirmed",
+      "ok": true,
+      "detail": "KEEP_LOCAL",
+      "connection_attempts": [],
+      "ms": 93.7
+    },
+    {
+      "check": "hybrid search: local + fleet mirror",
+      "ok": true,
+      "detail": "fleet evidence found offline",
+      "connection_attempts": [],
+      "ms": 31.0
+    },
+    {
+      "check": "evidence brief with the local LLM",
+      "ok": true,
+      "detail": "llm",
+      "connection_attempts": [],
+      "ms": 12857.3
+    },
+    {
+      "check": "action recorded",
+      "ok": true,
+      "detail": "KEEP_LOCAL",
+      "connection_attempts": [],
+      "ms": 173.9
+    },
+    {
+      "check": "outcome verified by the sensor",
+      "ok": true,
+      "detail": "symptom_resolved",
+      "connection_attempts": [],
+      "ms": 793.3
+    },
+    {
+      "check": "policy decides SHARE with reasons",
+      "ok": true,
+      "detail": "SHARE",
+      "connection_attempts": [],
+      "ms": 217.2
+    },
+    {
+      "check": "SHARE waits in the outbox (QUEUED)",
+      "ok": true,
+      "detail": "1 queued",
+      "connection_attempts": [],
+      "ms": 0.2
+    },
+    {
+      "check": "sync worker ticks while offline: no connection attempt",
+      "ok": true,
+      "detail": {
+        "skipped": "offline"
+      },
+      "connection_attempts": [],
+      "ms": 0.2
+    }
+  ]
+}

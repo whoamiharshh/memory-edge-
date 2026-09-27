@@ -545,6 +545,12 @@ Every decision stores `decision_reasons[]`. The UI renders them. That is the "sh
 - **Qdrant's documented dual-shard pattern** (credited). The device keeps an immutable mirror of `fleet_knowledge` and applies partial snapshots using `snapshot_manifest` → server `/snapshot/partial/create` → `update_from_snapshot`. **Verified primitives, untested by us.**
 - **Fallback if the partial-snapshot path misbehaves:** scroll `fleet_knowledge` with a filter on `seq > last_seq` and upsert into the mirror. It is simpler, and we would disclose it.
 - Queries hit both shards; results are merged and deduped by ID. **Verified pattern.**
+- **Built and measured (28 Sep 2026; docs/DECISIONS.md D8-D10).** The partial-snapshot path works on our versions
+  (`spike/spike_snapshot.py`, `tests/integration/test_mirror_snapshot.py`, unchanged mirror → HTTP 304). Measured
+  (`bench/mirror_sync.py`): with a single-segment collection, a partial snapshot re-ships the mutable segment, so an
+  incremental update costs about as much as a full snapshot, while scroll rows cost ~2.7 kB per changed case. The
+  device therefore defaults to `auto`: full snapshot to bootstrap/rebuild, then the cheaper of scroll delta or full
+  snapshot by measured bytes. Pure partial-snapshot mode remains selectable (`--mirror-mode snapshot`).
 
 ### H.3 Failure matrix
 
