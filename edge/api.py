@@ -9,11 +9,14 @@ import hashlib
 import hmac
 import pathlib
 
+import numpy as np
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from edge import procedures as procedures_mod
 from edge import rag
 from edge.device import Device
 from edge.replay import HEALTHY_BASELINE_FILES, Recordings, ReplayRunner
@@ -44,6 +47,24 @@ class ActionBody(Versioned):
 
 class ConfirmBody(Versioned):
     outcome: str = Field(pattern=r"^(worked|failed)$")
+
+
+MAX_SIGNAL_VALUES = 600_000
+
+
+class SignalBody(BaseModel):
+    """A chunk of raw sensor data for this device's profile: `samples` (1 channel), `axes` (n rows x k channels,
+    e.g. phone x/y/z or robot Fx..Tz) or `events` (one bucket of error codes)."""
+    samples: list[float] | None = None
+    axes: list[list[float]] | None = None
+    events: dict | None = None
+    fs: float = Field(default=1.0, gt=0, le=200_000)
+    rpm: float | None = Field(default=None, gt=0, le=100_000)
+    source: str | None = Field(default=None, max_length=80)
+
+
+class CaptureBody(BaseModel):
+    windows: int = Field(ge=10, le=5000)
 
 
 class FeedbackBody(BaseModel):
@@ -148,6 +169,53 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     def search(b: SearchBody):
         return guard(lambda: device.search(b.text, b.episode_id, b.use_fleet, b.limit))
 
+    @app.get("/api/procedures", dependencies=[api])
+    def procedures(fault_class: str | None = None, episode_id: str | None = None):
+        """Documented reference procedures for a fault class (or for an episode's confirmed class / physics hint)."""
+        component = device.component
+        if episode_id:
+            ep = guard(lambda: device.episode(episode_id))
+            fault_class = ep.get("fault_class") or (ep.get("fault_hint") or {}).get("fault_class")
+            component = ep.get("component") or component
+        return {"fault_class": fault_class, "component": component,
+                "procedures": procedures_mod.lookup(fault_class, component)}
+
+    @app.get("/api/profile", dependencies=[api])
+    def profile():
+        return device.profile.describe() | {"component": device.component, "baseline_ready": device.gate is not None,
+                                            "capture": device.capture_state()}
+
+    @app.post("/api/baseline/capture", dependencies=[api])
+    def capture(b: CaptureBody):
+        return guard(lambda: device.start_baseline_capture(b.windows))
+
+    @app.post("/api/ingest/signal", dependencies=[api])
+    def ingest_signal(b: SignalBody):
+        """Live sensor input (M.3 'POST /ingest/window', generalised to any profile)."""
+        given = [v is not None for v in (b.samples, b.axes, b.events)]
+        if sum(given) != 1:
+            raise HTTPException(422, "give exactly one of samples, axes, events")
+        if b.events is not None:
+            x = b.events
+        else:
+            x = np.asarray(b.samples if b.samples is not None else b.axes, dtype=np.float64)
+            if x.size > MAX_SIGNAL_VALUES or x.size == 0 or not np.all(np.isfinite(x)):
+                raise HTTPException(422, f"signal must be 1..{MAX_SIGNAL_VALUES} finite values")
+            if b.axes is not None and (x.ndim != 2 or len({len(r) for r in b.axes}) != 1):
+                raise HTTPException(422, "axes must be a rectangular list of rows")
+        if device.gate is None and device.capture_state() is None:
+            raise HTTPException(409, "no baseline yet: POST /api/baseline/capture first (machine known-good)")
+        res = guard(lambda: device.ingest_signal(x, b.fs, b.rpm, b.source or "live-sensor"))
+        states: dict[str, int] = {}
+        for r in res:
+            states[r["state"]] = states.get(r["state"], 0) + 1
+        return {"windows": len(res), "states": states, "last": res[-1] if res else None,
+                "capture": device.capture_state(), "diagnosis": device.last_diagnosis}
+
+    @app.post("/api/episodes/{eid}/normal", dependencies=[api])
+    def mark_normal(eid: str, b: Versioned):
+        return guard(lambda: device.mark_normal(eid, b.expected_version))
+
     @app.post("/api/search/feedback", dependencies=[api])
     def feedback(b: FeedbackBody):
         return guard(lambda: device.record_feedback(b.result_id, b.kind, b.helped))
@@ -218,6 +286,11 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
         @app.get("/")
         def index():
             return FileResponse(UI / "index.html")
+
+        @app.get("/sensor")
+        def sensor_page():
+            """Phone sensor page: streams the phone's accelerometer to /api/ingest/signal (needs HTTPS on phones)."""
+            return FileResponse(UI / "sensor.html")
 
     @app.on_event("shutdown")
     def _shutdown():

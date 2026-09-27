@@ -52,7 +52,8 @@ class FakeLLM:
 
 def test_brief_falls_back_to_template_when_nothing_is_grounded():
     b = rag.brief("q", RESULTS, FakeLLM("Always regrease. Trust me."))
-    assert b["mode"] == "template" and b["text"] == b["template"] and len(b["dropped"]) == 2
+    assert b["mode"] == "template" and b["text"].startswith(b["template"]) and len(b["dropped"]) == 2
+    assert all(f in b["text"] for f in b["flags"])          # disagreement flags still shown, verbatim
 
 
 def test_brief_injection_echo_is_removed():
@@ -72,3 +73,30 @@ def test_real_local_llm_output_passes_through_checker():
     if b["mode"] == "llm":
         kept, dropped = rag.check_output(b["text"], {"E1", "E2"})
         assert dropped == [] and kept
+
+
+# ---- 28 Sep: flags are never paraphrased; numbers must match the cited evidence ----------------------------------
+from edge.rag import Evidence, check_output, verbatim_flags   # noqa: E402
+
+TEXTS = {"E1": "Fleet case bearing/inner_race (2 site(s), 2 report(s)). replace_bearing: worked at 1 site(s), failed at "
+               "1 site(s); 2 report(s) machine-verified. Flag DISPUTED: replace_bearing: worked at 1 site(s), failed at "
+               "1 site(s). Flag COMPETING: different root causes claimed: fatigue_wear, lubrication_starvation."}
+
+
+def test_the_live_flag_mixup_is_dropped():
+    live = ("The fault was flagged as DISPUTED because different root causes were claimed: fatigue wear and "
+            "lubrication starvation [E1].")
+    kept, dropped = check_output(live, {"E1"}, TEXTS)
+    assert kept == [] and "flag" in dropped[0]["why"]
+
+
+def test_numbers_must_occur_in_the_cited_evidence():
+    kept, dropped = check_output("Replacing the bearing worked at 3 sites [E1]. It failed at 1 site [E1].", {"E1"}, TEXTS)
+    assert kept == ["It failed at 1 site [E1]."] and "not in the cited evidence" in dropped[0]["why"]
+
+
+def test_flags_are_appended_verbatim_from_the_case():
+    case = {"flags": [{"kind": "DISPUTED", "detail": "replace_bearing: worked at 1 site(s), failed at 1 site(s)"}]}
+    items = [Evidence("E1", "fleet", "c1", TEXTS["E1"])]
+    out = verbatim_flags(items, {"fleet": [{"id": "c1", "case": case}]}, {"E1"})
+    assert out == ["⚑ DISPUTED: replace_bearing: worked at 1 site(s), failed at 1 site(s) [E1]"]

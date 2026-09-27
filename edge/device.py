@@ -22,7 +22,7 @@ from typing import Any
 
 import numpy as np
 
-from edge import policy, profiles
+from edge import policy, profiles, storage_os
 from edge import verifier as V
 from edge.fingerprint import Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
@@ -78,6 +78,7 @@ class DeviceConfig:
     device_token: str | None = None
     profile: str = "bearing-12k"                # edge/profiles.py: what kind of signal this device watches
     profile_params: dict = field(default_factory=dict)
+    compress_storage: bool = False              # Windows: NTFS-compress the device folder at start + hourly
 
 
 class Device:
@@ -116,7 +117,7 @@ class Device:
             self.gate = NoveltyGate(self.store, cfg.machine_id, GateConfig(**b["gate"]))
         self.outbox.log("boot", f"device started; journal re-applied {replayed} op(s); {requeued} upload(s) re-queued")
         self._last_retention = 0.0
-        self.maybe_run_retention()
+        self.maybe_run_retention()                 # also compresses the folder when compress_storage is on
 
     # ---- persistence: journal first, then shard ---------------------------------------------------------
     def _apply(self, body: dict) -> None:
@@ -161,7 +162,7 @@ class Device:
         """Fit z-scoring stats on this machine's healthy windows, store them as baseline points, calibrate the
         gate from them. Replaces any previous baseline of this machine."""
         with self._lock:
-            b = Baseline.fit(healthy_raw, self.profile.fp_version)
+            b = Baseline.fit(healthy_raw, self.profile.fp_version, self.profile.min_std)
             z = b.z(np.asarray(healthy_raw, dtype=np.float64))
             g = calibrate(z)
             pts = [StorePoint(ids.baseline_point_id(self.cfg.machine_id, i),
@@ -405,6 +406,12 @@ class Device:
     def _decide(self, eid: str) -> dict:
         rec = self.store.get(eid, with_vectors=True)
         ep = rec.payload
+        if ep.get("dismissed"):                           # not a fault: nothing to share, ever
+            d = {"action": "KEEP_LOCAL", "event_id": None, "note_shared": False,
+                 "reasons": [{"gate": "human", "ok": True, "detail": "marked as normal operation by the technician; "
+                              "its fingerprints now extend the healthy baseline"}]}
+            self._set(eid, decision=d)
+            return d
         red = redact(ep["note_text"], self.cfg.denylist) if ep.get("note_text") else None
         d = policy.decide(ep, fingerprint=rec.vectors["vib"], redaction=red, device_id=self.cfg.device_id,
                           machine_class=self.cfg.machine_class,
@@ -422,6 +429,31 @@ class Device:
             self.outbox.log("policy", f"{d.action}: {last.detail}", eid)
         self._set(eid, **fields)
         return fields["decision"]
+
+    # ---- "not a fault": teach a new healthy operating state ----------------------------------------------
+    def mark_normal(self, eid: str, expected_version: int | None = None) -> dict:
+        """The technician says this episode is normal operation (a new load, speed or a re-mounted sensor), not a
+        fault. Its stored fingerprints become extra healthy-baseline points of this machine (the z-normalisation is
+        NOT refitted, so every stored vector stays comparable); the episode closes as dismissed and is never shared.
+        Found necessary by the HUST held-out test: healthy data at an untaught load looked abnormal."""
+        with self._lock:
+            ep = self._require(eid, expected_version)
+            if ep["status"] == "closed":
+                raise ValueError("episode is closed")
+            ex = [r for r in self.store.scroll(filter={"type": "exemplar", "episode_id": eid}, with_vectors=True)]
+            pts = [StorePoint(ids.make_id("baseline-extra", self.cfg.machine_id, eid, k),
+                              {"type": "baseline", "machine_id": self.cfg.machine_id, "fp_version": self.profile.fp_version,
+                               "regime_from_episode": eid}, vib=r.vectors["vib"]) for k, r in enumerate(ex)]
+            if pts:
+                self._upsert(pts)
+            self._write({"kind": "archive", "episode_id": eid, "keep": None,
+                         "fields": {"status": "closed", "closed_at": now_iso(), "n_exemplars": 0,
+                                    "dismissed": {"reason": "normal operation (not a fault)", "at": now_iso(),
+                                                  "baseline_points_added": len(pts)}}})
+            self.outbox.log("baseline", f"technician: normal operation, not a fault; {len(pts)} fingerprint(s) added "
+                                        f"to this machine's healthy baseline", eid)
+            self._run_episode = None
+            return self._decide(eid)
 
     # ---- retention (docs/RESEARCH.md G.1 / G.8: separate from the share decision) -----------------------
     def run_retention(self, now: dt.datetime | None = None) -> dict:
@@ -450,8 +482,12 @@ class Device:
         return {"checked": checked, "archived": archived}
 
     def maybe_run_retention(self) -> dict | None:
+        """Hourly housekeeping: retention, and (if enabled) re-compressing files Edge created since last time."""
         if time.time() - self._last_retention >= RETENTION_EVERY_S:
-            return self.run_retention()
+            out = self.run_retention()
+            if self.cfg.compress_storage:
+                out["compression"] = storage_os.enable_compression(self.cfg.root)
+            return out
         return None
 
     # ---- usefulness feedback (G.1 "Evaluate usefulness": a counter, no learned model) ---------------------

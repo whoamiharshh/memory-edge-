@@ -1,0 +1,90 @@
+{
+  "about": "Documented reference procedures shown next to an episode, per fault class. Written in our own words as a checklist; each entry cites the public document it follows. These are REFERENCE material, not instructions for a specific machine: always follow the machine manufacturer's manual and site safety rules (lock-out/tag-out). Sites add their own SOPs in knowledge/site_procedures.json (same format, source.kind = 'site SOP').",
+  "version": 1,
+  "procedures": [
+    {
+      "id": "bearing-damage-general",
+      "fault_classes": ["inner_race", "outer_race", "ball", "cage"],
+      "components": ["bearing", "motor", "pump", "fan", "gearbox"],
+      "title": "Rolling bearing defect: confirm, replace, find the cause",
+      "confirm_first": [
+        "The defect-frequency hint (BPFO outer race, BPFI inner race, BSF ball) repeats over several windows and grows or stays, rather than a one-off spike.",
+        "Check lubrication state and temperature; lubrication problems can produce similar high-frequency signs."
+      ],
+      "steps": [
+        "Plan the replacement; do not run to destruction if the severity zone is C or D.",
+        "Lock out the machine; remove the bearing with the correct puller or induction heater (no hammer blows through the rolling elements).",
+        "Inspect the removed bearing and classify the damage by failure mode (fatigue, wear, corrosion, electrical erosion, plastic deformation, fracture) - this is what tells the root cause.",
+        "Check shaft and housing seats for wear, fretting or out-of-round before fitting the new bearing.",
+        "Mount the new bearing with the correct method and fit; lubricate with the specified grease/oil and quantity.",
+        "Record the found damage mode as the root-cause claim (it becomes fleet evidence)."
+      ],
+      "system_verifies": "After the action is recorded, the device counts N consecutive windows back inside this machine's healthy radius (symptom resolved), or reports that the symptom persists.",
+      "sources": [
+        {"title": "Bearing damage and failure analysis (publication 14219, based on ISO 15243 failure modes)", "publisher": "SKF", "url": "https://cdn.skfmediahub.skf.com/api/public/093168a92d25cc46/pdf_preview_medium/14219_3_EN_-_Bearing_failures_LOW_pdf_preview_medium.pdf"}
+      ]
+    },
+    {
+      "id": "imbalance-field-balancing",
+      "fault_classes": ["imbalance"],
+      "components": ["fan", "motor", "pump", "shaft", "compressor"],
+      "title": "Imbalance (dominant 1x): clean, inspect, then balance",
+      "confirm_first": [
+        "The 1x (once per revolution) peak dominates and is steady; 2x and higher harmonics are small.",
+        "Rule out simple causes first: dirt build-up or a damaged/missing blade or part on the rotor."
+      ],
+      "steps": [
+        "Lock out; clean the rotor/blades and inspect for damage, missing balance weights or loose parts.",
+        "If still unbalanced: single-plane field balancing (fans, discs, short rotors) - measure the as-found 1x amplitude and phase (reference run).",
+        "Attach a known trial weight at a marked angle, run again and measure the new 1x amplitude and phase (trial run).",
+        "Compute the correction mass and angle from the change the trial weight caused (the influence), remove the trial weight, fit the correction and re-measure.",
+        "Repeat a trim run if the residual 1x is still high."
+      ],
+      "system_verifies": "The device verifies that windows return to the healthy radius; on a phone-grade sensor this confirms the 1x symptom dropped, not the balance grade.",
+      "sources": [
+        {"title": "Field Balancing", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/article/field-balancing/"},
+        {"title": "Balancing Rigid Rotors in the Field", "publisher": "Reliable Plant", "url": "https://www.reliableplant.com/Read/29478/field-balancing-rotors"}
+      ]
+    },
+    {
+      "id": "misalignment-shaft-alignment",
+      "fault_classes": ["misalignment"],
+      "components": ["coupling", "shaft", "motor", "pump", "gearbox", "compressor"],
+      "title": "Misalignment (strong 2x): soft foot first, then align",
+      "confirm_first": [
+        "2x is large relative to 1x (and often axial vibration is high); coupling temperature or wear may be visible.",
+        "On low sampling rates (e.g. a 60 Hz phone) 2x may be above the Nyquist limit: the system then says misalignment is NOT assessable."
+      ],
+      "steps": [
+        "Pre-alignment checks: machine locked out, feet and base clean, bolts, pipe strain, coupling condition.",
+        "Check and correct soft foot (a foot not sitting flat distorts the frame and can itself show up as vibration).",
+        "Rough-align, then measure alignment (laser system or dial indicators) and correct vertical and horizontal offset and angularity to tolerance.",
+        "Re-check soft foot, tighten in the correct sequence, and record the final alignment."
+      ],
+      "system_verifies": "Windows return to the healthy radius over N windows after the action.",
+      "sources": [
+        {"title": "5-Step Shaft Alignment Procedure", "publisher": "LUDECA", "url": "http://media.noria.com/sites/WhitePapers/WPFILES/Ludeca_5-StepShaftAlignmentProcedure_Infographic.pdf"},
+        {"title": "Soft Foot: The First Step to Precision Alignment", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"}
+      ]
+    },
+    {
+      "id": "looseness-mounting",
+      "fault_classes": ["looseness"],
+      "components": ["fan", "motor", "pump", "bearing", "shaft", "conveyor"],
+      "title": "Looseness (many harmonics / 0.5x): check the mounting",
+      "confirm_first": [
+        "Many harmonics of 1x and/or half-order (0.5x) components; the pattern may change with direction and load.",
+        "Soft foot can look like looseness: check it together."
+      ],
+      "steps": [
+        "Lock out; check hold-down bolts, base and frame for cracks, and bearing housing fits.",
+        "Check for soft foot and correct it; tighten fasteners in sequence to the manufacturer's torque.",
+        "Check for rotating looseness (worn bearing fit on the shaft or in the housing) if the structure is sound."
+      ],
+      "system_verifies": "Windows return to the healthy radius over N windows after the action.",
+      "sources": [
+        {"title": "Soft Foot: The First Step to Precision Alignment (soft foot seen as looseness)", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"}
+      ]
+    }
+  ]
+}

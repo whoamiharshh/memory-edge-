@@ -135,12 +135,15 @@ class Baseline:
     fp_version: str = FP_VERSION
 
     @classmethod
-    def fit(cls, healthy_raw: np.ndarray, fp_version: str = FP_VERSION) -> "Baseline":
+    def fit(cls, healthy_raw: np.ndarray, fp_version: str = FP_VERSION, min_std: float = 1e-6) -> "Baseline":
+        """min_std: floor for each feature's healthy spread. A feature that is (nearly) constant in the healthy data
+        would otherwise turn any later change into an enormous z-score. The CWRU-validated bearing-12k profile keeps
+        1e-6 (its measured results were produced with it); the other profiles use 0.05 (log10 units: ~12 %)."""
         healthy_raw = np.asarray(healthy_raw, dtype=np.float64)
         if len(healthy_raw) < 5:
             raise ValueError("need at least 5 healthy windows to fit a baseline")
         std = healthy_raw.std(axis=0)
-        return cls(mean=healthy_raw.mean(axis=0), std=np.where(std < 1e-6, 1e-6, std), fp_version=fp_version)
+        return cls(mean=healthy_raw.mean(axis=0), std=np.maximum(std, min_std), fp_version=fp_version)
 
     def z(self, raw: np.ndarray) -> np.ndarray:
         return (raw - self.mean) / self.std

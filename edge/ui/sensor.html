@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone sensor</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { max-width: 560px; margin: 0 auto; padding: 16px; }
+  .big { font-size: 28px; font-weight: 700; }
+  .step { margin: 14px 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  button { width: 100%; margin-top: 8px; padding: 12px; }
+  #state { text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <h2>Phone as a vibration sensor</h2>
+  <p class="muted">Put the phone flat on the running machine (e.g. a desk fan's base or a washing machine top). The
+    phone's accelerometer (~60 Hz) streams to this device over HTTPS. It can see shaft-rate problems such as
+    imbalance; it cannot see bearing defect frequencies.</p>
+
+  <div class="step">
+    <b>1. Operator token</b>
+    <input id="tok" type="password" placeholder="operator token" style="width:100%" autocomplete="current-password">
+  </div>
+  <div class="step">
+    <b>2. Start the sensor</b> <span class="muted">(the browser asks for motion permission)</span>
+    <button id="start" class="primary">Start sensor</button>
+    <div class="muted" id="rate">not started</div>
+  </div>
+  <div class="step">
+    <b>3. Teach "healthy"</b> <span class="muted">(machine known-good, e.g. before taping a coin to a fan blade)</span>
+    <button id="capture">Capture healthy baseline (40 windows ≈ 1.5 min)</button>
+    <div class="muted" id="cap"></div>
+  </div>
+  <div class="step">
+    <b>4. Watch</b>
+    <div>state: <span id="state" class="big">–</span></div>
+    <div class="muted" id="diag"></div>
+    <div class="muted" id="err"></div>
+  </div>
+  <p class="muted">Then open the device UI (<a href="/">/</a>) on a laptop to record the note, the action and the outcome;
+    the verification bar fills from this phone's data.</p>
+  <script src="/static/sensor.js"></script>
+</body>
+</html>

@@ -131,7 +131,8 @@ async function refreshEpisodes() {
     const fc = e.fault_class || (e.fault_hint || {}).fault_class;
     return el("div", { class: "item" + (e.episode_id === selected ? " sel" : ""), on: { click: () => select(e.episode_id) } },
       el("div", { class: "t" }, `#${e.seq}`, badge(e.status, cls(e.status)), badge(e.share_state, cls(e.share_state)),
-        e.decision ? badge(e.decision.action, cls(e.decision.action)) : null, e.archived ? badge("archived", "b-mute") : null),
+        e.decision ? badge(e.decision.action, cls(e.decision.action)) : null, e.archived ? badge("archived", "b-mute") : null,
+        e.dismissed ? badge("normal operation", "b-ok") : null),
       el("div", { class: "d" }, `${e.component} · ${fc}${e.fault_class ? " (confirmed)" : " (hint)"} · ${e.occurrences} windows`
         + (e.action_code ? ` · ${e.action_code} → ${e.outcome}` : "") + (e.recurrence_of ? " · recurrence" : "")));
   }));
@@ -156,6 +157,8 @@ async function refreshDetail() {
     el("div", {}, `measured accuracy for this class on unseen bearings: ${acc} (overall ${h.measured_overall == null ? "n/a" : (h.measured_overall * 100).toFixed(0) + "%"}) · a hint, not a diagnosis`),
     el("div", {}, "Confirmed: ", el("b", {}, e.fault_class ? `${e.fault_class} (by technician)` : "not yet")));
   if (document.activeElement !== $("fcSel")) $("fcSel").value = e.fault_class || h.fault_class || "unknown";
+  renderPhysics(e.physics);
+  refreshProcedures(e).catch(() => {});
   const nt = $("noteTxt");   // reload the note unless the technician has unsaved typing in it
   if (document.activeElement !== nt && (nt.dataset.ep !== e.episode_id || !nt.dataset.dirty)) {
     nt.dataset.dirty = "";
@@ -178,6 +181,37 @@ async function refreshDetail() {
     d && d.action === "SHARE" ? el("span", { class: "muted" }, d.note_shared ? " · redacted note included" : " · note stays local") : "");
   $("gates").replaceChildren(...(d ? d.reasons : []).map((r) =>
     el("li", {}, el("span", { class: "ic " + (r.ok ? "ok" : "no") }, r.ok ? "✓" : "…"), el("span", { class: "g" }, r.gate), el("span", {}, r.detail))));
+}
+
+// ---------------- physics + documented procedures ----------------
+function renderPhysics(p) {
+  $("dPhysBox").hidden = !p;
+  if (!p) return;
+  const lines = [];
+  if (p.severity && p.severity.zone) lines.push(el("div", {}, "Severity zone ", badge(p.severity.zone, { A: "b-ok", B: "b-ok", C: "b-warn", D: "b-bad" }[p.severity.zone]),
+    ` ${p.severity.velocity_mm_s} mm/s RMS — ${p.severity.text}`, el("span", { class: "muted" }, ` (${p.severity.reference})`)));
+  if (p.shaft_hz) lines.push(el("div", {}, `Shaft ≈ ${p.shaft_hz} Hz (${Math.round(p.shaft_hz * 60)} rpm)${p.shaft_source ? " · " + p.shaft_source : ""}`));
+  if (p.defect_frequencies_hz) lines.push(el("div", {}, "Defect frequencies: " + Object.entries(p.defect_frequencies_hz).map(([k, v]) => `${k.toUpperCase()} ${v} Hz`).join(" · ")));
+  if (p.bearing) lines.push(el("div", {}, `Envelope rule → ${p.bearing.fault_class}: ${p.bearing.why}`));
+  if (p.rotating) lines.push(el("div", {}, `Order rule → ${p.rotating.fault_class}: ${p.rotating.why}`));
+  $("dPhys").replaceChildren(...lines);
+}
+
+let procKey = "";
+async function refreshProcedures(e) {
+  const fc = e.fault_class || (e.fault_hint || {}).fault_class;
+  const key = e.episode_id + "|" + fc;
+  if (key === procKey) return;                                   // only refetch when the class changes
+  procKey = key;
+  const r = await api("/api/procedures?episode_id=" + encodeURIComponent(e.episode_id));
+  if (!r.procedures.length) { $("dProc").replaceChildren(el("div", { class: "muted" }, `no documented procedure for "${fc}" yet — sites can add their SOPs in knowledge/site_procedures.json`)); return; }
+  $("dProc").replaceChildren(...r.procedures.map((p) => el("details", {},
+    el("summary", {}, p.title, " ", badge(p.origin === "site" ? "site SOP" : "reference", p.origin === "site" ? "b-violet" : "b-info"),
+      e.fault_class ? "" : el("span", { class: "muted" }, " (from the physics hint — confirm the class first)")),
+    p.confirm_first ? el("div", {}, el("b", {}, "Confirm first"), el("ul", {}, ...p.confirm_first.map((s) => el("li", {}, s)))) : "",
+    el("div", {}, el("b", {}, "Steps"), el("ol", {}, ...p.steps.map((s) => el("li", {}, s)))),
+    p.system_verifies ? el("div", { class: "muted" }, "Afterwards: " + p.system_verifies) : "",
+    el("div", { class: "muted" }, "Source: ", ...p.sources.map((s, i) => [i ? " · " : "", s.url ? el("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, `${s.publisher || ""} — ${s.title}`) : `${s.title} (${s.kind})`]).flat()))));
 }
 
 // ---------------- outbox / activity / mirror ----------------
@@ -272,6 +306,10 @@ function wire() {
   $("actBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/action`, { action_code: $("actSel").value, root_cause: $("rcSel").value || null, required_windows: +$("reqWin").value, expected_version: v() }); toast("action recorded: now replay the post-repair signal"); refreshDetail(); });
   $("okBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "worked", expected_version: v() }); refreshDetail(); });
   $("failBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/confirm`, { outcome: "failed", expected_version: v() }); refreshDetail(); });
+  $("normalBtn").onclick = act(async () => {
+    if (!confirm("Mark this episode as NORMAL operation (not a fault)? Its fingerprints become part of this machine's healthy baseline.")) return;
+    await api(`/api/episodes/${selected}/normal`, { expected_version: v() }); toast("taught as normal operation"); refreshDetail();
+  });
   $("searchBtn").onclick = act(async () => renderSearch(await api("/api/search", { text: $("q").value || null, use_fleet: $("useFleet").checked })));
   $("simBtn").onclick = act(async () => { if (!selected) throw new Error("select an episode first"); renderSearch(await api("/api/search", { episode_id: selected, text: $("q").value || null, use_fleet: $("useFleet").checked })); });
   $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") $("searchBtn").click(); });

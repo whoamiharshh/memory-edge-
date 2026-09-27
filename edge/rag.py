@@ -9,6 +9,8 @@
      - sentences that recommend or instruct ("you should", "recommend", ...) are dropped: the system shows
        evidence, it never prescribes
      - citations to ids that do not exist -> sentence dropped
+     - a sentence that names a disagreement flag is dropped; the cited cases' flags are appended VERBATIM
+     - every number in a sentence must occur in the evidence it cites
    If nothing survives, the template is shown instead (mode = "template").
 The brief is displayed only, labelled "AI-generated summary of the evidence below". It never feeds the policy
 engine, the sync, or the fleet. Evidence text (notes) is treated as data; it is quoted inside the prompt and
@@ -88,21 +90,46 @@ def template_summary(items: list[Evidence]) -> str:
     return " ".join(out)
 
 
-def check_output(raw: str, valid_keys: set[str]) -> tuple[list[str], list[dict]]:
-    """Keep only sentences that cite existing evidence and do not prescribe. Returns (kept, dropped)."""
+FLAG_WORD = re.compile(r"\b(disputed|competing|alternatives?)\b", re.I)
+NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w.])")
+
+
+def check_output(raw: str, valid_keys: set[str], texts: dict[str, str] | None = None) -> tuple[list[str], list[dict]]:
+    """Keep only sentences that cite existing evidence and do not prescribe. With `texts` (evidence id -> text) two
+    more rules apply: a sentence may not name a disagreement flag (flags are shown verbatim instead; the live demo
+    once saw 'DISPUTED because different root causes' - that is COMPETING), and every number in it must appear in
+    the evidence it cites. Returns (kept, dropped)."""
     sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", raw) if s.strip()]
     kept, dropped = [], []
     for s in sentences:
         cites = {f"E{n}" for n in CITE.findall(s)}
+        body = CITE.sub("", s)
+        cited_text = " ".join((texts or {}).get(c, "") for c in cites)
+        bad_numbers = [n for n in NUMBER.findall(body) if texts is not None and not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", cited_text)]
         if not cites:
             dropped.append({"sentence": s, "why": "no citation"})
         elif not cites <= valid_keys:
             dropped.append({"sentence": s, "why": f"cites unknown evidence {sorted(cites - valid_keys)}"})
         elif PRESCRIPTIVE.search(s):
             dropped.append({"sentence": s, "why": "prescriptive (the system never recommends actions)"})
+        elif texts is not None and FLAG_WORD.search(body):
+            dropped.append({"sentence": s, "why": "names a disagreement flag: flags are shown verbatim, not paraphrased"})
+        elif bad_numbers:
+            dropped.append({"sentence": s, "why": f"number(s) {bad_numbers} not in the cited evidence"})
         else:
             kept.append(s)
     return kept, dropped
+
+
+def verbatim_flags(items: list[Evidence], results: dict, cited: set[str]) -> list[str]:
+    """Disagreement flags of the cited fleet cases, copied from the evidence (never generated)."""
+    cases = {r["id"]: r["case"] for r in results.get("fleet", [])}
+    out = []
+    for i in items:
+        if i.source == "fleet" and i.key in cited:
+            for f in cases.get(i.ref, {}).get("flags", []):
+                out.append(f"⚑ {f['kind']}: {f['detail']} [{i.key}]")
+    return out
 
 
 SYSTEM = ("You summarise maintenance evidence for a technician. Rules: use ONLY the numbered evidence. "
@@ -161,9 +188,11 @@ def brief(question: str, results: dict, llm: LocalLLM | None) -> dict[str, Any]:
         return base | {"mode": "template", "text": base["template"], "dropped": [], "model": MODEL_NAME,
                        "latency_ms": 0, "why": f"LLM error: {e!r}"}
     ms = (time.perf_counter() - t) * 1000
-    kept, dropped = check_output(raw, {i.key for i in items})
+    kept, dropped = check_output(raw, {i.key for i in items}, {i.key: i.text for i in items})
+    flags = verbatim_flags(items, results, {f"E{n}" for s in kept for n in CITE.findall(s)} or {i.key for i in items})
     if not kept:
-        return base | {"mode": "template", "text": base["template"], "dropped": dropped, "raw": raw,
+        text = " ".join([base["template"], *flags])
+        return base | {"mode": "template", "text": text, "dropped": dropped, "raw": raw, "flags": flags,
                        "model": MODEL_NAME, "latency_ms": round(ms), "why": "no LLM sentence passed the grounding check"}
-    return base | {"mode": "llm", "text": " ".join(kept), "dropped": dropped, "raw": raw, "model": MODEL_NAME,
-                   "latency_ms": round(ms)}
+    return base | {"mode": "llm", "text": " ".join([*kept, *flags]), "dropped": dropped, "raw": raw, "flags": flags,
+                   "model": MODEL_NAME, "latency_ms": round(ms)}

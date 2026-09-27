@@ -1,0 +1,58 @@
+{
+  "method": "Robots (PS3): does the same memory engine flag robot execution failures from wrist force/torque?",
+  "dataset": "UCI Robot Execution Failures, CC BY 4.0",
+  "seeds": 5,
+  "problems": {
+    "lp1": {
+      "false_alarm_rate": 0.0,
+      "held_out_normals_per_seed": 9,
+      "detection_rate": 0.961,
+      "detection_per_failure_type": {
+        "collision": 0.882,
+        "fr_collision": 0.963,
+        "obstruction": 1.0
+      }
+    },
+    "lp2": {
+      "false_alarm_rate": 0.05,
+      "held_out_normals_per_seed": 8,
+      "detection_rate": 0.548,
+      "detection_per_failure_type": {
+        "back_col": 0.629,
+        "front_col": 0.7,
+        "left_col": 0.356,
+        "right_col": 0.6
+      }
+    },
+    "lp3": {
+      "false_alarm_rate": 0.05,
+      "held_out_normals_per_seed": 8,
+      "detection_rate": 0.548,
+      "detection_per_failure_type": {
+        "lost": 0.8,
+        "moved": 0.613,
+        "slightly_moved": 0.356
+      }
+    },
+    "lp4": {
+      "false_alarm_rate": 0.0,
+      "held_out_normals_per_seed": 10,
+      "detection_rate": 0.978,
+      "detection_per_failure_type": {
+        "collision": 0.972,
+        "obstruction": 1.0
+      }
+    },
+    "lp5": {
+      "false_alarm_rate": 0.0,
+      "held_out_normals_per_seed": 18,
+      "detection_rate": 0.712,
+      "detection_per_failure_type": {
+        "bottom_collision": 0.877,
+        "bottom_obstruction": 1.0,
+        "collision_in_part": 0.587,
+        "collision_in_tool": 0.538
+      }
+    }
+  }
+}

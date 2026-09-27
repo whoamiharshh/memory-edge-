@@ -38,10 +38,12 @@ SNAPSHOT_BYTES_DEFAULT = 400_000  # bench/mirror_sync.py: gzip full snapshot, 18
 
 class SyncWorker:
     def __init__(self, device: Device, cloud_url: str | None, token: str | None,
-                 client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "auto"):
+                 client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "auto",
+                 ca: str | None = None):
         self.device, self.cloud_url, self.token = device, (cloud_url or "").rstrip("/"), token
         self.mirror_mode = mirror_mode              # preferred; falls back to scroll if the cloud cannot snapshot
-        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0)
+        # https cloud: verify its certificate against our private CA (tools/make_certs.py) or the system store
+        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0, verify=ca if ca else True)
         self.interval = interval
         self.auth_required = False
         self.last: dict[str, Any] = {"push": None, "pull": None, "error": None}

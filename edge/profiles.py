@@ -71,6 +71,7 @@ class Profile:
     detects: list[str]
     cannot: list[str]
     params: dict[str, Any] = field(default_factory=dict)
+    min_std: float = 0.05              # baseline spread floor (log10 units); see fingerprint.Baseline.fit
 
     # --- to implement per profile ---
     def features(self, x, fs: float, rpm: float | None = None) -> np.ndarray:
@@ -108,7 +109,8 @@ class BearingCWRU(Profile):
         super().__init__("bearing-12k", fp.FP_VERSION, "Bearing vibration at 12 kHz with SKF 6205 defect orders "
                          "(the CWRU-calibrated pipeline).", "bearing", "g", float(fp.FS), fp.WINDOW,
                          ["healthy vs abnormal", "inner race / outer race / ball hint (measured, K2)",
-                          "severity zone (velocity)"], ["cage faults", "other bearing geometries"], params)
+                          "severity zone (velocity)"], ["cage faults", "other bearing geometries"], params,
+                         min_std=1e-6)   # unchanged: the CWRU numbers (K2/K3/sweep) were measured with it
 
     def features(self, x, fs, rpm=None):
         return fp.features(_resample(np.asarray(x, dtype=np.float64), fs, fp.FS), fp.FS,

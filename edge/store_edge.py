@@ -37,7 +37,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
-from qdrant_edge import (Bm25, Bm25Config, CountRequest, Distance, EdgeConfig, EdgeShard, EdgeSparseVectorParams,
+from qdrant_edge import (Bm25, Bm25Config, CountRequest, Distance, EdgeConfig, EdgeOptimizersConfig, EdgeShard,
+                         EdgeSparseVectorParams, ScalarQuantizationConfig, ScalarType, VectorStorageDatatype,
                          EdgeVectorParams, FacetRequest, FieldCondition, Filter, Fusion, MatchAny, MatchValue,
                          Modifier, PayloadSchemaType, Point, PointVectors, Prefetch, Query, QueryRequest, RangeFloat,
                          ScrollRequest, SparseVector, UpdateMode, UpdateOperation)
@@ -72,6 +73,26 @@ def _flush(shard: EdgeShard) -> None:
             if i == FLUSH_RETRIES - 1 or not any(t in str(e) for t in TRANSIENT_IO):
                 raise
             time.sleep(0.05 * 2 ** i)
+
+
+def _edge_config(vib_dim: int, note_dim: int, storage: Mapping[str, Any]) -> EdgeConfig:
+    """The shard layout. Default = the original layout; the storage options only change HOW vectors are kept."""
+    dt = {"float32": None, "float16": VectorStorageDatatype.Float16, "uint8": VectorStorageDatatype.Uint8}
+    note_kw: dict[str, Any] = {}
+    if storage.get("note_datatype") not in (None, "float32"):
+        note_kw["datatype"] = dt[storage["note_datatype"]]
+    if storage.get("quantize_note"):
+        note_kw["quantization_config"] = ScalarQuantizationConfig(ScalarType.Int8, always_ram=True)
+        note_kw["on_disk"] = True                       # full-precision originals on disk, int8 copy in RAM
+    cfg: dict[str, Any] = {
+        "vectors": {VIB: EdgeVectorParams(size=vib_dim, distance=Distance.Euclid),
+                    NOTE: EdgeVectorParams(size=note_dim, distance=Distance.Cosine, **note_kw)},
+        "sparse_vectors": {NOTE_BM25: EdgeSparseVectorParams(modifier=Modifier.Idf)}}
+    if storage.get("segments"):
+        cfg["optimizers"] = EdgeOptimizersConfig(default_segment_number=int(storage["segments"]))
+    if storage.get("payload_on_disk"):
+        cfg["on_disk_payload"] = True
+    return EdgeConfig(**cfg)
 
 
 class StoreConfigError(RuntimeError):
@@ -159,10 +180,13 @@ class EdgeStore:
 
     def __init__(self, root: str | os.PathLike, *, vib_dim: int = FP_DIM, note_dim: int = NOTE_DIM,
                  fp_version: str = FP_VERSION, text_model: str = TEXT_MODEL, bm25_avg_len: float = BM25_AVG_LEN,
-                 allow_text_model_change: bool = False):
+                 allow_text_model_change: bool = False, storage: Mapping[str, Any] | None = None):
         """allow_text_model_change: a store built with another text model opens anyway, with
         `pending_text_model` set; the caller must then run migrate_text_model() before writing or querying text
-        vectors (docs/RESEARCH.md H.3: new named vector, re-embed, then switch). Other mismatches always raise."""
+        vectors (docs/RESEARCH.md H.3: new named vector, re-embed, then switch). Other mismatches always raise.
+        storage (used only when the store is CREATED; kept in the meta): the footprint options measured in
+        bench/footprint.py - segments (int), note_datatype ("float32"|"float16"|"uint8"), quantize_note (int8 scalar
+        quantization kept in RAM, originals on disk), payload_on_disk (bool)."""
         self.root = pathlib.Path(root)
         self._lock = threading.RLock()
         self.pending_text_model: dict | None = None
@@ -181,14 +205,12 @@ class EdgeStore:
             self._shard = EdgeShard.load(str(shard_path))
         else:
             shard_path.mkdir(parents=True, exist_ok=True)
-            self._shard = EdgeShard.create(str(shard_path), EdgeConfig(
-                vectors={VIB: EdgeVectorParams(size=vib_dim, distance=Distance.Euclid),
-                         NOTE: EdgeVectorParams(size=note_dim, distance=Distance.Cosine)},
-                sparse_vectors={NOTE_BM25: EdgeSparseVectorParams(modifier=Modifier.Idf)}))
+            storage = dict(storage or {})
+            self._shard = EdgeShard.create(str(shard_path), _edge_config(vib_dim, note_dim, storage))
             for key in KEYWORD_INDEXES:
                 self._shard.update(UpdateOperation.create_field_index(key, PayloadSchemaType.Keyword))
             _flush(self._shard)
-            self.meta = {**wanted, "bm25_avg_len": bm25_avg_len, "schema_version": 1}
+            self.meta = {**wanted, "bm25_avg_len": bm25_avg_len, "schema_version": 1, "storage": storage}
             tmp = meta_path.with_suffix(".tmp")        # meta written last + atomically: its presence = shard ready
             tmp.write_text(json.dumps(self.meta, indent=2))
             tmp.replace(meta_path)

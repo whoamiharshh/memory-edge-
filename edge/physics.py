@@ -73,7 +73,12 @@ def spectrum(x: np.ndarray, fs: float) -> tuple[np.ndarray, np.ndarray]:
 
 
 def peak_near(freqs: np.ndarray, amp: np.ndarray, f0: float, tol: float = 0.03) -> float:
-    sel = (freqs >= f0 * (1 - tol)) & (freqs <= f0 * (1 + tol))
+    """Largest amplitude within +-tol*f0 of f0, but never a window narrower than half a frequency bin: otherwise a
+    low frequency (e.g. a ~10 Hz cage rate at 3 Hz resolution) can fall between bins and read as 'no energy' in
+    one window and real energy in the next (seen on HUST; it made one feature a 13-million-sigma outlier)."""
+    half_bin = 0.5 * (freqs[1] - freqs[0]) if len(freqs) > 1 else 0.0
+    w = max(tol * f0, half_bin)
+    sel = (freqs >= f0 - w) & (freqs <= f0 + w)
     return float(amp[sel].max()) if sel.any() else 0.0
 
 

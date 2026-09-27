@@ -1,0 +1,150 @@
+{
+  "method": "Device footprint: disk, RAM and search quality for the Edge storage options (phone / laptop / Pi feasibility).",
+  "os": "nt",
+  "rows": [
+    {
+      "layout": "default",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 203.4,
+      "rss_mb": 181.5,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "one_segment",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 203.4,
+      "rss_mb": 181.5,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 203.4,
+      "rss_mb": 181.7,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "one_segment_int8_ondisk",
+      "n": 0,
+      "apparent_mb": 203.4,
+      "allocated_mb": 203.4,
+      "rss_mb": 180.7,
+      "hybrid_p50_ms": 0.0,
+      "top10_overlap_vs_default": null
+    },
+    {
+      "layout": "default",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 255.0,
+      "hybrid_p50_ms": 0.702,
+      "top10_overlap_vs_default": 1.0
+    },
+    {
+      "layout": "one_segment",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 255.8,
+      "hybrid_p50_ms": 0.835,
+      "top10_overlap_vs_default": 0.906
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 254.6,
+      "hybrid_p50_ms": 0.609,
+      "top10_overlap_vs_default": 0.921
+    },
+    {
+      "layout": "one_segment_int8_ondisk",
+      "n": 1000,
+      "apparent_mb": 267.4,
+      "allocated_mb": 267.4,
+      "rss_mb": 223.3,
+      "hybrid_p50_ms": 0.575,
+      "top10_overlap_vs_default": 0.922
+    },
+    {
+      "layout": "default",
+      "n": 10000,
+      "apparent_mb": 309.5,
+      "allocated_mb": 309.5,
+      "rss_mb": 257.7,
+      "hybrid_p50_ms": 0.741,
+      "top10_overlap_vs_default": 1.0
+    },
+    {
+      "layout": "one_segment",
+      "n": 10000,
+      "apparent_mb": 309.5,
+      "allocated_mb": 309.5,
+      "rss_mb": 256.7,
+      "hybrid_p50_ms": 0.727,
+      "top10_overlap_vs_default": 0.76
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 10000,
+      "apparent_mb": 267.7,
+      "allocated_mb": 267.7,
+      "rss_mb": 288.6,
+      "hybrid_p50_ms": 1.762,
+      "top10_overlap_vs_default": 0.592
+    },
+    {
+      "layout": "one_segment_int8_ondisk",
+      "n": 10000,
+      "apparent_mb": 313.2,
+      "allocated_mb": 313.2,
+      "rss_mb": 244.8,
+      "hybrid_p50_ms": 0.585,
+      "top10_overlap_vs_default": 0.729
+    },
+    {
+      "layout": "default",
+      "n": 50000,
+      "apparent_mb": 482.4,
+      "allocated_mb": 482.4,
+      "rss_mb": 431.6,
+      "hybrid_p50_ms": 1.711,
+      "top10_overlap_vs_default": 1.0
+    },
+    {
+      "layout": "one_segment",
+      "n": 50000,
+      "apparent_mb": 482.4,
+      "allocated_mb": 482.4,
+      "rss_mb": 432.3,
+      "hybrid_p50_ms": 2.077,
+      "top10_overlap_vs_default": 0.545
+    },
+    {
+      "layout": "one_segment_f16",
+      "n": 50000,
+      "apparent_mb": 445.8,
+      "allocated_mb": 445.8,
+      "rss_mb": 398.1,
+      "hybrid_p50_ms": 2.013,
+      "top10_overlap_vs_default": 0.544
+    },
+    {
+      "layout": "one_segment_int8_ondisk",
+      "n": 50000,
+      "apparent_mb": 500.9,
+      "allocated_mb": 500.9,
+      "rss_mb": 376.1,
+      "hybrid_p50_ms": 1.678,
+      "top10_overlap_vs_default": 0.596
+    }
+  ]
+}

@@ -18,3 +18,4 @@ llama-cpp-python==0.3.35     # optional: the local evidence-brief LLM
 pytest==9.1.1
 playwright==1.63.0           # dev only: tests/ui_check.py (uses the system Microsoft Edge)
 psutil==7.2.2                # bench only: bench/resources.py (CPU, RSS)
+cryptography==50.0.1         # tools/make_certs.py: private CA + server certificate for HTTPS
