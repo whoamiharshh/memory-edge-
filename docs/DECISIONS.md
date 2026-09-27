@@ -5,6 +5,35 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D28 · Trained models only on real data (28 Sep 2026)
+The user's rule: every trained model is trained on real data; made-up data only as a last resort, and labelled.
+Trained: the vehicle early-warning model (SCANIA validation → test), the robot failure models (UCI, cross-validated),
+the text action-family classifier of the Laya experiment (real logbook; not shipped). Nothing is trained on synthetic
+data. Synthetic data is used only in TESTS (e.g. the events profile's printer jam, the phone fan), never to train.
+
+### D27 · Vehicle risk hint: logistic regression, not boosting (28 Sep 2026)
+On 5,045 held-out real trucks it beat gradient boosting (ROC-AUC 0.75 vs 0.68) and ships as plain coefficients that
+cannot execute code on load. The unsupervised per-truck gate showed no signal on these readouts, and we say so.
+
+### D26 · Security completed: expiring tokens, mutual TLS, notes encrypted at rest (28 Sep 2026)
+Tokens expire after 30 days and devices renew them automatically (old token: 10-minute grace). `--mtls` makes the cloud
+require a device certificate from our CA. Notes (and the BM25 text that contains them) are AES-256-GCM encrypted
+before they reach the shard or the journal; the key is DPAPI-protected on Windows. The encryption test found the
+BM25 text in the journal in plain text first; that was fixed.
+
+### D25 · Installable web app instead of a native phone app (28 Sep 2026)
+No Qdrant Edge package exists for Android/iOS, and a browser-only device would drop Qdrant Edge. The device UI became
+an installable web app (manifest + service worker caching only the app shell, never `/api` data) used next to a
+laptop/Pi device that works offline. A native Android device remains possible later via the Rust crate.
+
+### D24 · Vehicle fault-code dictionary shipped (28 Sep 2026)
+OBDex (CC0): 9,533 standard codes with meanings, causes by likelihood, symptoms and sources, offline in
+`knowledge/vehicle_codes.json`; shown next to event episodes. Sites add their own SOPs through the "Add procedure" form.
+
+### D23 · Automatic operating-point check (28 Sep 2026)
+Taught speed/load ranges are kept with the baseline; untaught points are flagged with a physics suggestion (threshold
+chosen on CWRU, measured on HUST: flag 0 false on taught points, suggestion right 13/17).
+
 ### D22 · Storage: compress the device folder instead of shrinking vectors (28 Sep 2026)
 **Evidence.** `bench/footprint.py`: ~203 MB per shard is fixed pre-allocation (mostly zero pages), data adds ~5.6 kB
 per point; float16 saves ~8 % disk, int8 quantization ~13 % RAM (and a little extra disk). NTFS compression of the

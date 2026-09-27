@@ -32,6 +32,25 @@ from edge.store_edge import StorePoint
 
 PULL_EVERY_S = 5.0
 SNAPSHOT_TIMEOUT_S = 120.0
+RENEW_CHECK_S = 3600.0            # how often to look at the token's expiry
+RENEW_BEFORE_S = 7 * 24 * 3600    # renew when less than this is left
+
+
+def _tls_context(ca: str | None, client_cert: tuple[str, str] | None):
+    """True (system CAs), or an SSL context that trusts our private CA and, for mutual TLS, presents this device's
+    certificate."""
+    if not ca and not client_cert:
+        return True
+    import ssl
+    ctx = ssl.create_default_context(cafile=ca) if ca else ssl.create_default_context()
+    if client_cert:
+        ctx.load_cert_chain(*client_cert)
+    return ctx
+
+
+def _fingerprint(token: str) -> str:
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
 ROW_BYTES_DEFAULT = 2600          # bench/mirror_sync.py: ~2.5-2.7 kB per case row (JSON incl. two vectors)
 SNAPSHOT_BYTES_DEFAULT = 400_000  # bench/mirror_sync.py: gzip full snapshot, 188 kB (10 cases) - 398 kB (1,000)
 
@@ -39,11 +58,22 @@ SNAPSHOT_BYTES_DEFAULT = 400_000  # bench/mirror_sync.py: gzip full snapshot, 18
 class SyncWorker:
     def __init__(self, device: Device, cloud_url: str | None, token: str | None,
                  client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "auto",
-                 ca: str | None = None):
-        self.device, self.cloud_url, self.token = device, (cloud_url or "").rstrip("/"), token
+                 ca: str | None = None, client_cert: tuple[str, str] | None = None):
+        self.device, self.cloud_url = device, (cloud_url or "").rstrip("/")
+        # A token this device renewed itself is kept in its SQLite; it wins unless the operator started the device
+        # with a DIFFERENT token (e.g. a new one issued by the admin), which then starts a new chain.
+        kv = device.outbox
+        origin = _fingerprint(token) if token else None
+        saved, saved_origin = kv.kv_get("device_token"), kv.kv_get("device_token_origin")
+        self.token = saved if saved and (token is None or saved_origin == origin) else token
+        if token and saved_origin != origin:
+            kv.kv_set("device_token", None)
+            kv.kv_set("device_token_origin", origin)
+        self._last_renew_check = 0.0
         self.mirror_mode = mirror_mode              # preferred; falls back to scroll if the cloud cannot snapshot
         # https cloud: verify its certificate against our private CA (tools/make_certs.py) or the system store
-        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0, verify=ca if ca else True)
+        # mutual TLS: client_cert = (pem, key) proves THIS device at the TLS layer, in addition to its bearer token
+        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0, verify=_tls_context(ca, client_cert))
         self.interval = interval
         self.auth_required = False
         self.last: dict[str, Any] = {"push": None, "pull": None, "error": None}
@@ -263,8 +293,36 @@ class SyncWorker:
         return {"pulled": pulled, "cursor": mirror.seq, "snapshot": kind, "wire_bytes": wire}
 
     # ---- background loop --------------------------------------------------------------------------------
+    def maybe_renew_token(self, now: float | None = None, force_check: bool = False) -> dict | None:
+        """Hourly: ask the cloud when this token expires; with less than RENEW_BEFORE_S left, swap it for a new one
+        (saved locally, so a restart keeps it). Offline: nothing happens; the token just keeps its date."""
+        now = time.time() if now is None else now
+        if not self.token or not self.online or (not force_check and now - self._last_renew_check < RENEW_CHECK_S):
+            return None
+        self._last_renew_check = now
+        try:
+            r = self.http.get("/v1/whoami", headers=self._headers())
+            if r.status_code != 200:
+                return {"checked": False, "status": r.status_code}
+            exp = r.json().get("expires_at")
+            self.device.outbox.kv_set("token_expires_at", exp)
+            if exp is None or exp - now > RENEW_BEFORE_S:
+                return {"checked": True, "renewed": False, "expires_at": exp}
+            r = self.http.post("/v1/token/renew", headers=self._headers())
+            if r.status_code != 200:
+                return {"checked": True, "renewed": False, "status": r.status_code}
+        except httpx.HTTPError as e:
+            return {"checked": False, "error": type(e).__name__}
+        body = r.json()
+        self.token = body["token"]
+        self.device.outbox.kv_set("device_token", self.token)
+        self.device.outbox.kv_set("token_expires_at", body["expires_at"])
+        self.device.outbox.log("sync", "device token renewed before expiry (the old one stops working in 10 min)")
+        return {"checked": True, "renewed": True, "expires_at": body["expires_at"]}
+
     def tick(self) -> None:
         self.device.maybe_run_retention()               # local housekeeping; runs offline too (hourly)
+        self.maybe_renew_token()
         if self.online and not self.auth_required:
             self.push_once()
             if time.time() - self._last_pull >= PULL_EVERY_S:
@@ -293,6 +351,8 @@ class SyncWorker:
 
     def set_token(self, token: str) -> None:
         self.token = token
+        self.device.outbox.kv_set("device_token", token)
+        self.device.outbox.kv_set("device_token_origin", _fingerprint(token))
         self.auth_required = False
         self.device.outbox.log("sync", "device token updated")
 

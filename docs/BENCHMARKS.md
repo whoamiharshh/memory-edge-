@@ -207,6 +207,51 @@ One engine, five input kinds, the same 27-number fingerprint slot. Each test run
 No licensed public data set with kiosk/vehicle error codes AND the fixes applied was found, so the events profile is
 tested with synthetic buckets only.
 
+## 18. Automatic operating-point check (`bench/operating_point.py`, HUST held out)
+The device remembers the speeds (and loads, if given) its healthy baseline covers. An episode at an untaught operating
+point is flagged, and physics words the suggestion: the median defect-envelope score of its first 10 windows against
+a threshold chosen on CWRU (1.63; `spike/signature_threshold.py`).
+| Case | Result |
+|---|---|
+| Healthy episodes at the untaught 400 W speed flagged "untaught" | 3 / 3 |
+| Faults at taught speeds wrongly flagged "untaught" | **0 / 28** |
+| Faults at the untaught speed flagged "untaught" | 14 / 14 |
+| Suggestion right: healthy → "probably a new normal operating point" | 2 / 3 (the 6205's healthy recordings carry a tone at a defect frequency) |
+| Suggestion right: fault → "a fault signature is present" | 11 / 14 |
+Per recording on HUST the CWRU threshold separates 12/15 healthy (below) and 36/42 faulty (above).
+
+## 19. Robots: a failure model TRAINED ON REAL DATA (`bench/robot_model.py`)
+UCI Robot Execution Failures (real, CC BY 4.0), 5-fold stratified cross-validation per task (each trace scored by a
+model that never saw it); alert threshold fixed on the training folds (≤ 5 % of *training* normals alarm).
+| Task | Unsupervised gate (§13): detected / false alarms | Logistic regression: detected / false alarms |
+|---|---|---|
+| lp1 approach to grasp | 96 % / 0 % | 100 % / 14 % |
+| lp2 part transfer | 55 % / 5 % | **100 %** / 10 % |
+| lp3 part after transfer | 55 % / 5 % | **100 %** (incl. "slightly moved") / 15 % |
+| lp4 approach to ungrasp | 98 % / 0 % | 99 % / 13 % |
+| lp5 motion with part | 71 % / 0 % | **98 %** / 9 % |
+The trained model catches the subtle failures the gate misses, at 9-15 % false alarms (only ~20 normal traces per
+task, so the held-out false-alarm rate is above the 5 % aimed for). Gradient boosting was unstable on data this small
+(0 % on lp2/lp3) and is not used. Also tried and rejected by the same honest split: a tighter gate radius (tuned on
+lp1+lp2 → default kept) and temporal gate features (`spike/robot_features.py`: no gain).
+
+## 20. Vehicles on REAL data: SCANIA Component X (`bench/vehicle_scania.py`)
+Real trucks (Scania CV AB, CC BY 4.0, DOI 10.5878/jvb5-d390): readouts of one anonymised engine component and labels
+from workshop repair records. Profile `telemetry` (increments between readouts).
+**A. The memory engine per truck (unsupervised):** 4,483 test trucks; last readout flagged abnormal for 20.4 % of trucks
+far from a repair vs 20.6 % of trucks within 48 steps of one: **no signal**. These readouts describe how a truck is
+used, not this component's health, so a truck's own history does not reveal the coming repair. (The real Device made
+the same decision as the fast numpy path in 20/20 spot checks.)
+**B. A trained early-warning model, trained on the validation split, tested on the test split (different trucks):**
+| Model | ROC-AUC | Alerting the riskiest ~10 % of trucks catches … of those repaired within 48 steps | Precision (base 2.8 %) |
+|---|---|---|---|
+| age only (reference) | 0.566 | 13 % | 3.7 % |
+| **logistic regression (shipped)** | **0.750** | **32 %** (32 % within 6 steps) | **9.4 %** |
+| gradient boosting | 0.677 | 24 % | 7.4 % |
+The shipped model is plain coefficients (`knowledge/vehicle_risk_model.json`, no pickle); the device computes the
+same probability as the evaluation (`tests/integration/test_vehicle_risk.py`, 3 real trucks). It is a hint shown with
+these numbers.
+
 ## 16. Disk and RAM per shard (`bench/footprint.py`, Windows 11 NTFS)
 Episode-like points (27-d fingerprint, 384-d bge-small note of real logbook text, BM25). "Allocated" = what the files
 really occupy (GetCompressedFileSizeW). Fresh process per cell.

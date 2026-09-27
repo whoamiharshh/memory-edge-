@@ -128,7 +128,7 @@ class ShareEvent(BaseModel):
     verify_windows_required: int = Field(ge=1, le=100_000)
     technician_confirmed: bool
     fingerprint: list[float] = Field(min_length=FP_DIM, max_length=FP_DIM)
-    fp_version: Literal["fp-v2", "fp-rh1", "fp-lr1", "fp-ft1", "fp-ev1"] = FP_VERSION   # edge/profiles.py
+    fp_version: Literal["fp-v2", "fp-rh1", "fp-lr1", "fp-ft1", "fp-ev1", "fp-tm1"] = FP_VERSION   # edge/profiles.py
     note_redacted: str | None = Field(default=None, max_length=MAX_NOTE_CHARS)
     occurred_at: str = Field(min_length=10, max_length=40)
     content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")   # shared.ids.repair_hash

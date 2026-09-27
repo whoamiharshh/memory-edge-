@@ -1,0 +1,60 @@
+{
+  "method": "Vehicles on REAL data: SCANIA Component X (Scania CV AB, CC BY 4.0, DOI 10.5878/jvb5-d390).",
+  "dataset": "SCANIA Component X v3, CC BY 4.0",
+  "a_memory_engine_per_truck": {
+    "eligible_trucks": 4483,
+    "skipped_too_few_readouts": 562,
+    "groups": {
+      "far (class 0)": {
+        "trucks": 4347,
+        "last_readout_flagged": 0.204
+      },
+      "within 48 steps (classes 1-4)": {
+        "trucks": 136,
+        "last_readout_flagged": 0.206
+      },
+      "within 6 steps (class 4)": {
+        "trucks": 59,
+        "last_readout_flagged": 0.22
+      }
+    },
+    "device_spot_check_identical": "20/20"
+  },
+  "b_trained_model": {
+    "train": {
+      "trucks": 5046,
+      "positives": 136
+    },
+    "test": {
+      "trucks": 5045,
+      "positives": 142
+    },
+    "age_only_reference": {
+      "test_roc_auc": 0.566,
+      "test_pr_auc": 0.033,
+      "test_alert_rate": 0.101,
+      "test_recall_repair_within_48": 0.134,
+      "test_recall_repair_within_6": 0.167,
+      "test_precision": 0.037,
+      "base_rate": 0.028
+    },
+    "logistic_regression": {
+      "test_roc_auc": 0.75,
+      "test_pr_auc": 0.074,
+      "test_alert_rate": 0.097,
+      "test_recall_repair_within_48": 0.324,
+      "test_recall_repair_within_6": 0.317,
+      "test_precision": 0.094,
+      "base_rate": 0.028
+    },
+    "gradient_boosting": {
+      "test_roc_auc": 0.677,
+      "test_pr_auc": 0.065,
+      "test_alert_rate": 0.091,
+      "test_recall_repair_within_48": 0.239,
+      "test_recall_repair_within_6": 0.233,
+      "test_precision": 0.074,
+      "base_rate": 0.028
+    }
+  }
+}

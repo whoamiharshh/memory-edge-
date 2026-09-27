@@ -72,6 +72,7 @@ class Profile:
     cannot: list[str]
     params: dict[str, Any] = field(default_factory=dict)
     min_std: float = 0.05              # baseline spread floor (log10 units); see fingerprint.Baseline.fit
+    normal_factor: float | None = None # healthy radius factor; None = the gate default (2.0, swept on CWRU)
 
     # --- to implement per profile ---
     def features(self, x, fs: float, rpm: float | None = None) -> np.ndarray:
@@ -149,7 +150,8 @@ class BearingCWRU(Profile):
             freqs, amp = P.spectrum(x, fp.FS)
             out |= {"shaft_hz": round(shaft, 3), "shaft_source": "tachometer (recording)",
                     "defect_frequencies_hz": {k: round(v * shaft, 2) for k, v in geo.orders().items()},
-                    "bearing": P.bearing_rule(P.bearing_defect_scores(x, fp.FS, shaft, geo)),
+                    "bearing": P.bearing_rule(P.bearing_defect_scores(x, fp.FS, shaft, geo, band=P.kurtogram_band(x, fp.FS)))
+                               | {"band_hz": [round(v) for v in P.kurtogram_band(x, fp.FS)]},
                     "rotating": P.rotating_rules(freqs, amp, shaft)}
         return P.combine(out)
 
@@ -238,7 +240,9 @@ class RotatingHF(Profile):
                "shaft_hz": round(shaft, 3) if shaft else None,
                "defect_frequencies_hz": {k: round(v * shaft, 2) for k, v in self.geometry.orders().items()} if shaft else None}
         if shaft:
-            out["bearing"] = P.bearing_rule(P.bearing_defect_scores(x, self.analysis_fs, shaft, self.geometry))
+            band = P.kurtogram_band(x, self.analysis_fs)
+            out["bearing"] = P.bearing_rule(P.bearing_defect_scores(x, self.analysis_fs, shaft, self.geometry, band=band)) | {
+                "band_hz": [round(v) for v in band]}
             out["rotating"] = P.rotating_rules(freqs, amp, shaft)
         return P.combine(out)
 
@@ -412,10 +416,49 @@ class Events(Profile):
         return {"fault_class": "unknown", "why": "event codes: the technician names the fault", "measured_accuracy": None}
 
 
+# --------------------------------------------------------------------------------------------------------------
+class Telemetry(Profile):
+    """Vehicle / machine telemetry with cumulative counters and histograms (e.g. SCANIA Component X readouts).
+    One window = the INCREMENT between two consecutive readouts: {"dt": time between readouts, "counters": {name:
+    increment}, "histograms": {name: [bin increments]}}. Up to 8 counters (log rate each) and 6 histograms (log total
+    rate, normalised centre and spread of the bin distribution); missing ones are 0; plus log dt = 27 numbers."""
+
+    N_COUNTERS, N_HISTS = 8, 6
+
+    def __init__(self, counters: list[str] | None = None, histograms: list[str] | None = None, **params):
+        super().__init__("telemetry", "fp-tm1", "Vehicle/machine telemetry: cumulative counters and histograms between "
+                         "readouts.", "engine", "counter increments", None, 1,
+                         ["unusual use or load pattern vs this vehicle's own history"],
+                         ["which part will fail (a trained fleet model can add a risk hint)"],
+                         {"counters": counters, "histograms": histograms, **params})
+        self.counters, self.histograms = counters, histograms
+
+    def features(self, x, fs=1.0, rpm=None):
+        dt = max(float(x.get("dt", 1.0)), 1e-6)
+        cs = x.get("counters") or {}
+        names = self.counters or sorted(cs)
+        out = [math.log10(max(float(cs.get(n, 0.0)), 0.0) / dt + 1.0) for n in names[: self.N_COUNTERS]]
+        out += [0.0] * (self.N_COUNTERS - len(out))
+        hs = x.get("histograms") or {}
+        hnames = self.histograms or sorted(hs)
+        for n in hnames[: self.N_HISTS]:
+            b = np.clip(np.asarray(hs.get(n, []), dtype=np.float64), 0, None)
+            tot = float(b.sum())
+            if tot <= 0 or len(b) < 2:
+                out += [0.0, 0.0, 0.0]
+                continue
+            idx = np.arange(len(b)) / (len(b) - 1)
+            c = float((idx * b).sum() / tot)
+            out += [math.log10(tot / dt + 1.0), c, float(np.sqrt(((idx - c) ** 2 * b).sum() / tot))]
+        out += [0.0, 0.0, 0.0] * (self.N_HISTS - min(len(hnames), self.N_HISTS))
+        out.append(math.log10(dt + 1.0))
+        return np.asarray(out, dtype=np.float64)
+
+
 REGISTRY = {"bearing-12k": BearingCWRU, "rotating-hf": RotatingHF, "lowrate-accel": LowRateAccel,
-            "force-torque": ForceTorque, "events": Events}
+            "force-torque": ForceTorque, "events": Events, "telemetry": Telemetry}
 FP_VERSIONS = {"fp-v2": "bearing-12k", "fp-rh1": "rotating-hf", "fp-lr1": "lowrate-accel", "fp-ft1": "force-torque",
-               "fp-ev1": "events"}
+               "fp-ev1": "events", "fp-tm1": "telemetry"}
 
 
 def make(name: str = "bearing-12k", **params) -> Profile:

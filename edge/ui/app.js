@@ -163,7 +163,7 @@ async function refreshDetail() {
     el("div", {}, `measured accuracy for this class on unseen bearings: ${acc} (overall ${h.measured_overall == null ? "n/a" : (h.measured_overall * 100).toFixed(0) + "%"}) · a hint, not a diagnosis`),
     el("div", {}, "Confirmed: ", el("b", {}, e.fault_class ? `${e.fault_class} (by technician)` : "not yet")));
   if (document.activeElement !== $("fcSel")) $("fcSel").value = e.fault_class || h.fault_class || "unknown";
-  renderPhysics(e.physics);
+  renderPhysics(e.physics, e.risk_hint);
   refreshProcedures(e).catch(() => {});
   const nt = $("noteTxt");   // reload the note unless the technician has unsaved typing in it
   if (document.activeElement !== nt && (nt.dataset.ep !== e.episode_id || !nt.dataset.dirty)) {
@@ -190,10 +190,13 @@ async function refreshDetail() {
 }
 
 // ---------------- physics + documented procedures ----------------
-function renderPhysics(p) {
-  $("dPhysBox").hidden = !p;
-  if (!p) return;
+function renderPhysics(p, risk) {
+  $("dPhysBox").hidden = !p && !risk;
+  if (!p && !risk) return;
+  p = p || {};
   const lines = [];
+  if (risk) lines.push(el("div", {}, "Vehicle risk hint ", badge(risk.alert ? "ALERT" : "low", risk.alert ? "b-bad" : "b-ok"),
+    ` p=${risk.probability} (alert at ${risk.threshold}) · ${risk.target} · ${risk.measured} · trained on ${risk.trained_on}`));
   if (p.severity && p.severity.zone) lines.push(el("div", {}, "Severity zone ", badge(p.severity.zone, { A: "b-ok", B: "b-ok", C: "b-warn", D: "b-bad" }[p.severity.zone]),
     ` ${p.severity.velocity_mm_s} mm/s RMS — ${p.severity.text}`, el("span", { class: "muted" }, ` (${p.severity.reference})`)));
   if (p.shaft_hz) lines.push(el("div", {}, `Shaft ≈ ${p.shaft_hz} Hz (${Math.round(p.shaft_hz * 60)} rpm)${p.shaft_source ? " · " + p.shaft_source : ""}`));
@@ -206,12 +209,19 @@ function renderPhysics(p) {
 let procKey = "";
 async function refreshProcedures(e) {
   const fc = e.fault_class || (e.fault_hint || {}).fault_class;
-  const key = e.episode_id + "|" + fc;
-  if (key === procKey) return;                                   // only refetch when the class changes
+  const key = e.episode_id + "|" + fc + "|" + Object.keys(e.codes || {}).length;
+  if (key === procKey) return;                                   // only refetch when the class or the codes change
   procKey = key;
   const r = await api("/api/procedures?episode_id=" + encodeURIComponent(e.episode_id));
-  if (!r.procedures.length) { $("dProc").replaceChildren(el("div", { class: "muted" }, `no documented procedure for "${fc}" yet — sites can add their SOPs in knowledge/site_procedures.json`)); return; }
-  $("dProc").replaceChildren(...r.procedures.map((p) => el("details", {},
+  const codeCards = (r.codes || []).map((c) => el("details", { open: "" },
+    el("summary", {}, el("b", {}, c.code), " ", c.title || "not a standard vehicle code", " ",
+      badge(c.title ? "code dictionary" : "needs site SOP", c.title ? "b-info" : "b-warn")),
+    c.description ? el("div", { class: "muted" }, c.description) : "",
+    c.causes && c.causes.length ? el("div", {}, el("b", {}, "Common causes"), el("ul", {}, ...c.causes.map((k) => el("li", {}, `${k.cause} (${k.likelihood})`)))) : "",
+    c.symptoms && c.symptoms.length ? el("div", { class: "muted" }, "Symptoms: " + c.symptoms.join("; ")) : "",
+    el("div", { class: "muted" }, c.source_note || "", ...(c.sources || []).map((u) => [" · ", el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, "source")]).flat())));
+  if (!r.procedures.length) { $("dProc").replaceChildren(...codeCards, el("div", { class: "muted" }, `no documented procedure for "${fc}" yet — sites can add their SOPs in knowledge/site_procedures.json`)); return; }
+  $("dProc").replaceChildren(...codeCards, ...r.procedures.map((p) => el("details", {},
     el("summary", {}, p.title, " ", badge(p.origin === "site" ? "site SOP" : "reference", p.origin === "site" ? "b-violet" : "b-info"),
       e.fault_class ? "" : el("span", { class: "muted" }, " (from the physics hint — confirm the class first)")),
     p.confirm_first ? el("div", {}, el("b", {}, "Confirm first"), el("ul", {}, ...p.confirm_first.map((s) => el("li", {}, s)))) : "",
@@ -304,6 +314,13 @@ function wire() {
   $("setTok").onclick = act(async () => { await api("/api/sync/token", { token: $("devTok").value.trim() }); $("devTok").value = ""; toast("device token updated"); });
   const v = () => selectedVersion;
   $("noteTxt").addEventListener("input", () => { $("noteTxt").dataset.dirty = "1"; });
+  const lines = (id) => $(id).value.split("\n").map((s) => s.trim()).filter(Boolean);
+  $("pSave").onclick = act(async () => {
+    await api("/api/procedures", { title: $("pTitle").value.trim(), fault_classes: [$("pFault").value], components: [$("pComp").value],
+      confirm_first: lines("pConfirm"), steps: lines("pSteps"), source_title: $("pSource").value.trim() });
+    toast("procedure saved as a site SOP"); ["pTitle", "pConfirm", "pSteps", "pSource"].forEach((id) => { $(id).value = ""; });
+    procKey = ""; refreshDetail();
+  });
   $("fcBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/fault_class`, { fault_class: $("fcSel").value, expected_version: v() }); refreshDetail(); });
   $("noteBtn").onclick = act(async () => {
     await api(`/api/episodes/${selected}/note`, { text: $("noteTxt").value, share_opt_in: $("noteOpt").checked, expected_version: +$("noteTxt").dataset.ver || v() });
@@ -331,6 +348,8 @@ async function boot() {
   $("fcSel").replaceChildren(...enums.fault_classes.map((f) => el("option", { value: f }, f)));
   $("actSel").replaceChildren(...enums.action_codes.map((a) => el("option", { value: a }, a)));
   $("rcSel").replaceChildren(el("option", { value: "" }, "root cause (optional)"), ...enums.root_causes.map((r) => el("option", { value: r }, r)));
+  $("pFault").replaceChildren(...enums.fault_classes.filter((f) => f !== "unknown").map((f) => el("option", { value: f }, f)));
+  $("pComp").replaceChildren(...(enums.components || []).map((c) => el("option", { value: c }, c)));
   const cat = await api("/api/replay/catalogue");
   $("fileSel").replaceChildren(...cat.map((c) => el("option", { value: c.fid },
     `${c.fid} · ${c.fault_class}${c.size_mil ? " " + c.size_mil + " mil" : ""} · load ${c.load_hp} hp · ${c.role}`)));
@@ -341,3 +360,6 @@ async function boot() {
 
 wire();
 if (!token) showLogin(); else api("/api/stats").then(boot).catch(() => showLogin());
+
+// installable web app: cache only the app shell (sw.js never caches /api data)
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js").catch(() => {});

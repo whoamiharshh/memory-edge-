@@ -6,6 +6,9 @@
 <title>Machine Memory · Edge</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0d1117">
 </head>
 <body>
 <div id="login" class="overlay" hidden>
@@ -99,6 +102,15 @@
           <div class="section">
             <h3>Documented procedures <span class="hint muted">reference checklists with sources · follow the manufacturer's manual</span></h3>
             <div id="dProc" class="muted">confirm or get a fault class to see procedures</div>
+            <details id="addProc">
+              <summary>Add a procedure from this machine's manual or your site SOP</summary>
+              <div class="row"><input id="pTitle" placeholder="title, e.g. Pump P-12 bearing change" style="flex:1" maxlength="120"></div>
+              <div class="row"><select id="pFault"></select><select id="pComp"></select></div>
+              <textarea id="pConfirm" rows="2" placeholder="confirm first (one per line, optional)" style="width:100%"></textarea>
+              <textarea id="pSteps" rows="4" placeholder="steps (one per line)" style="width:100%"></textarea>
+              <div class="row"><input id="pSource" placeholder="source: the manual / SOP it follows (required)" style="flex:1" maxlength="160">
+                <button id="pSave">Save procedure</button></div>
+            </details>
           </div>
           <div class="section">
             <h3>Technician note <span class="muted" style="text-transform:none">(raw note never leaves the device)</span></h3>

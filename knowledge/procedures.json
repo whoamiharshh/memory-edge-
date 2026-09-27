@@ -4,8 +4,19 @@
   "procedures": [
     {
       "id": "bearing-damage-general",
-      "fault_classes": ["inner_race", "outer_race", "ball", "cage"],
-      "components": ["bearing", "motor", "pump", "fan", "gearbox"],
+      "fault_classes": [
+        "inner_race",
+        "outer_race",
+        "ball",
+        "cage"
+      ],
+      "components": [
+        "bearing",
+        "motor",
+        "pump",
+        "fan",
+        "gearbox"
+      ],
       "title": "Rolling bearing defect: confirm, replace, find the cause",
       "confirm_first": [
         "The defect-frequency hint (BPFO outer race, BPFI inner race, BSF ball) repeats over several windows and grows or stays, rather than a one-off spike.",
@@ -21,13 +32,25 @@
       ],
       "system_verifies": "After the action is recorded, the device counts N consecutive windows back inside this machine's healthy radius (symptom resolved), or reports that the symptom persists.",
       "sources": [
-        {"title": "Bearing damage and failure analysis (publication 14219, based on ISO 15243 failure modes)", "publisher": "SKF", "url": "https://cdn.skfmediahub.skf.com/api/public/093168a92d25cc46/pdf_preview_medium/14219_3_EN_-_Bearing_failures_LOW_pdf_preview_medium.pdf"}
+        {
+          "title": "Bearing damage and failure analysis (publication 14219, based on ISO 15243 failure modes)",
+          "publisher": "SKF",
+          "url": "https://cdn.skfmediahub.skf.com/api/public/093168a92d25cc46/pdf_preview_medium/14219_3_EN_-_Bearing_failures_LOW_pdf_preview_medium.pdf"
+        }
       ]
     },
     {
       "id": "imbalance-field-balancing",
-      "fault_classes": ["imbalance"],
-      "components": ["fan", "motor", "pump", "shaft", "compressor"],
+      "fault_classes": [
+        "imbalance"
+      ],
+      "components": [
+        "fan",
+        "motor",
+        "pump",
+        "shaft",
+        "compressor"
+      ],
       "title": "Imbalance (dominant 1x): clean, inspect, then balance",
       "confirm_first": [
         "The 1x (once per revolution) peak dominates and is steady; 2x and higher harmonics are small.",
@@ -42,14 +65,31 @@
       ],
       "system_verifies": "The device verifies that windows return to the healthy radius; on a phone-grade sensor this confirms the 1x symptom dropped, not the balance grade.",
       "sources": [
-        {"title": "Field Balancing", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/article/field-balancing/"},
-        {"title": "Balancing Rigid Rotors in the Field", "publisher": "Reliable Plant", "url": "https://www.reliableplant.com/Read/29478/field-balancing-rotors"}
+        {
+          "title": "Field Balancing",
+          "publisher": "Pumps & Systems",
+          "url": "https://www.pumpsandsystems.com/article/field-balancing/"
+        },
+        {
+          "title": "Balancing Rigid Rotors in the Field",
+          "publisher": "Reliable Plant",
+          "url": "https://www.reliableplant.com/Read/29478/field-balancing-rotors"
+        }
       ]
     },
     {
       "id": "misalignment-shaft-alignment",
-      "fault_classes": ["misalignment"],
-      "components": ["coupling", "shaft", "motor", "pump", "gearbox", "compressor"],
+      "fault_classes": [
+        "misalignment"
+      ],
+      "components": [
+        "coupling",
+        "shaft",
+        "motor",
+        "pump",
+        "gearbox",
+        "compressor"
+      ],
       "title": "Misalignment (strong 2x): soft foot first, then align",
       "confirm_first": [
         "2x is large relative to 1x (and often axial vibration is high); coupling temperature or wear may be visible.",
@@ -63,14 +103,31 @@
       ],
       "system_verifies": "Windows return to the healthy radius over N windows after the action.",
       "sources": [
-        {"title": "5-Step Shaft Alignment Procedure", "publisher": "LUDECA", "url": "http://media.noria.com/sites/WhitePapers/WPFILES/Ludeca_5-StepShaftAlignmentProcedure_Infographic.pdf"},
-        {"title": "Soft Foot: The First Step to Precision Alignment", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"}
+        {
+          "title": "5-Step Shaft Alignment Procedure",
+          "publisher": "LUDECA",
+          "url": "http://media.noria.com/sites/WhitePapers/WPFILES/Ludeca_5-StepShaftAlignmentProcedure_Infographic.pdf"
+        },
+        {
+          "title": "Soft Foot: The First Step to Precision Alignment",
+          "publisher": "Pumps & Systems",
+          "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"
+        }
       ]
     },
     {
       "id": "looseness-mounting",
-      "fault_classes": ["looseness"],
-      "components": ["fan", "motor", "pump", "bearing", "shaft", "conveyor"],
+      "fault_classes": [
+        "looseness"
+      ],
+      "components": [
+        "fan",
+        "motor",
+        "pump",
+        "bearing",
+        "shaft",
+        "conveyor"
+      ],
       "title": "Looseness (many harmonics / 0.5x): check the mounting",
       "confirm_first": [
         "Many harmonics of 1x and/or half-order (0.5x) components; the pattern may change with direction and load.",
@@ -83,7 +140,51 @@
       ],
       "system_verifies": "Windows return to the healthy radius over N windows after the action.",
       "sources": [
-        {"title": "Soft Foot: The First Step to Precision Alignment (soft foot seen as looseness)", "publisher": "Pumps & Systems", "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"}
+        {
+          "title": "Soft Foot: The First Step to Precision Alignment (soft foot seen as looseness)",
+          "publisher": "Pumps & Systems",
+          "url": "https://www.pumpsandsystems.com/soft-foot-first-step-precision-alignment"
+        }
+      ]
+    },
+    {
+      "id": "bearing-lubrication-overheating",
+      "fault_classes": [
+        "overheating",
+        "wear"
+      ],
+      "components": [
+        "bearing",
+        "motor",
+        "pump",
+        "fan",
+        "gearbox",
+        "compressor"
+      ],
+      "title": "Bearing running hot or wearing: check lubrication first",
+      "confirm_first": [
+        "Is the housing hotter than usual for this machine and load? Temperature rises also come from overload or misalignment.",
+        "Was the bearing greased recently? Too much grease (no running-in) heats a bearing as surely as too little."
+      ],
+      "steps": [
+        "Lock out; check the grease type and quantity against the machine documentation (wrong or mixed greases are a common cause).",
+        "Relubricate with the specified grease and quantity for this bearing; the bearing maker gives the fill quantity and the relubrication interval for its size, speed and temperature.",
+        "After greasing, run in at low speed if possible so excess grease can be displaced, then watch the temperature settle.",
+        "Remember the temperature rule of thumb from the source: grease life roughly halves for every 15 C above 70 C, so a hot bearing needs shorter relubrication intervals.",
+        "If temperature or vibration stays high, inspect for misalignment, overload or bearing damage (see the other procedures)."
+      ],
+      "system_verifies": "The device verifies that vibration windows return to the healthy radius over N windows after the action.",
+      "sources": [
+        {
+          "title": "Grease life and relubrication",
+          "publisher": "SKF",
+          "url": "https://www.skf.com/au/products/rolling-bearings/principles-of-rolling-bearing-selection/bearing-selection-process/lubrication/grease-life-and-relubrication"
+        },
+        {
+          "title": "Determining grease quantities for initial fill and relubrication",
+          "publisher": "SKF",
+          "url": "https://www.skf.com/us/products/rolling-bearings/principles-of-rolling-bearing-selection/bearing-selection-process/lubrication/determining-grease-quantities"
+        }
       ]
     }
   ]

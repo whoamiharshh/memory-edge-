@@ -30,7 +30,12 @@ NORMAL = {"normal", "ok"}
 SEEDS = 5
 
 
-def run_problem(lp: str, seed: int) -> dict:
+TUNE, TEST = ("lp1", "lp2"), ("lp3", "lp4", "lp5")
+FACTORS = (0.75, 1.0, 1.25, 1.5, 2.0)
+MAX_FALSE_ALARM = 0.05       # selection rule fixed before looking at the test tasks
+
+
+def run_problem(lp: str, seed: int, normal_factor: float | None = None) -> dict:
     inst = load(lp)
     normals = [np.asarray(r) for lbl, r in inst if lbl in NORMAL]
     fails = [(lbl, np.asarray(r)) for lbl, r in inst if lbl not in NORMAL]
@@ -38,6 +43,7 @@ def run_problem(lp: str, seed: int) -> dict:
     k = max(10, int(0.6 * len(normals)))
     root = pathlib.Path(tempfile.mkdtemp(prefix="robot_"))
     dev = Device(DeviceConfig("r", "s", "m", root, profile="force-torque"), HashEmbedder())
+    dev.profile.normal_factor = normal_factor
     try:
         dev.fit_baseline(np.stack([dev.profile.features(x) for x in normals[:k]]))
         state = lambda x: dev.ingest_window(dev.profile.features(x))["state"]
@@ -53,9 +59,33 @@ def run_problem(lp: str, seed: int) -> dict:
             "per_class": {c: (sum(v), len(v)) for c, v in per.items()}}
 
 
+def summarise(lps, factor) -> dict:
+    fa = n = hit = tot = 0
+    for lp in lps:
+        for s in range(SEEDS):
+            r = run_problem(lp, s, factor)
+            fa, n = fa + r["false_alarms"], n + r["held_normals"]
+            hit += sum(v[0] for v in r["per_class"].values())
+            tot += sum(v[1] for v in r["per_class"].values())
+    return {"false_alarm_rate": round(fa / n, 3), "detection_rate": round(hit / tot, 3)}
+
+
+def tune() -> dict:
+    """Pick the robot profile's healthy-radius factor on TUNE tasks only; report TEST tasks at default and chosen."""
+    table = {f: summarise(TUNE, f) for f in FACTORS}
+    ok = {f: r for f, r in table.items() if r["false_alarm_rate"] <= MAX_FALSE_ALARM}
+    chosen = max(ok, key=lambda f: (ok[f]["detection_rate"], f)) if ok else 2.0
+    return {"rule": f"on {TUNE}: highest detection with false alarms <= {MAX_FALSE_ALARM:.0%}",
+            "tune_table": {str(f): r for f, r in table.items()}, "chosen_factor": chosen,
+            "test_default_factor_2.0": summarise(TEST, None), f"test_chosen_factor_{chosen}": summarise(TEST, chosen),
+            "test_per_task_chosen": {lp: summarise((lp,), chosen) for lp in TEST}}
+
+
 def main() -> dict:
     out = {"method": __doc__.strip().splitlines()[0], "dataset": "UCI Robot Execution Failures, CC BY 4.0",
            "seeds": SEEDS, "problems": {}}
+    out["tuning"] = tune()
+    print(json.dumps(out["tuning"], indent=1), flush=True)
     for lp in ("lp1", "lp2", "lp3", "lp4", "lp5"):
         runs = [run_problem(lp, s) for s in range(SEEDS)]
         fa_n = sum(r["held_normals"] for r in runs)

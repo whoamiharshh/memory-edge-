@@ -21,7 +21,7 @@ from edge import rag
 from edge.device import Device
 from edge.replay import HEALTHY_BASELINE_FILES, Recordings, ReplayRunner
 from edge.sync_worker import SyncWorker
-from shared.schema import ActionCode, FaultClass, RootCause
+from shared.schema import ActionCode, Component, FaultClass, RootCause
 
 UI = pathlib.Path(__file__).resolve().parent / "ui"
 
@@ -64,6 +64,16 @@ class SignalBody(BaseModel):
     operating_point: dict[str, float] | None = Field(default=None, max_length=10)   # e.g. {"load_kw": 1.2}
 
 
+class ProcedureBody(BaseModel):
+    """A site SOP typed in by a technician. The source (the manual or SOP it follows) is mandatory."""
+    title: str = Field(min_length=3, max_length=120)
+    fault_classes: list[FaultClass] = Field(min_length=1, max_length=5)
+    components: list[Component] = Field(min_length=1, max_length=5)
+    confirm_first: list[str] = Field(default_factory=list, max_length=10)
+    steps: list[str] = Field(min_length=1, max_length=20)
+    source_title: str = Field(min_length=3, max_length=160)
+
+
 class CaptureBody(BaseModel):
     windows: int = Field(ge=10, le=5000)
 
@@ -102,6 +112,7 @@ class TokenBody(BaseModel):
 
 def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag.LocalLLM | None = None) -> FastAPI:
     app = FastAPI(title=f"Machine Memory - {device.cfg.device_id}", docs_url="/docs")
+    SITE_SOPS = pathlib.Path(device.cfg.root) / "site_procedures.json"
     def _replay_physics(result: dict, fid: int, i: int) -> None:
         """Replayed recordings carry cached fingerprints; the physics panel needs the raw window, read on demand."""
         if device.profile.name != "bearing-12k" or not result.get("episode_id"):
@@ -146,6 +157,7 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     @app.get("/api/enums", dependencies=[api])
     def enums():
         return {"action_codes": [a.value for a in ActionCode], "fault_classes": [f.value for f in FaultClass],
+                "components": [c.value for c in Component],
                 "root_causes": [r.value for r in RootCause]}
 
     @app.post("/api/baseline/fit", dependencies=[api])
@@ -189,8 +201,24 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
             ep = guard(lambda: device.episode(episode_id))
             fault_class = ep.get("fault_class") or (ep.get("fault_hint") or {}).get("fault_class")
             component = ep.get("component") or component
-        return {"fault_class": fault_class, "component": component,
-                "procedures": procedures_mod.lookup(fault_class, component)}
+        codes = []
+        if episode_id:
+            for c in sorted((ep.get("codes") or {}), key=lambda c: -(ep["codes"][c]))[:10]:
+                codes.append(procedures_mod.code_info(c) or {"code": c, "title": None,
+                                                              "source_note": "not a standard vehicle code: needs a site SOP"})
+        return {"fault_class": fault_class, "component": component, "codes": codes,
+                "procedures": procedures_mod.lookup(fault_class, component, SITE_SOPS)}
+
+    @app.post("/api/procedures", dependencies=[api])
+    def add_procedure(b: ProcedureBody):
+        return guard(lambda: procedures_mod.add_site_procedure(SITE_SOPS, b.model_dump(mode="json")))
+
+    @app.get("/api/codes/{code}", dependencies=[api])
+    def code(code: str):
+        info = procedures_mod.code_info(code)
+        if info is None:
+            raise HTTPException(404, "not a known standard vehicle fault code")
+        return info
 
     @app.get("/api/profile", dependencies=[api])
     def profile():
@@ -298,6 +326,11 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
         @app.get("/")
         def index():
             return FileResponse(UI / "index.html")
+
+        @app.get("/sw.js")
+        def service_worker():
+            """At the site root so it may control the whole app (a worker under /static/ could only see /static/)."""
+            return FileResponse(UI / "sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
 
         @app.get("/sensor")
         def sensor_page():

@@ -5,7 +5,9 @@
 - Tokens are revocable (revocation list = `revoked` flag), checked on every request.
 - Roles: "device" (push, pull mirror, read own tenant's cases) and "admin" (also retract evidence, issue tokens).
 - Per-token rate limit (sliding window) against sync floods.
-Prototype limits (documented): no token expiry/rotation, no mTLS; demo runs on localhost HTTP.
+- Tokens EXPIRE (TOKEN_TTL_S, default 30 days). A device renews its own token before expiry (POST /v1/token/renew);
+  the old token keeps working for RENEW_GRACE_S so a sync in flight never breaks. Expired = refused.
+Prototype limits (documented): no mTLS; the localhost demo is plain HTTP (the launchers enforce HTTPS off-localhost).
 """
 from __future__ import annotations
 
@@ -21,6 +23,8 @@ from dataclasses import asdict, dataclass
 
 RATE_LIMIT = 120          # requests per window per token
 RATE_WINDOW_S = 60.0
+TOKEN_TTL_S = 30 * 24 * 3600
+RENEW_GRACE_S = 600
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,7 @@ class AuthContext:
     site_id: str
     tenant_id: str
     role: str                 # device | admin
+    expires_at: float | None = None
 
 
 def _h(token: str) -> str:
@@ -51,15 +56,35 @@ class TokenRegistry:
             tmp.write_text(json.dumps(self._tokens, indent=2))
             tmp.replace(self.path)
 
-    def issue(self, device_id: str, site_id: str, tenant_id: str, role: str = "device", token: str | None = None) -> str:
+    def issue(self, device_id: str, site_id: str, tenant_id: str, role: str = "device", token: str | None = None,
+              ttl_s: float = TOKEN_TTL_S) -> str:
         if role not in ("device", "admin"):
             raise ValueError("role must be device or admin")
         token = token or secrets.token_urlsafe(32)
+        now = time.time()
         with self._lock:
             self._tokens[_h(token)] = asdict(AuthContext(device_id, site_id, tenant_id, role)) | {
-                "revoked": False, "issued_at": time.time()}
+                "revoked": False, "issued_at": now, "expires_at": now + ttl_s}
             self._save()
         return token
+
+    def renew(self, token: str, ttl_s: float = TOKEN_TTL_S) -> tuple[str, float] | None:
+        """A still-valid token gets a successor with the same identity; the old one lives RENEW_GRACE_S longer at
+        most. Returns (new_token, expires_at) or None if the token is not valid."""
+        ctx = self.verify(token)
+        if ctx is None:
+            return None
+        new = self.issue(ctx.device_id, ctx.site_id, ctx.tenant_id, ctx.role, ttl_s=ttl_s)
+        with self._lock:
+            old = self._tokens[_h(token)]
+            old["expires_at"] = min(self._expiry(old), time.time() + RENEW_GRACE_S)
+            old["renewed"] = True
+            self._save()
+            return new, self._tokens[_h(new)]["expires_at"]
+
+    @staticmethod
+    def _expiry(rec: dict) -> float:
+        return rec.get("expires_at") or rec.get("issued_at", 0.0) + TOKEN_TTL_S   # records from before expiry existed
 
     def revoke(self, device_id: str) -> int:
         with self._lock:
@@ -78,9 +103,9 @@ class TokenRegistry:
         with self._lock:
             for k, rec in self._tokens.items():          # constant-time compare against each stored hash
                 if hmac.compare_digest(k, h):
-                    if rec["revoked"]:
+                    if rec["revoked"] or time.time() >= self._expiry(rec):
                         return None
-                    return AuthContext(rec["device_id"], rec["site_id"], rec["tenant_id"], rec["role"])
+                    return AuthContext(rec["device_id"], rec["site_id"], rec["tenant_id"], rec["role"], self._expiry(rec))
         return None
 
     def allow(self, ctx: AuthContext, now: float | None = None) -> bool:

@@ -44,7 +44,10 @@ def main() -> None:
     p.add_argument("--hash-embedder", action="store_true")
     p.add_argument("--tls", action="store_true", help="serve HTTPS with runtime/tls/server.pem (tools/make_certs.py)")
     p.add_argument("--insecure-lan", action="store_true", help="allow plain HTTP on a non-localhost address (NOT advised)")
+    p.add_argument("--mtls", action="store_true", help="mutual TLS: only devices with a CA-signed client certificate may "
+                   "connect (tools/make_certs.py device <id>); implies --tls")
     a = p.parse_args()
+    a.tls = a.tls or a.mtls
     if a.host not in ("127.0.0.1", "localhost", "::1") and not a.tls and not a.insecure_lan:
         raise SystemExit("refusing to serve plain HTTP on the network: add --tls (run tools/make_certs.py first); "
                          "device tokens would otherwise cross the network unencrypted")
@@ -58,6 +61,9 @@ def main() -> None:
     print(f"[cloud] fleet UI: {scheme}://{a.host}:{a.port}/   Qdrant: {store.backend}", flush=True)
     tls = ROOT / "runtime" / "tls"
     ssl = {"ssl_certfile": str(tls / "server.pem"), "ssl_keyfile": str(tls / "server.key")} if a.tls else {}
+    if a.mtls:
+        import ssl as ssl_mod
+        ssl |= {"ssl_ca_certs": str(tls / "ca.pem"), "ssl_cert_reqs": ssl_mod.CERT_REQUIRED}
     uvicorn.run(create_app(store, reg, embedder), host=a.host, port=a.port, log_level="warning", **ssl)
 
 

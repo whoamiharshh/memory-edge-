@@ -187,8 +187,16 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   42/42 fixes verified after one 'normal operation' confirmation); robots (UCI); HTTPS (tools/make_certs.py); phone
   /sensor page; OS storage compression; LICENSE Apache-2.0 (chosen by Claude at the user's request, local only).
   205 tests pass; live demo 9/9; backup video re-recorded.
-- [ ] USER: real-world field test (docs/FIELD_TEST.md) - remind them; then Claude: automatic operating-point
-  detection + robot threshold tuning
+- [x] (28 Sep, third pass) automatic operating-point check (taught ranges + signature score, threshold 1.63 on
+  CWRU; flags 0/28 false, suggestion 13/17); robot threshold tuning + trained robot LR (UCI, cross-validated);
+  vehicles: SCANIA risk LR (real trucks; AUC 0.750, `knowledge/vehicle_risk_model.json`, plain JSON) + OBDex CC0
+  code dictionary (`knowledge/vehicle_codes.json`); telemetry profile fp-tm1; kurtogram band selection; mTLS;
+  30-day tokens with auto-renew; notes AES-GCM at rest (DPAPI key; verified 0 plaintext hits in a live device
+  folder); PWA (manifest + service worker, never caches /api); site SOP form; SKF lubrication procedure.
+  224 tests pass (358 s, 28 Sep).
+  **Training data rule (user):** everything trained uses REAL data only; synthetic signals exist only in tests.
+- [ ] USER: real-world field test + phone tests (docs/FIELD_TEST.md) - remind them (they will do it after the web part)
+- [ ] USER: the invalid `permissions.allow` rule in `C:\Users\Sir\.claude\settings.json` - needs their yes (global config)
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)

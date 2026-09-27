@@ -11,6 +11,8 @@ import time
 import httpx
 import pytest
 
+from edge.sync_worker import _tls_context
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PY = sys.executable
 
@@ -74,3 +76,34 @@ def test_launchers_refuse_plain_http_on_the_network(module):
         args += ["--memory", "--hash-embedder"]
     r = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, timeout=120)
     assert r.returncode != 0 and "refusing to serve plain HTTP" in r.stderr
+
+
+@pytest.fixture(scope="module")
+def mtls_cloud(certs):
+    subprocess.run([PY, str(ROOT / "tools" / "make_certs.py"), "device", "devtest"], check=True, cwd=ROOT,
+                   capture_output=True)
+    port = free_port()
+    p = subprocess.Popen([PY, "-m", "cloud.main", "--memory", "--hash-embedder", "--mtls", "--port", str(port)],
+                         cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    url = f"https://127.0.0.1:{port}"
+    cert = (str(certs / "devices" / "devtest.pem"), str(certs / "devices" / "devtest.key"))
+    try:
+        for _ in range(120):
+            try:
+                if httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), cert), timeout=1).status_code == 200:
+                    break
+            except httpx.HTTPError:
+                time.sleep(0.25)
+        else:
+            pytest.fail("mTLS cloud did not start")
+        yield url, cert
+    finally:
+        p.kill()
+        p.wait()
+
+
+def test_mtls_accepts_a_device_certificate_and_refuses_without(mtls_cloud, certs):
+    url, cert = mtls_cloud
+    assert httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), cert)).status_code == 200
+    with pytest.raises(httpx.HTTPError):                       # right CA, but no client certificate
+        httpx.get(url + "/v1/health", verify=str(certs / "ca.pem"))

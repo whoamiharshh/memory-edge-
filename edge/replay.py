@@ -6,6 +6,7 @@ exercised by tests/unit/test_fingerprint.py and bench/latency.py).
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from typing import Callable
@@ -102,7 +103,7 @@ class ReplayRunner:
                         time.sleep(interval)
             except Exception as e:          # visible in /api/stats; never leave "playing" stuck on True
                 self.state["error"] = f"{type(e).__name__}: {e}"[:300]
-                raise
+                logging.getLogger(__name__).exception("replay of file %s failed", fid)
             finally:
                 self.state["playing"] = False
 

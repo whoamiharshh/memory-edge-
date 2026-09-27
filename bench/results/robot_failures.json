@@ -54,5 +54,53 @@
         "collision_in_tool": 0.538
       }
     }
+  },
+  "tuning": {
+    "rule": "on ('lp1', 'lp2'): highest detection with false alarms <= 5%",
+    "tune_table": {
+      "0.75": {
+        "false_alarm_rate": 0.2,
+        "detection_rate": 0.962
+      },
+      "1.0": {
+        "false_alarm_rate": 0.106,
+        "detection_rate": 0.949
+      },
+      "1.25": {
+        "false_alarm_rate": 0.094,
+        "detection_rate": 0.93
+      },
+      "1.5": {
+        "false_alarm_rate": 0.082,
+        "detection_rate": 0.887
+      },
+      "2.0": {
+        "false_alarm_rate": 0.024,
+        "detection_rate": 0.843
+      }
+    },
+    "chosen_factor": 2.0,
+    "test_default_factor_2.0": {
+      "false_alarm_rate": 0.011,
+      "detection_rate": 0.797
+    },
+    "test_chosen_factor_2.0": {
+      "false_alarm_rate": 0.011,
+      "detection_rate": 0.797
+    },
+    "test_per_task_chosen": {
+      "lp3": {
+        "false_alarm_rate": 0.05,
+        "detection_rate": 0.548
+      },
+      "lp4": {
+        "false_alarm_rate": 0.0,
+        "detection_rate": 0.978
+      },
+      "lp5": {
+        "false_alarm_rate": 0.0,
+        "detection_rate": 0.712
+      }
+    }
   }
 }

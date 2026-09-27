@@ -167,10 +167,31 @@ def envelope_spectrum(x: np.ndarray, fs: float, band: tuple[float, float] | None
     return np.fft.rfftfreq(len(env), 1.0 / fs), p
 
 
+def kurtogram_band(x: np.ndarray, fs: float, lo: float = 1000.0, step: float = 1.4) -> tuple[float, float]:
+    """A simple kurtogram: of a fixed grid of bands between `lo` and 0.45 fs (widths of one and two grid steps), the
+    band whose band-passed signal is most impulsive (highest kurtosis) - where defect impacts ring the structure.
+    Measured (spike/kurtogram.py, per recording): CWRU outer race 67 % -> 92 %, overall 67 % -> 75 %; HUST unchanged
+    at 97.6 %."""
+    import scipy.stats as st
+    edges = [lo]
+    while edges[-1] * step < 0.45 * fs:
+        edges.append(edges[-1] * step)
+    cands = list(zip(edges[:-1], edges[1:])) + [(a, c) for a, c in zip(edges[:-2], edges[2:])]
+    if not cands:
+        return (2000.0, 5500.0)
+    y = np.asarray(x, dtype=np.float64) - np.mean(x)
+    best, bk = cands[0], -np.inf
+    for a, b in cands:
+        k = float(st.kurtosis(ss.sosfiltfilt(ss.butter(4, (a, b), btype="bandpass", fs=fs, output="sos"), y)))
+        if k > bk:
+            best, bk = (a, b), k
+    return best
+
+
 def bearing_defect_scores(x: np.ndarray, fs: float, shaft_hz: float, geometry: BearingGeometry,
-                          n_harmonics: int = 3, tol: float = 0.03) -> dict[str, float]:
+                          n_harmonics: int = 3, tol: float = 0.03, band: tuple[float, float] | None = None) -> dict[str, float]:
     """log10 of envelope energy at each defect frequency (+harmonics) relative to the median envelope level."""
-    f, p = envelope_spectrum(x, fs)
+    f, p = envelope_spectrum(x, fs, band)
     ref = float(np.median(p[(f > 10) & (f < 1000)])) + _EPS
     out = {}
     for name, order in geometry.orders().items():

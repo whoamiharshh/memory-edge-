@@ -146,6 +146,15 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
     def devices(ctx: AuthContext = Depends(admin)):
         return [{k: v for k, v in d.items()} for d in registry.devices(ctx.tenant_id)]
 
+    @app.post("/v1/token/renew")
+    def renew(request: Request, ctx: AuthContext = Depends(auth)):
+        """The calling device swaps its valid token for a fresh one (the old one lives 10 more minutes at most)."""
+        h = request.headers.get("authorization", "")
+        out = registry.renew(h[7:])
+        if out is None:
+            raise HTTPException(401, "missing, invalid, expired or revoked token")
+        return {"token": out[0], "expires_at": out[1], "note": "shown once; only its hash is stored"}
+
     @app.get("/v1/whoami")
     def whoami(ctx: AuthContext = Depends(auth)):
         return ctx.__dict__

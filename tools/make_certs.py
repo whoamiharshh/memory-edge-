@@ -1,6 +1,7 @@
 """Create a private certificate authority + a server certificate for HTTPS between devices, the cloud and phones.
 
-  .venv\\Scripts\\python.exe tools\\make_certs.py [extra-hostname-or-ip ...]
+  .venv\\Scripts\\python.exe tools\\make_certs.py [extra-hostname-or-ip ...]      (CA + server certificate)
+  .venv\\Scripts\\python.exe tools\\make_certs.py device <device-id>             (a device's client certificate)
 Writes runtime/tls/: ca.pem (share with devices/phones to trust), ca.key (keep private), server.pem, server.key.
 The server certificate covers localhost, 127.0.0.1, this computer's hostname and every IPv4 address it has now
 (so a phone on the same Wi-Fi can open https://<laptop-ip>:8101/sensor). Re-run if the laptop's IP changes.
@@ -77,5 +78,34 @@ def main(extra: list[str]) -> None:
     print("server certificate valid for:", ", ".join(sorted(set(names)) + sorted(set(ips))))
 
 
+def device_cert(device_id: str) -> None:
+    """Issue a CLIENT certificate for one device, signed by the existing CA (mutual TLS: the cloud started with
+    --mtls only accepts connections that present such a certificate). Writes runtime/tls/devices/<id>.pem/.key.
+    Copy those two files (and ca.pem) to the device; never copy ca.key."""
+    if not device_id.replace("-", "").replace("_", "").isalnum():
+        raise SystemExit("device id: letters, digits, - and _ only")
+    ca_pem, ca_key_pem = OUT / "ca.pem", OUT / "ca.key"
+    if not ca_pem.exists():
+        raise SystemExit("run tools/make_certs.py first (it creates the CA)")
+    ca = x509.load_pem_x509_certificate(ca_pem.read_bytes())
+    ca_key = serialization.load_pem_private_key(ca_key_pem.read_bytes(), password=None)
+    now = dt.datetime.now(dt.timezone.utc)
+    key = ec.generate_private_key(ec.SECP256R1())
+    cert = (x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, device_id)]))
+            .issuer_name(ca.subject).public_key(key.public_key()).serial_number(x509.random_serial_number())
+            .not_valid_before(now - dt.timedelta(minutes=5)).not_valid_after(now + dt.timedelta(days=397))
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CLIENT_AUTH]), critical=False)
+            .sign(ca_key, hashes.SHA256()))
+    d = OUT / "devices"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{device_id}.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    write_key(key, d / f"{device_id}.key")
+    print(f"wrote {d / (device_id + '.pem')} and .key (client certificate for mutual TLS)")
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    if len(sys.argv) > 2 and sys.argv[1] == "device":
+        device_cert(sys.argv[2])
+    else:
+        main(sys.argv[1:])

@@ -47,6 +47,8 @@ def main() -> None:
     p.add_argument("--tls", action="store_true", help="serve HTTPS with runtime/tls/server.pem (tools/make_certs.py)")
     p.add_argument("--ca", default=None, help="CA file to verify an https cloud (default runtime/tls/ca.pem if it exists)")
     p.add_argument("--insecure-lan", action="store_true", help="allow plain HTTP on a non-localhost address (NOT advised)")
+    p.add_argument("--client-cert", default=None, help="this device's mutual-TLS certificate (runtime/tls/devices/<id>.pem)")
+    p.add_argument("--client-key", default=None, help="its private key (runtime/tls/devices/<id>.key)")
     p.add_argument("--compress-storage", action="store_true",
                    help="Windows: NTFS-compress the device folder (Edge pre-allocates ~200 MB of zero pages per shard)")
     a = p.parse_args()
@@ -63,7 +65,8 @@ def main() -> None:
         from edge.replay import Recordings
         dev.fit_baseline(Recordings.baseline())
     ca = a.ca or (str(TLS / "ca.pem") if (TLS / "ca.pem").exists() else None)
-    worker = SyncWorker(dev, a.cloud, a.device_token, mirror_mode=a.mirror_mode, ca=ca)
+    cert = (a.client_cert, a.client_key) if a.client_cert else None
+    worker = SyncWorker(dev, a.cloud, a.device_token, mirror_mode=a.mirror_mode, ca=ca, client_cert=cert)
     if not a.no_sync:
         worker.start()
     op = a.operator_token or secrets.token_urlsafe(12)

@@ -47,11 +47,13 @@ into the same 27-number fingerprint, so the gate, verifier, policy, sync and clo
 | `rotating-hf` | any rotating machine, accelerometer ≥ 2 kHz, **any bearing geometry** | + defect frequencies from geometry, imbalance / misalignment / looseness | **HUST held-out: 97.6 % physics hint** |
 | `lowrate-accel` | **phone / IMU / vehicle telematics**, ~60 Hz | imbalance / misalignment / looseness if below Nyquist (says so when not) | end-to-end fan test; `/sensor` page |
 | `force-torque` | **robot** wrist sensor, 6 channels | abnormal motion: collision, obstruction | **UCI robot failures: 96-98 % of collisions/obstructions** |
-| `events` | **kiosks, vehicles (fault codes), apps** | new vs known error pattern; "fixed" = codes stay away N buckets | end-to-end printer-jam test |
+| `events` | **kiosks, vehicles (fault codes), apps** | new vs known error pattern; "fixed" = codes stay away N buckets; **9,533 vehicle fault codes explained offline** (OBDex, CC0) | end-to-end printer-jam and P0301 tests |
+| `telemetry` | **vehicle / machine counters and histograms** | unusual use vs its own history; **early-warning risk hint from a model trained on real trucks** | **SCANIA (real): ROC-AUC 0.75 on 5,045 held-out trucks** |
 
-A phone can be the **sensor and the screen** (motion sensors need HTTPS, which the device serves); the full edge
-device runs on Windows, macOS or Linux (x64 / ARM64, e.g. Raspberry Pi 4/5), where `qdrant-edge-py` ships wheels.
-Android/iOS have no wheel yet. Real-world test steps: [docs/FIELD_TEST.md](docs/FIELD_TEST.md).
+A phone is the **sensor and the screen**: the device UI is an **installable web app** (add to home screen; the service
+worker caches only the app shell, never notes) and the `/sensor` page streams the phone's accelerometer over HTTPS.
+The full edge device runs on Windows, macOS or Linux (x64 / ARM64, e.g. Raspberry Pi 4/5), where `qdrant-edge-py`
+ships wheels; the pair works fully offline and syncs when the network returns. Android/iOS have no wheel yet. Real-world test steps: [docs/FIELD_TEST.md](docs/FIELD_TEST.md).
 
 ## Helping to fix, not only to remember
 
@@ -169,9 +171,21 @@ This test found two real bugs (fixed, DECISIONS D19) and one real gap: a healthy
 point looks abnormal. That is why the device now has "Not a fault: normal operation". Details:
 [docs/BENCHMARKS.md §12](docs/BENCHMARKS.md#12-held-out-second-machine-hust-bearing-benchhust_holdoutpy).
 
-### Robots (`bench/robot_failures.py`, UCI Robot Execution Failures, CC BY 4.0)
+### Robots (UCI Robot Execution Failures, CC BY 4.0, real)
 Same engine, wrist force/torque, shipped thresholds: collisions and obstructions on approach are caught **96-98 %**
-of the time with 0 % false alarms; subtle failures (a part slightly moved after transfer) only 36 %. §13.
+with 0 % false alarms; subtle failures (a part slightly moved) only 36-55 % (§13). A failure model **trained on the
+real labelled traces** (cross-validated) catches **98-100 %** of failures in every task, including the subtle ones,
+at 9-15 % false alarms (§19): a second opinion next to the gate, not a replacement.
+
+### Vehicles on real data (SCANIA Component X, CC BY 4.0)
+Real trucks with workshop repair records. A truck's own history did **not** reveal the coming repair (20.4 % vs 20.6 %
+flagged; we report it). A logistic-regression early-warning model **trained on real trucks and tested on 5,045 others**
+reached ROC-AUC **0.75**: alerting the riskiest ~10 % caught **32 %** of trucks repaired within 48 steps, 3.4x the base
+rate (§20). The device shows it as a risk hint with these numbers.
+
+### Operating points are checked automatically (§18)
+The device knows which speeds/loads its healthy baseline covers; an episode at an untaught point is flagged (0 false
+flags on 28 faults at taught speeds, held out on HUST) with a physics suggestion (right 13/17).
 
 ### K2: does fingerprint similarity transfer to a bearing the index has never seen? (`bench/retrieval_vib.py`)
 
@@ -238,7 +252,7 @@ The text model itself was also measured, not assumed: bge-small (hybrid P@3 0.88
 
 ## Tests
 
-`.venv\Scripts\python.exe -m pytest` runs **205 tests, all passing** on the machine above (~5 min). Some of them
+`.venv\Scripts\python.exe -m pytest` runs **224 tests, all passing** on the machine above (~6 min). Some of them
 start the real Qdrant Server binary themselves (free ports, throwaway storage).
 
 | Folder | What it proves |
@@ -303,9 +317,12 @@ More: `.venv\Scripts\python.exe -m demo.record_backup` records a video of the li
   by sweep and then held out on HUST unchanged; other machine types may need other values.
 - **The fingerprint does not identify the fault type across bearings** (K2: 43 %). Physics does better (CWRU 64 %,
   HUST 97.6 %); the technician still confirms the class that the fleet groups by.
-- **Robots:** subtle failures (a part slightly moved) are mostly missed (36 %); gross ones are caught (96-98 %).
-- **Kiosks / vehicles / apps (events profile)** are tested with synthetic error-code buckets only: no licensed public
-  data set with fault codes AND the applied fixes was found.
+- **Robots:** the gate misses subtle failures (36-55 %); the trained model catches them but raises 9-15 % false
+  alarms, because each task has only ~20 normal traces to learn from.
+- **Vehicles:** the risk hint is modest (ROC-AUC 0.75; most repairs are still not flagged early). SCANIA's variables
+  are anonymised, so the hint cannot say *why*; the fault-code dictionary covers generic codes only.
+- **Kiosks / apps (events profile)** are tested with synthetic error-code buckets only: no licensed public data set
+  with kiosk/app error codes AND the applied fixes was found. Nothing is TRAINED on synthetic data.
 - **Phones are sensors and screens, not full devices:** no qdrant-edge-py wheel for Android/iOS. A 60 Hz phone
   cannot see bearing defect frequencies, and it says when misalignment is beyond its Nyquist limit.
 - **Disk:** each Qdrant Edge shard pre-allocates ~200 MB. On Windows the device can NTFS-compress its folder
@@ -316,8 +333,9 @@ More: `.venv\Scripts\python.exe -m demo.record_backup` records a video of the li
   written but not yet run. Scale beyond that is reasoning, not measurement.
 - **The redactor is regex + denylist.** It misses free-form names (measured: a 421M model found only 4/60 too), so
   notes stay local by default.
-- **Security is prototype-grade:** hashed, revocable bearer tokens but no expiry or rotation; HTTPS with a private CA
-  (enforced off-localhost) but no mTLS; no encryption at rest beyond the OS.
+- **Security is prototype-grade, but complete in its basics:** hashed, revocable tokens that expire after 30 days and
+  renew automatically; HTTPS with a private CA (enforced off-localhost) and optional mutual TLS; technician notes
+  AES-256-GCM encrypted at rest (DPAPI-protected key on Windows). Not encrypted: structured fields and vectors.
 - **The LLM is small** (1.5B). Sentences without citations, with advice, naming a flag, or with numbers not in the
   evidence are removed, but a cited sentence can still paraphrase imperfectly. It is a labelled reading aid only.
 - **Procedures are reference checklists** from public documents; they do not replace the manufacturer's manual.
@@ -328,7 +346,9 @@ More: `.venv\Scripts\python.exe -m demo.record_backup` records a video of the li
 - **Annotated Maintenance Logbook:** Zenodo 17903357, CC BY 4.0, derived from MaintNet (Akhbardeh et al.).
 - **HUST bearing:** Hong & Thuan (2023), Mendeley Data, DOI 10.17632/cbv7jyx4p9.3, CC BY 4.0 (`data/fetch_hust.py`, not redistributed).
 - **Robot Execution Failures:** Lopes & Camarinha-Matos (1998), UCI, DOI 10.24432/C5M89N, CC BY 4.0.
-- **Procedure sources:** SKF publication 14219; Pumps & Systems; Reliable Plant; LUDECA (links in `knowledge/procedures.json`).
+- **Procedure sources:** SKF publication 14219 and SKF lubrication pages; Pumps & Systems; Reliable Plant; LUDECA (links in `knowledge/procedures.json`).
+- **SCANIA Component X:** Scania CV AB, DOI 10.5878/jvb5-d390, CC BY 4.0 (`data/fetch_scania.py`, not redistributed).
+- **OBDex vehicle fault codes:** github.com/foerbsnavi/OBDex, CC0 1.0 (compact extract in `knowledge/vehicle_codes.json`).
 - **Qdrant:** Edge, Server, FastEmbed, and the dual-shard sync pattern.
 - **Models:** BAAI bge-small-en-v1.5 (MIT); Qwen2.5-1.5B-Instruct GGUF (Apache-2.0).
 

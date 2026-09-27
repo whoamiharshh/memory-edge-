@@ -1,0 +1,11 @@
+﻿{
+  "name": "Machine Memory - Edge",
+  "short_name": "MachineMem",
+  "description": "Offline fault memory for this machine: episodes, verified fixes, fleet evidence.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

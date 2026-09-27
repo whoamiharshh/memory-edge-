@@ -90,3 +90,14 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-
 .fb { margin-top: 6px; gap: 6px; }
 button.mini { padding: 2px 8px; font-size: 12px; }
 .warnbox { margin: 6px 0; padding: 8px 10px; border: 1px solid #d29922; border-radius: 8px; color: #e3b341; background: rgba(210,153,34,.08); }
+
+/* ---- phones and tablets (installable web app) ---- */
+@media (max-width: 700px) {
+  main { padding: 10px 10px 40px; gap: 10px; }
+  header { padding: 8px 10px; gap: 8px; }
+  button, select, input { min-height: 40px; }                 /* touch targets */
+  .gates li { grid-template-columns: 18px 80px 1fr; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  textarea { font-size: 16px; }                              /* no zoom-on-focus on iOS */
+}

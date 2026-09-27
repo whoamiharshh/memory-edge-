@@ -22,11 +22,12 @@ from typing import Any
 
 import numpy as np
 
-from edge import policy, profiles, storage_os
+from edge import policy, profiles, storage_os, vehicle_risk
 from edge import verifier as V
 from edge.fingerprint import Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
 from edge.mirror import Mirror
+from edge.crypto import NoteCipher, load_or_create_key
 from edge.outbox import Outbox
 from edge.store_edge import EdgeStore, StorePoint, canonical_id
 from shared import ids
@@ -43,6 +44,53 @@ FLEET_TEXT_MODEL = "BAAI/bge-small-en-v1.5"   # default until the cloud announce
 
 def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds")
+
+
+class _NoteVault:
+    """The device's view of its store with technician notes encrypted at rest (edge/crypto.py): every payload
+    written carries an encrypted note_text, every payload read comes back decrypted. Everything else passes through."""
+
+    def __init__(self, store: EdgeStore, cipher: NoteCipher):
+        self._s, self._c = store, cipher
+
+    def __getattr__(self, name):
+        return getattr(self._s, name)
+
+    def _enc(self, p: dict) -> dict:
+        return p | {"note_text": self._c.encrypt(p["note_text"])} if p.get("note_text") else p
+
+    def _dec(self, p: dict) -> dict:
+        return p | {"note_text": self._c.decrypt(p["note_text"])} if p.get("note_text") else p
+
+    def upsert(self, points, **kw):
+        return self._s.upsert([StorePoint(p.id, self._enc(p.payload), p.vib, p.note, p.bm25_text) for p in points], **kw)
+
+    def modify(self, pid, fn):
+        out = self._s.modify(pid, lambda cur: self._enc(dict(fn(self._dec(cur)))))
+        return None if out is None else self._dec(out)
+
+    def get(self, pid, **kw):
+        r = self._s.get(pid, **kw)
+        if r is not None:
+            r.payload = self._dec(r.payload)
+        return r
+
+    def retrieve(self, ids_, **kw):
+        out = self._s.retrieve(ids_, **kw)
+        for r in out:
+            r.payload = self._dec(r.payload)
+        return out
+
+    def scroll(self, **kw):
+        for r in self._s.scroll(**kw):
+            r.payload = self._dec(r.payload)
+            yield r
+
+    def search(self, **kw):
+        out = self._s.search(**kw)
+        for h in out:
+            h.payload = self._dec(h.payload)
+        return out
 
 
 def _json_safe(x):
@@ -79,6 +127,7 @@ class DeviceConfig:
     profile: str = "bearing-12k"                # edge/profiles.py: what kind of signal this device watches
     profile_params: dict = field(default_factory=dict)
     compress_storage: bool = False              # Windows: NTFS-compress the device folder at start + hourly
+    encrypt_notes: bool = True                  # technician notes encrypted at rest (edge/crypto.py)
 
 
 class Device:
@@ -90,11 +139,17 @@ class Device:
         root.mkdir(parents=True, exist_ok=True)
         self.store = EdgeStore(root / "local", text_model=embedder.name, note_dim=embedder.dim,
                                fp_version=self.profile.fp_version, allow_text_model_change=True)
+        self.note_protection = "none (encrypt_notes off)"
+        if cfg.encrypt_notes:
+            key, how = load_or_create_key(root)
+            self._cipher = NoteCipher(key, how)
+            self.store = _NoteVault(self.store, self._cipher)
+            self.note_protection = f"AES-256-GCM, key protected by {how}"
         self.outbox = Outbox(str(root / "device.sqlite"))
         self.mirror = Mirror(root, self.outbox, text_model=FLEET_TEXT_MODEL)
         if self.store.pending_text_model:            # H.3: the device got a new text model -> re-embed its memory
             m = self.store.migrate_text_model(embedder.embed_documents,
-                                              lambda p: self._doc_text(p) if p.get("type") == "episode" else None)
+                                              lambda p: self._doc_text(self._plain(p)) if p.get("type") == "episode" else None)
             self.outbox.log("model", f"text model changed {m['from']} -> {m['to']}: re-embedded {m['migrated']} "
                                      f"episode(s) into a new vector; BM25 and fingerprints unchanged")
         self._lock = threading.RLock()
@@ -125,7 +180,11 @@ class Device:
     def _apply(self, body: dict) -> None:
         kind = body["kind"]
         if kind == "upsert":
-            self.store.upsert([StorePoint(**p) for p in body["points"]])
+            c = getattr(self, "_cipher", None)
+            pts = [StorePoint(**p) for p in body["points"]]
+            if c:
+                pts = [StorePoint(p.id, p.payload, p.vib, p.note, c.decrypt(p.bm25_text)) for p in pts]
+            self.store.upsert(pts)
         elif kind == "set_payload":
             self.store.modify(body["id"], lambda _p: body["fields"])
         elif kind == "set_payload_where":
@@ -151,13 +210,26 @@ class Device:
             self.outbox.journal_applied(op)
         return len(pending)
 
+    def _plain(self, p: dict) -> dict:
+        c = getattr(self, "_cipher", None)
+        return p | {"note_text": c.decrypt(p["note_text"])} if c and p.get("note_text") else p
+
+    def _seal(self, fields: dict) -> dict:
+        """Encrypt note_text BEFORE it reaches the journal (the store wrapper encrypts the shard copy too)."""
+        c = getattr(self, "_cipher", None)
+        return fields | {"note_text": c.encrypt(fields["note_text"])} if c and fields.get("note_text") else fields
+
     def _upsert(self, points: list[StorePoint]) -> None:
+        c = getattr(self, "_cipher", None)
+        # the BM25 text contains the note, so it is journaled encrypted too; _apply decrypts it in memory only
+        points = [StorePoint(p.id, self._seal(p.payload), p.vib, p.note,
+                             c.encrypt(p.bm25_text) if c and p.bm25_text else p.bm25_text) for p in points]
         self._write({"kind": "upsert", "points": [p.__dict__ | {"vib": list(p.vib) if p.vib is not None else None,
                                                                  "note": list(p.note) if p.note is not None else None}
                                                   for p in points]})
 
     def _set(self, pid: str, **fields) -> None:
-        self._write({"kind": "set_payload", "id": pid, "fields": fields})
+        self._write({"kind": "set_payload", "id": pid, "fields": self._seal(fields)})
 
     # ---- operating points (load / speed) the healthy baseline covers ------------------------------------
     OP_TOLERANCE = 0.02         # relative margin around a taught range (speed jitter, slip)
@@ -209,7 +281,7 @@ class Device:
             self._teach_ops(ops or [])
             b = Baseline.fit(healthy_raw, self.profile.fp_version, self.profile.min_std)
             z = b.z(np.asarray(healthy_raw, dtype=np.float64))
-            g = calibrate(z)
+            g = calibrate(z, normal_factor=self.profile.normal_factor)
             pts = [StorePoint(ids.baseline_point_id(self.cfg.machine_id, i),
                               {"type": "baseline", "machine_id": self.cfg.machine_id,
                                "fp_version": self.profile.fp_version}, vib=z[i].tolist()) for i in range(len(z))]
@@ -249,6 +321,7 @@ class Device:
         fs_w = self.profile.analysis_fs or fs            # profile.windows() already resampled to the analysis rate
         for w in self.profile.windows(x, fs) if not isinstance(x, dict) else [x]:
             f = self.profile.features(w, fs_w, rpm)
+            self._tm_windows = getattr(self, "_tm_windows", 0) + 1    # readouts seen = windows + 1 (telemetry)
             if not np.all(np.isfinite(f)):
                 raise ValueError("signal produced non-finite features (flat or corrupt input?)")
             with self._lock:
@@ -263,10 +336,28 @@ class Device:
                         results.append({"state": "capturing", **self.capture_state()})
                     continue
             r = self.ingest_window(f, source, op or None)
+            if self.profile.name == "telemetry":             # vehicle early-warning hint (trained on real data)
+                self.risk_hint = vehicle_risk.risk(f, self.baseline, float(op.get("age", 0.0)), self._tm_windows + 1)
+                if self.risk_hint and r.get("episode_id"):
+                    self._set(r["episode_id"], risk_hint=self.risk_hint)
             if r["state"] != "normal" and not isinstance(w, dict):
                 self.attach_diagnosis(r.get("episode_id"), w, fs_w, rpm)
+            if r["state"] != "normal" and isinstance(w, dict) and r.get("episode_id") and w.get("codes"):
+                self._note_codes(r["episode_id"], w.get("codes") or {})
             results.append(r)
         return results
+
+    def _note_codes(self, eid: str, codes: dict) -> None:
+        """Event profile: remember which error codes this episode showed (for the code dictionary and search)."""
+        with self._lock:
+            ep = self.store.get(eid)
+            if ep is None:
+                return
+            seen = dict(ep.payload.get("codes") or {})
+            for c, n in codes.items():
+                seen[str(c)[:40]] = seen.get(str(c)[:40], 0) + int(n) if isinstance(n, (int, float)) else 1
+            if len(seen) <= 50:
+                self._set(eid, codes=seen)
 
     def attach_diagnosis(self, eid: str | None, raw_window, fs: float, rpm: float | None) -> dict | None:
         """Physics diagnosis of one raw abnormal window, kept on the episode while it is young (first HINT_WINDOWS
@@ -668,6 +759,7 @@ class Device:
             "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "machine_id": self.cfg.machine_id,
             "machine_class": self.cfg.machine_class, "component": self.component, "profile": self.profile.describe(),
             "baseline_capture": self.capture_state(), "last_diagnosis": self.last_diagnosis,
+            "risk_hint": getattr(self, "risk_hint", None), "note_protection": self.note_protection,
             "baseline_ready": self.gate is not None, "gate": self.gate.cfg.to_dict() if self.gate else None,
             "windows": dict(self.counters), "last_gate": self.last_gate, "recent": list(self.recent),
             "gate_ms": {"p50": pct(g, 50), "p95": pct(g, 95), "n": len(g)},

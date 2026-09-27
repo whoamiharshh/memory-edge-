@@ -38,16 +38,17 @@ class GateConfig:
         return asdict(self)
 
 
-def calibrate(healthy_z: np.ndarray, seed: int = 0) -> GateConfig:
+def calibrate(healthy_z: np.ndarray, seed: int = 0, normal_factor: float | None = None) -> GateConfig:
     """Split-half calibration: distance of each held-out healthy window to its nearest neighbour in the
-    other half. Needs >= 10 windows."""
+    other half. Needs >= 10 windows. normal_factor overrides NORMAL_FACTOR for a profile that measured its own
+    (e.g. force-torque: bench/robot_failures.py tunes it on two robot tasks and tests it on three others)."""
     if len(healthy_z) < 10:
         raise ValueError("need at least 10 healthy windows to calibrate the gate")
     idx = np.random.default_rng(seed).permutation(len(healthy_z))
     a, b = healthy_z[idx[: len(idx) // 2]], healthy_z[idx[len(idx) // 2:]]
     d = np.sqrt(((b[:, None, :] - a[None, :, :]) ** 2).sum(-1)).min(axis=1)
     q99 = float(np.percentile(d, 99))
-    tau_n = NORMAL_FACTOR * q99
+    tau_n = (NORMAL_FACTOR if normal_factor is None else normal_factor) * q99
     return GateConfig(tau_normal=tau_n, tau_merge=MERGE_FACTOR * tau_n, calib_q99=q99, n_calib=len(healthy_z))
 
 

@@ -1,0 +1,166 @@
+{
+  "method": "Robots: a failure detector TRAINED ON REAL labelled data (UCI Robot Execution Failures, CC BY 4.0), compared with",
+  "dataset": "UCI Robot Execution Failures, CC BY 4.0 (real)",
+  "results": {
+    "lp1": {
+      "logistic_regression": {
+        "false_alarm_rate": 0.143,
+        "detection_rate": 1.0,
+        "per_failure_type": {
+          "collision": 1.0,
+          "fr_collision": 1.0,
+          "obstruction": 1.0
+        },
+        "traces": 88
+      },
+      "gradient_boosting": {
+        "false_alarm_rate": 0.238,
+        "detection_rate": 1.0,
+        "per_failure_type": {
+          "collision": 1.0,
+          "fr_collision": 1.0,
+          "obstruction": 1.0
+        },
+        "traces": 88
+      }
+    },
+    "lp2": {
+      "logistic_regression": {
+        "false_alarm_rate": 0.1,
+        "detection_rate": 1.0,
+        "per_failure_type": {
+          "back_col": 1.0,
+          "front_col": 1.0,
+          "left_col": 1.0,
+          "right_col": 1.0
+        },
+        "traces": 47
+      },
+      "gradient_boosting": {
+        "false_alarm_rate": 0.0,
+        "detection_rate": 0.0,
+        "per_failure_type": {
+          "back_col": 0.0,
+          "front_col": 0.0,
+          "left_col": 0.0,
+          "right_col": 0.0
+        },
+        "traces": 47
+      }
+    },
+    "lp3": {
+      "logistic_regression": {
+        "false_alarm_rate": 0.15,
+        "detection_rate": 1.0,
+        "per_failure_type": {
+          "lost": 1.0,
+          "moved": 1.0,
+          "slightly_moved": 1.0
+        },
+        "traces": 47
+      },
+      "gradient_boosting": {
+        "false_alarm_rate": 0.0,
+        "detection_rate": 0.0,
+        "per_failure_type": {
+          "lost": 0.0,
+          "moved": 0.0,
+          "slightly_moved": 0.0
+        },
+        "traces": 47
+      }
+    },
+    "lp4": {
+      "logistic_regression": {
+        "false_alarm_rate": 0.125,
+        "detection_rate": 0.989,
+        "per_failure_type": {
+          "collision": 0.986,
+          "obstruction": 1.0
+        },
+        "traces": 117
+      },
+      "gradient_boosting": {
+        "false_alarm_rate": 0.125,
+        "detection_rate": 0.989,
+        "per_failure_type": {
+          "collision": 0.986,
+          "obstruction": 1.0
+        },
+        "traces": 117
+      }
+    },
+    "lp5": {
+      "logistic_regression": {
+        "false_alarm_rate": 0.091,
+        "detection_rate": 0.983,
+        "per_failure_type": {
+          "bottom_collision": 1.0,
+          "bottom_obstruction": 1.0,
+          "collision_in_part": 0.957,
+          "collision_in_tool": 1.0
+        },
+        "traces": 164
+      },
+      "gradient_boosting": {
+        "false_alarm_rate": 0.295,
+        "detection_rate": 1.0,
+        "per_failure_type": {
+          "bottom_collision": 1.0,
+          "bottom_obstruction": 1.0,
+          "collision_in_part": 1.0,
+          "collision_in_tool": 1.0
+        },
+        "traces": 164
+      }
+    }
+  },
+  "unsupervised_gate_for_comparison": {
+    "lp1": {
+      "false_alarm_rate": 0.0,
+      "detection_rate": 0.961,
+      "detection_per_failure_type": {
+        "collision": 0.882,
+        "fr_collision": 0.963,
+        "obstruction": 1.0
+      }
+    },
+    "lp2": {
+      "false_alarm_rate": 0.05,
+      "detection_rate": 0.548,
+      "detection_per_failure_type": {
+        "back_col": 0.629,
+        "front_col": 0.7,
+        "left_col": 0.356,
+        "right_col": 0.6
+      }
+    },
+    "lp3": {
+      "false_alarm_rate": 0.05,
+      "detection_rate": 0.548,
+      "detection_per_failure_type": {
+        "lost": 0.8,
+        "moved": 0.613,
+        "slightly_moved": 0.356
+      }
+    },
+    "lp4": {
+      "false_alarm_rate": 0.0,
+      "detection_rate": 0.978,
+      "detection_per_failure_type": {
+        "collision": 0.972,
+        "obstruction": 1.0
+      }
+    },
+    "lp5": {
+      "false_alarm_rate": 0.0,
+      "detection_rate": 0.712,
+      "detection_per_failure_type": {
+        "bottom_collision": 0.877,
+        "bottom_obstruction": 1.0,
+        "collision_in_part": 0.587,
+        "collision_in_tool": 0.538
+      }
+    }
+  }
+}

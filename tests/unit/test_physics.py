@@ -72,3 +72,16 @@ def test_bearing_rule_finds_the_modulated_defect_frequency():
         carrier = np.sin(2 * np.pi * 3500 * t)               # resonance inside the 2-5.5 kHz demodulation band
         x = (1 + 0.8 * (np.sin(2 * np.pi * fd * t) > 0.95)) * carrier + 0.05 * np.random.default_rng(1).normal(size=len(t))
         assert P.bearing_rule(P.bearing_defect_scores(x, fs, shaft, geo))["fault_class"] == cls
+
+
+def test_kurtogram_finds_a_resonance_outside_the_fixed_band():
+    fs, shaft = 25600.0, 29.0
+    geo = P.BEARINGS["6205"]
+    t = np.arange(int(fs * 1.0)) / fs
+    fd = geo.orders()["bpfo"] * shaft
+    impacts = (np.sin(2 * np.pi * fd * t) > 0.97).astype(float)
+    x = 0.6 * impacts * np.sin(2 * np.pi * 8000 * t) + 0.05 * np.random.default_rng(2).normal(size=len(t))
+    lo, hi = P.kurtogram_band(x, fs)
+    assert lo <= 8000 <= hi                                   # the ringing resonance is inside the chosen band
+    rule = P.bearing_rule(P.bearing_defect_scores(x, fs, shaft, geo, band=(lo, hi)))
+    assert rule["fault_class"] == "outer_race" and rule["dominant"]

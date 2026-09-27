@@ -53,6 +53,16 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
 13. **Laya experiment** (optional, isolated, ~1 GB): `uv venv .venv-laya --python 3.12`, then in it `torch` (CPU wheel
     index), `laya`, `fastembed==0.8.1`, `scikit-learn`; run with `$env:HF_HOME="models_cache\hf";
     .venv-laya\Scripts\python.exe -m bench.laya_experiment`.
+14. **Vehicles (real data)**: `data\fetch_scania.py` (SCANIA validation + test splits, ~430 MB, CC BY 4.0), then
+    `python -m bench.vehicle_scania` (trains the risk model on the validation trucks, tests on the test trucks, writes
+    `knowledge/vehicle_risk_model.json`). `data\fetch_obdex.py` rebuilds `knowledge/vehicle_codes.json` (already
+    shipped, CC0). Robots: `python -m bench.robot_model` (trained on real UCI traces, cross-validated).
+15. **Mutual TLS**: `tools\make_certs.py device devA` → `runtime\tls\devices\devA.pem/.key`; start the cloud with
+    `--mtls` and the device with `--client-cert ... --client-key ...`. Tokens expire after 30 days and renew by
+    themselves; notes are encrypted at rest automatically (key: `runtime\<device>\note_key.dpapi`, useless on another
+    Windows account or PC).
+16. **Phone app**: open the device UI over HTTPS on the phone and use the browser's "Add to Home screen"; it behaves
+    like an app. The phone sensor page is `/sensor`.
 
 ## Demo walkthrough in the UI (about 5 min)
 
