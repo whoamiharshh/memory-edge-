@@ -38,6 +38,7 @@ MAX_EXEMPLARS = 30
 HINT_WINDOWS = 10          # physics-hint votes collected from the first windows of an episode
 TERMINAL = ("closed",)
 RETENTION_EVERY_S = 3600.0
+FLEET_TEXT_MODEL = "BAAI/bge-small-en-v1.5"   # default until the cloud announces its model (/v1/mirror/head)
 
 
 def now_iso() -> str:
@@ -71,9 +72,15 @@ class Device:
         self.cfg, self.embedder = cfg, embedder
         root = pathlib.Path(cfg.root)
         root.mkdir(parents=True, exist_ok=True)
-        self.store = EdgeStore(root / "local", text_model=embedder.name)
+        self.store = EdgeStore(root / "local", text_model=embedder.name, note_dim=embedder.dim,
+                               allow_text_model_change=True)
         self.outbox = Outbox(str(root / "device.sqlite"))
-        self.mirror = Mirror(root, self.outbox, text_model="BAAI/bge-small-en-v1.5")
+        self.mirror = Mirror(root, self.outbox, text_model=FLEET_TEXT_MODEL)
+        if self.store.pending_text_model:            # H.3: the device got a new text model -> re-embed its memory
+            m = self.store.migrate_text_model(embedder.embed_documents,
+                                              lambda p: self._doc_text(p) if p.get("type") == "episode" else None)
+            self.outbox.log("model", f"text model changed {m['from']} -> {m['to']}: re-embedded {m['migrated']} "
+                                     f"episode(s) into a new vector; BM25 and fingerprints unchanged")
         self._lock = threading.RLock()
         self.baseline: Baseline | None = None
         self.gate: NoveltyGate | None = None
@@ -338,7 +345,8 @@ class Device:
         red = redact(ep["note_text"], self.cfg.denylist) if ep.get("note_text") else None
         d = policy.decide(ep, fingerprint=rec.vectors["vib"], redaction=red, device_id=self.cfg.device_id,
                           machine_class=self.cfg.machine_class,
-                          already_queued=self.outbox.known_event_ids() - {ep.get("event_id")})   # own event is not a duplicate
+                          already_queued=self.outbox.known_event_ids() - {ep.get("event_id")},   # own event is not a duplicate
+                          already_repairs={h: e for h, e in self.outbox.known_repairs().items() if e != eid})
         fields: dict[str, Any] = {"decision": d.to_dict()}
         if d.action == "SHARE" and self.outbox.enqueue(d.event):
             fields["share_state"] = "queued"
@@ -444,8 +452,15 @@ class Device:
                 fleet_filter = {"component": self.cfg.component, "!status": "retracted"}
                 if fc and fc != "unknown":
                     fleet_filter["fault_class"] = fc
-                fleet = self.mirror.search(vib=vib, note=note, text=text, filter=fleet_filter, limit=limit,
-                                           weights={"vib": 0.25}, explain=True)
+                # the mirror's text vectors come from the cloud's model; a query vector from another model would
+                # compare meaningless numbers, so that leg is dropped and BM25 + fingerprint carry the fleet search
+                fleet_model = self.outbox.kv_get("fleet_text_model", FLEET_TEXT_MODEL)   # announced by the cloud
+                same_model = self.embedder.name == fleet_model
+                fleet = self.mirror.search(vib=vib, note=note if same_model else None, text=text, filter=fleet_filter,
+                                           limit=limit, weights={"vib": 0.25}, explain=True)
+                if not same_model:
+                    fleet_error = (f"fleet dense-text leg skipped: this device embeds with {self.embedder.name}, "
+                                   f"the fleet with {fleet_model}; BM25 + fingerprint used")
         except Exception as e:              # a broken mirror must never take local memory down with it
             fleet, fleet_error = [], f"fleet mirror unavailable ({type(e).__name__}); showing local memory only"
         ms = (time.perf_counter() - t0) * 1000

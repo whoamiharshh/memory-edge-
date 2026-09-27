@@ -1,0 +1,59 @@
+{
+  "method": "Which text model? RESEARCH.md I.1 picked bge-small with all-MiniLM-L6-v2 as fallback and said \"final pick by",
+  "n_records": 6169,
+  "n_queries": 500,
+  "seed": 7,
+  "rows": [
+    {
+      "model": "BAAI/bge-small-en-v1.5",
+      "model_files_mb": 64.1,
+      "embed_ms_p50": 32.86,
+      "embed_ms_p95": 47.42,
+      "embed_all_records_s": 54.2,
+      "dense": {
+        "P@3": 0.794,
+        "R@10": 0.185,
+        "MRR@10": 0.86
+      },
+      "hybrid_rrf": {
+        "P@3": 0.885,
+        "R@10": 0.198,
+        "MRR@10": 0.932
+      }
+    },
+    {
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "model_files_mb": 86.9,
+      "embed_ms_p50": 18.9,
+      "embed_ms_p95": 26.12,
+      "embed_all_records_s": 29.3,
+      "dense": {
+        "P@3": 0.788,
+        "R@10": 0.182,
+        "MRR@10": 0.852
+      },
+      "hybrid_rrf": {
+        "P@3": 0.815,
+        "R@10": 0.195,
+        "MRR@10": 0.877
+      }
+    },
+    {
+      "model": "snowflake/snowflake-arctic-embed-xs",
+      "model_files_mb": 86.9,
+      "embed_ms_p50": 7.26,
+      "embed_ms_p95": 16.48,
+      "embed_all_records_s": 15.5,
+      "dense": {
+        "P@3": 0.784,
+        "R@10": 0.169,
+        "MRR@10": 0.847
+      },
+      "hybrid_rrf": {
+        "P@3": 0.868,
+        "R@10": 0.192,
+        "MRR@10": 0.918
+      }
+    }
+  ]
+}

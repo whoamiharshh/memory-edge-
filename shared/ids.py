@@ -34,3 +34,12 @@ def case_id(tenant_id: str, component: str, fault_class: str) -> str:
 def content_hash(obj: object) -> str:
     """sha256 of a canonical JSON rendering (sorted keys) - exact-duplicate detection."""
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+
+
+def repair_hash(machine_id: str, fault_class: str, action_code: str, outcome: str, when: str) -> str:
+    """The same physical repair, whatever episode it was recorded on: (machine, fault class, action, outcome, day).
+    Catches one repair logged twice, e.g. on two episodes the gate split from one intermittent fault
+    (docs/RESEARCH.md G.4, exact duplicates). Text fields are normalised (strip, lowercase) before hashing."""
+    norm = lambda s: " ".join(str(s or "").split()).lower()
+    return content_hash({"machine": norm(machine_id), "fault": norm(fault_class), "action": norm(action_code),
+                         "outcome": norm(outcome), "day": str(when or "")[:10]})

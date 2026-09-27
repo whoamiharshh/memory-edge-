@@ -94,6 +94,15 @@ class Outbox:
     def known_event_ids(self) -> set[str]:
         return {r[0] for r in self._all("SELECT event_id FROM outbox WHERE status != 'rejected'")}
 
+    def known_repairs(self) -> dict[str, str]:
+        """repair content_hash -> episode id of every event queued or shared (not rejected)."""
+        out = {}
+        for ep, body in self._all("SELECT episode_id, body FROM outbox WHERE status != 'rejected'"):
+            h = json.loads(body).get("content_hash")
+            if h:
+                out.setdefault(h, ep)
+        return out
+
     def claim_due(self, limit: int = 50, now: float | None = None) -> list[dict]:
         """Atomically move due queued/failed rows to 'uploading' and return their bodies."""
         now = time.time() if now is None else now

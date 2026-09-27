@@ -19,17 +19,28 @@ MAX_NOTES = 20
 def aggregate(events: list[dict[str, Any]]) -> dict[str, Any]:
     live = [e for e in events if e.get("status") != "retracted"]
     retracted = len(events) - len(live)
+    # one physical repair counts once: events from the same device with the same repair content_hash collapse
+    seen, unique = set(), []
+    for e in sorted(live, key=lambda e: (e.get("occurred_at", ""), e.get("event_id", ""))):
+        key = (e.get("device_id"), e.get("content_hash")) if e.get("content_hash") else ("event", e.get("event_id"))
+        if key not in seen:
+            seen.add(key)
+            unique.append(e)
+    collapsed = len(live) - len(unique)
+    live = unique
     actions: dict[str, dict[str, Any]] = {}
     root_causes: dict[str, set] = {}
     sites = set()
     for e in live:
         a = actions.setdefault(e["action_code"], {"action_code": e["action_code"], "worked": 0, "failed": 0,
                                                   "sites_worked": set(), "sites_failed": set(),
-                                                  "machine_verified": 0, "last_seen": ""})
+                                                  "machine_verified": 0, "last_seen": "", "last_confirmed": ""})
         a[e["outcome"]] += 1
         a["sites_" + e["outcome"]].add(e["site_id"])
         a["machine_verified"] += int(bool(e.get("machine_verified")))
         a["last_seen"] = max(a["last_seen"], e.get("occurred_at", ""))
+        if e["outcome"] == "worked" and e.get("machine_verified"):    # G.1: age is shown, never used as "wrong"
+            a["last_confirmed"] = max(a["last_confirmed"], e.get("occurred_at", ""))
         sites.add(e["site_id"])
         rc = e.get("root_cause_claim")
         if rc and rc != "unknown":
@@ -54,9 +65,11 @@ def aggregate(events: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "actions": table, "flags": flags,
         "root_causes": {k: sorted(v) for k, v in sorted(root_causes.items())},
-        "n_events": len(live), "n_retracted": retracted, "n_sites": len(sites), "sites": sorted(sites),
+        "n_events": len(live), "n_retracted": retracted, "n_duplicates_collapsed": collapsed,
+        "n_sites": len(sites), "sites": sorted(sites),
         "notes": notes, "status": "active" if live else "retracted",
         "last_seen": max((e.get("occurred_at", "") for e in live), default=""),
+        "last_confirmed_at": max((a["last_confirmed"] for a in actions.values()), default="") or None,
         "centroid": np.mean(fps, axis=0).tolist() if fps else None,
     }
 

@@ -17,6 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 BOOT = json.loads((ROOT / "runtime" / "cloud" / "bootstrap.json").read_text())
 A = httpx.Client(base_url="http://127.0.0.1:8101", headers={"X-Operator-Token": "operator-devA"}, timeout=120)
 B = httpx.Client(base_url="http://127.0.0.1:8102", headers={"X-Operator-Token": "operator-devB"}, timeout=120)
+C = httpx.Client(base_url="http://127.0.0.1:8103", headers={"X-Operator-Token": "operator-devC"}, timeout=120)
 CLOUD = httpx.Client(base_url="http://127.0.0.1:8100", headers={"Authorization": f"Bearer {BOOT['admin']}"}, timeout=60)
 STEP = [0]
 
@@ -86,30 +87,38 @@ def main() -> None:
        "policy SHARE; note kept local: " + e["decision"]["reasons"][0]["detail"])
     ok(e["share_state"] == "queued", "outbox: QUEUED while offline")
 
-    step("Device C-style second report is simulated on Device A: a lubrication attempt that FAILED (fault persists)")
-    play(A, 106, 30)
-    e2 = latest(A)
-    call(A, "POST", f"/api/episodes/{e2['episode_id']}/fault_class", {"fault_class": "inner_race"})
-    call(A, "POST", f"/api/episodes/{e2['episode_id']}/action", {"action_code": "lubricate", "required_windows": 20})
-    play(A, 106, 25, start=30)                   # file 106 has ~58 windows; 30.. are not yet replayed
-    call(A, "POST", f"/api/episodes/{e2['episode_id']}/confirm", {"outcome": "failed"})
-    e2 = call(A, "GET", f"/api/episodes/{e2['episode_id']}")
+    step("Site 3 (Device C, another machine): the SAME fix is tried, with a different root-cause claim - the fault persists")
+    call(C, "POST", "/api/network", {"online": False})
+    play(C, 106, 30)                             # inner race 7 mil, load 1: a different recording than site 1's
+    e2 = latest(C)
+    call(C, "POST", f"/api/episodes/{e2['episode_id']}/fault_class", {"fault_class": "inner_race"})
+    call(C, "POST", f"/api/episodes/{e2['episode_id']}/action",
+         {"action_code": "replace_bearing", "root_cause": "lubrication_starvation", "required_windows": 20})
+    play(C, 106, 25, start=30)                   # the fault continues after the action (file 106 has ~58 windows)
+    call(C, "POST", f"/api/episodes/{e2['episode_id']}/confirm", {"outcome": "failed"})
+    e2 = call(C, "GET", f"/api/episodes/{e2['episode_id']}")
     ok(e2["verify"]["verdict"] == "symptom_persists" and e2["decision"]["action"] == "SHARE",
-       "failed fix, machine-verified (symptom persisted) -> shared as FAILED evidence")
+       "failed fix, machine-verified (symptom persisted) -> shared as FAILED evidence, not hidden")
 
-    step("Connectivity returns -> outbox drains; resend proves idempotency")
+    step("Connectivity returns -> outboxes drain; resend proves idempotency")
     call(A, "POST", "/api/network", {"online": True})
     r = call(A, "POST", "/api/sync/now")
-    ok(r["push"].get("accepted") == 2, f"push: {r['push']}")
+    ok(r["push"].get("accepted") == 1, f"site 1 push: {r['push']}")
+    call(C, "POST", "/api/network", {"online": True})
+    r = call(C, "POST", "/api/sync/now")
+    ok(r["push"].get("accepted") == 1, f"site 3 push: {r['push']}")
     call(A, "POST", f"/api/outbox/{e['event_id']}/resend")
     r = call(A, "POST", "/api/sync/now")
     ok(r["push"].get("duplicate") == 1, f"resend of the same event -> {r['push']} (counted once)")
 
-    step("Cloud (Qdrant Server): evidence grouped by (component, fault class), disagreement kept")
+    step("Cloud (Qdrant Server): evidence grouped by (component, fault class); the disagreement is KEPT and flagged")
     cases = call(CLOUD, "GET", "/v1/cases")
     c = next(x for x in cases if x["fault_class"] == "inner_race")
     tallies = {a["action_code"]: (a["worked"], a["failed"]) for a in c["actions"]}
-    ok(tallies == {"replace_bearing": (1, 0), "lubricate": (0, 1)}, f"tallies {tallies}; flags {[f['kind'] for f in c['flags']]}")
+    flags = sorted(f["kind"] for f in c["flags"])
+    ok(tallies == {"replace_bearing": (1, 1)} and c["n_sites"] == 2,
+       f"replace_bearing worked at site1, failed at site3: tallies {tallies}, {c['n_sites']} sites")
+    ok(flags == ["COMPETING", "DISPUTED"], f"flags {flags}: " + " | ".join(f["detail"] for f in c["flags"]))
     ok(all("Ravi" not in n["text"] for n in c["notes"]), "no raw note / name reached the cloud")
 
     step("Device B pulls the mirror, goes OFFLINE, meets a bearing A never saw (14-mil inner race, CWRU 169)")
@@ -125,6 +134,8 @@ def main() -> None:
        f"OFFLINE fleet evidence for {res['query']['fleet_filter']}: " +
        "; ".join(f"{a['action_code']} worked {a['worked']} failed {a['failed']}" for a in fleet.get("actions", [])) +
        f"  ({res['latency_ms']} ms)")
+    ok(sorted(f["kind"] for f in fleet.get("flags", [])) == ["COMPETING", "DISPUTED"],
+       "Device B sees the disagreement too, offline: it is not averaged into a single answer")
 
     step("Evidence brief on Device B (local LLM, offline, grounded)")
     b = call(B, "POST", "/api/brief", {"episode_id": eb["episode_id"]})

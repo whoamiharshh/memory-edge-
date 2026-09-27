@@ -77,7 +77,7 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
 
     @app.get("/v1/mirror/head")
     def mirror_head(since: int | None = None, ctx: AuthContext = Depends(auth)):
-        return store.mirror_head(ctx.tenant_id, since)
+        return store.mirror_head(ctx.tenant_id, since) | {"text_model": embedder.name}   # model of the mirror's text vectors
 
     def _snapshot_response(tenant: str, manifest: dict | None):
         if not store.supports_snapshots:

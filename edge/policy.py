@@ -4,7 +4,8 @@ all of them.
 
   1 privacy       raw note / raw signal never leave; note shared only if opted in AND the redactor found nothing
   2 validation    fingerprint finite, right size, right fp_version; enums valid           -> REJECT
-  3 duplicate     the same evidence (same event id) already queued or shared              -> MERGE
+  3 duplicate     the same evidence (same event id), or the same repair logged on another
+                  episode (same machine/fault/action/outcome/day), already queued or shared -> MERGE
   4 evidence      no action recorded / outcome still pending                              -> KEEP_LOCAL
   5 verification  sensor verdict must agree with the technician's outcome                 -> KEEP_LOCAL
   6 human         technician confirmed the outcome and the fault class                    -> KEEP_LOCAL
@@ -48,7 +49,9 @@ class Decision:
 
 
 def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction | None, device_id: str,
-           machine_class: str, already_queued: set[str]) -> Decision:
+           machine_class: str, already_queued: set[str], already_repairs: dict[str, str] | None = None) -> Decision:
+    """already_queued: event ids this device already queued/shared (other episodes' included).
+    already_repairs: repair_hash -> episode id, for events already queued/shared from OTHER episodes."""
     d = Decision("KEEP_LOCAL")
     R = d.reasons.append
 
@@ -86,6 +89,13 @@ def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction
     eid = ids.event_id(device_id, ep["episode_id"], outcome, action) if action and outcome != "pending" else None
     if eid and eid in already_queued:
         R(Reason("duplicate", False, f"identical evidence already queued/shared as event {eid[:8]}"))
+        d.action = "MERGE"
+        return d
+    rh = (ids.repair_hash(ep.get("machine_id"), ep.get("fault_class"), action, outcome,
+                          ep.get("action_at") or ep.get("first_seen")) if eid and ep.get("fault_class") else None)
+    if rh and rh in (already_repairs or {}):
+        R(Reason("duplicate", False, f"the same repair (machine, fault, action, outcome, day) was already shared from "
+                                     f"episode {already_repairs[rh][:8]}; not counted twice"))
         d.action = "MERGE"
         return d
     R(Reason("duplicate", True, "no identical evidence shared before"))
@@ -131,7 +141,7 @@ def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction
                 verify_windows_ok=int(v.get("consecutive_ok", 0) if outcome == "worked" else v.get("consecutive_bad", 0)),
                 verify_windows_required=int(n), technician_confirmed=True, fingerprint=[float(x) for x in fingerprint],
                 note_redacted=(redaction.text if share_note and redaction else None),
-                occurred_at=ep.get("action_at") or ep.get("first_seen"))
+                occurred_at=ep.get("action_at") or ep.get("first_seen"), content_hash=rh)
     try:
         d.event = ShareEvent(**body).model_dump(mode="json")
     except ValidationError as e:

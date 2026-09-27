@@ -20,9 +20,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "runtime" / "recording"
 BOOT = json.loads((ROOT / "runtime" / "cloud" / "bootstrap.json").read_text())
 PAGES = {"A": ("http://127.0.0.1:8101/", "operator-devA"), "B": ("http://127.0.0.1:8102/", "operator-devB"),
-         "cloud": ("http://127.0.0.1:8100/", BOOT["admin"])}
+         "C": ("http://127.0.0.1:8103/", "operator-devC"), "cloud": ("http://127.0.0.1:8100/", BOOT["admin"])}
 # which UI to show during each scenario step, and where to scroll it
-SHOW = {1: ("A", "#chart"), 2: ("A", "#gates"), 3: ("A", "#gates"), 4: ("A", "#chart"), 5: ("A", "#obBody"),
+SHOW = {1: ("A", "#chart"), 2: ("A", "#gates"), 3: ("A", "#gates"), 4: ("C", "#chart"), 5: ("A", "#obBody"),
         6: ("cloud", "#cases"), 7: ("B", "#chart"), 8: ("B", "#sFleet"), 9: ("A", "#feed")}
 REPLAY_INTERVAL = 0.06                    # slow the replay down so the chart visibly moves on video
 

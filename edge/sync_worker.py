@@ -142,6 +142,8 @@ class SyncWorker:
                 return bad
             self.bytes_received += r.num_bytes_downloaded
             head = r.json()
+            if head.get("text_model"):
+                self.device.outbox.kv_set("fleet_text_model", head["text_model"])
             mode = self.mirror_mode if self.mirror_mode != "scroll" and head.get("snapshots") else "scroll"
             self.device.mirror.ensure_mode(mode)
             out = {"scroll": self._pull_scroll, "snapshot": lambda: self._pull_snapshot(head),

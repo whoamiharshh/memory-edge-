@@ -25,6 +25,7 @@ Filters are plain dicts so callers never touch qdrant_edge types:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -38,7 +39,7 @@ from typing import Any, Callable, Iterator, Mapping, Sequence
 
 from qdrant_edge import (Bm25, Bm25Config, CountRequest, Distance, EdgeConfig, EdgeShard, EdgeSparseVectorParams,
                          EdgeVectorParams, FacetRequest, FieldCondition, Filter, Fusion, MatchAny, MatchValue,
-                         Modifier, PayloadSchemaType, Point, Prefetch, Query, QueryRequest, RangeFloat,
+                         Modifier, PayloadSchemaType, Point, PointVectors, Prefetch, Query, QueryRequest, RangeFloat,
                          ScrollRequest, SparseVector, UpdateMode, UpdateOperation)
 
 from edge.fingerprint import DIM as FP_DIM, FP_VERSION
@@ -157,16 +158,24 @@ class EdgeStore:
     """One device's local memory shard. Thread-safe within a process (all shard access is serialised)."""
 
     def __init__(self, root: str | os.PathLike, *, vib_dim: int = FP_DIM, note_dim: int = NOTE_DIM,
-                 fp_version: str = FP_VERSION, text_model: str = TEXT_MODEL, bm25_avg_len: float = BM25_AVG_LEN):
+                 fp_version: str = FP_VERSION, text_model: str = TEXT_MODEL, bm25_avg_len: float = BM25_AVG_LEN,
+                 allow_text_model_change: bool = False):
+        """allow_text_model_change: a store built with another text model opens anyway, with
+        `pending_text_model` set; the caller must then run migrate_text_model() before writing or querying text
+        vectors (docs/RESEARCH.md H.3: new named vector, re-embed, then switch). Other mismatches always raise."""
         self.root = pathlib.Path(root)
         self._lock = threading.RLock()
+        self.pending_text_model: dict | None = None
         wanted = {"vib_dim": vib_dim, "note_dim": note_dim, "fp_version": fp_version, "text_model": text_model}
         meta_path = self.root / META_FILE
         shard_path = self.root / "shard"
         if meta_path.exists():
             meta = json.loads(meta_path.read_text())
             diff = {k: (meta.get(k), v) for k, v in wanted.items() if meta.get(k) != v}
-            if diff:
+            text_only = set(diff) <= {"text_model", "note_dim"}
+            if diff and allow_text_model_change and text_only:
+                self.pending_text_model = {"from": meta.get("text_model"), "to": text_model, "dim": note_dim}
+            elif diff:
                 raise StoreConfigError(f"store at {self.root} was built with different settings (disk, code): {diff}")
             self.meta = meta
             self._shard = EdgeShard.load(str(shard_path))
@@ -184,6 +193,51 @@ class EdgeStore:
             tmp.write_text(json.dumps(self.meta, indent=2))
             tmp.replace(meta_path)
         self._bm25 = Bm25(Bm25Config(avg_len=float(self.meta["bm25_avg_len"])))
+        self.note_name = self.meta.get("note_vector", NOTE)     # physical name of the active dense text vector
+
+    def _write_meta(self) -> None:
+        meta_path = self.root / META_FILE
+        tmp = meta_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.meta, indent=2))
+        tmp.replace(meta_path)
+
+    def migrate_text_model(self, embed_documents: Callable[[list[str]], list[list[float]]],
+                           text_of: Callable[[dict[str, Any]], str | None], batch: int = 64) -> dict:
+        """Switch the dense text vector to a new model (H.3): create a NEW named vector, re-embed every point whose
+        payload yields text (text_of), switch the meta to the new vector (written last: a crash before that simply
+        re-runs the migration), then drop the old vector. The BM25 vector is model-free and is not touched."""
+        p = self.pending_text_model
+        if not p:
+            return {"migrated": 0}
+        new = "note_" + hashlib.sha1(p["to"].encode()).hexdigest()[:10]
+        with self._lock:
+            try:
+                self._shard.update(UpdateOperation.create_dense_vector(new, p["dim"], Distance.Cosine))
+            except Exception as e:                     # re-run after a crash: the vector is already there
+                if "exist" not in str(e).lower():
+                    raise
+            _flush(self._shard)
+        todo = [(r.id, t) for r in self.scroll() if (t := text_of(r.payload))]
+        for s in range(0, len(todo), batch):
+            chunk = todo[s:s + batch]
+            vecs = embed_documents([t for _, t in chunk])
+            pvs = [PointVectors(canonical_id(pid), {new: _check_vector(new, v, p["dim"])}) for (pid, _), v in zip(chunk, vecs)]
+            with self._lock:
+                self._shard.update(UpdateOperation.update_vectors(pvs))
+                _flush(self._shard)
+        old = self.note_name
+        with self._lock:
+            self.meta = {**self.meta, "text_model": p["to"], "note_dim": p["dim"], "note_vector": new,
+                         "previous_text_models": [*self.meta.get("previous_text_models", []), p["from"]]}
+            self._write_meta()
+            self.note_name = new
+            try:
+                self._shard.update(UpdateOperation.delete_vector_name(old))
+                _flush(self._shard)
+            except Exception:                          # a leftover old vector wastes space but is never queried
+                pass
+        self.pending_text_model = None
+        return {"migrated": len(todo), "from": p["from"], "to": p["to"], "vector": new}
 
     # ---- lifecycle ------------------------------------------------------------------------------------
     def close(self) -> None:
@@ -237,7 +291,7 @@ class EdgeStore:
         unit = [0.0] * self.meta["note_dim"]
         unit[0] = 1.0
         with self._lock:
-            for q in (Query.Nearest([0.0] * self.meta["vib_dim"], using=VIB), Query.Nearest(unit, using=NOTE),
+            for q in (Query.Nearest([0.0] * self.meta["vib_dim"], using=VIB), Query.Nearest(unit, using=self.note_name),
                       Query.Nearest(self._bm25.embed_query("probe"), using=NOTE_BM25)):
                 self._shard.query(QueryRequest(limit=1, query=q))
 
@@ -265,7 +319,7 @@ class EdgeStore:
         if (v := _check_vector(VIB, p.vib, self.meta["vib_dim"])) is not None:
             vec[VIB] = v
         if (v := _check_vector(NOTE, p.note, self.meta["note_dim"])) is not None:
-            vec[NOTE] = v
+            vec[self.note_name] = v
         if p.bm25_text:
             vec[NOTE_BM25] = self._bm25.embed_document(p.bm25_text)
         if not vec:
@@ -364,7 +418,7 @@ class EdgeStore:
         if vib is not None:
             legs[VIB] = Query.Nearest(_check_vector(VIB, vib, self.meta["vib_dim"]), using=VIB)
         if note is not None:
-            legs[NOTE] = Query.Nearest(_check_vector(NOTE, note, self.meta["note_dim"]), using=NOTE)
+            legs[NOTE] = Query.Nearest(_check_vector(NOTE, note, self.meta["note_dim"]), using=self.note_name)
         if text:
             legs[NOTE_BM25] = Query.Nearest(self._bm25.embed_query(text), using=NOTE_BM25)
         return legs

@@ -1,4 +1,5 @@
-# Starts the whole demo on one laptop: Qdrant Server, the fleet cloud, Device A (site1) and Device B (site2).
+# Starts the whole demo on one laptop: Qdrant Server, the fleet cloud, Device A (site1), Device B (site2) and
+# Device C (site3).
 # Usage (from the repo root):   powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1
 #                               powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset   (wipe runtime/ first)
 param([switch]$Reset)
@@ -29,7 +30,8 @@ $b = Get-Content $boot | ConvertFrom-Json
 
 # 3. Devices. Operator tokens are fixed here for the demo; change them for anything real.
 $pids = @{ qdrant = $q.Id; cloud = $c.Id }
-foreach ($d in @(@{n="devA"; s="site1"; p=8101; deny="Ravi,Priya,Pune"}, @{n="devB"; s="site2"; p=8102; deny="Anil"})) {
+foreach ($d in @(@{n="devA"; s="site1"; p=8101; deny="Ravi,Priya,Pune"}, @{n="devB"; s="site2"; p=8102; deny="Anil"},
+                 @{n="devC"; s="site3"; p=8103; deny="Meena"})) {
   $tok = $b.devices.($d.n).token
   $proc = Start-Process -FilePath $py -ArgumentList "-m","edge.main","--name",$d.n,"--site",$d.s,"--port",$d.p,"--cloud","http://127.0.0.1:8100",`
           "--device-token",$tok,"--operator-token","operator-$($d.n)","--denylist",$d.deny,"--fit-baseline" -WorkingDirectory $root `
@@ -40,4 +42,5 @@ $pids | ConvertTo-Json | Set-Content (Join-Path $root "runtime\pids.json")
 Write-Host "Fleet cloud UI : http://127.0.0.1:8100/   admin token: $($b.admin)"
 Write-Host "Device A UI    : http://127.0.0.1:8101/   operator token: operator-devA"
 Write-Host "Device B UI    : http://127.0.0.1:8102/   operator token: operator-devB"
+Write-Host "Device C UI    : http://127.0.0.1:8103/   operator token: operator-devC   (site 3: the disagreeing report)"
 Write-Host "Logs           : $logs      Stop everything: demo\stop_demo.ps1"

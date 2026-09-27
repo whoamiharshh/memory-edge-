@@ -39,11 +39,13 @@ $("loginForm").addEventListener("submit", async (e) => {
 $("logout").onclick = () => { sessionStorage.removeItem(KEY); token = ""; showLogin(); };
 
 function actionsTable(c) {
-  return el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "action"), el("th", {}, "worked"), el("th", {}, "failed"), el("th", {}, "sites"), el("th", {}, "machine-verified"))),
+  return el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "action"), el("th", {}, "worked"), el("th", {}, "failed"), el("th", {}, "sites"),
+      el("th", {}, "machine-verified"), el("th", {}, "last confirmed"))),
     el("tbody", {}, ...(c.actions || []).map((a) => el("tr", {}, el("td", {}, a.action_code),
       el("td", {}, badge(String(a.worked), a.worked ? "b-ok" : "b-mute")), el("td", {}, badge(String(a.failed), a.failed ? "b-bad" : "b-mute")),
       el("td", { class: "muted" }, `✓ ${a.sites_worked.join(", ") || "–"}  ✗ ${a.sites_failed.join(", ") || "–"}`),
-      el("td", {}, String(a.machine_verified))))));
+      el("td", {}, String(a.machine_verified)),
+      el("td", { class: "muted" }, a.last_confirmed ? a.last_confirmed.slice(0, 10) : "never")))));
 }
 
 async function refreshCases() {

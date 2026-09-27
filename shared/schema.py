@@ -92,6 +92,7 @@ class ShareEvent(BaseModel):
     fp_version: Literal["fp-v2"] = FP_VERSION
     note_redacted: str | None = Field(default=None, max_length=MAX_NOTE_CHARS)
     occurred_at: str = Field(min_length=10, max_length=40)
+    content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")   # shared.ids.repair_hash
 
     @field_validator("fingerprint")
     @classmethod

@@ -201,7 +201,9 @@ function caseCard(c, extra) {
       ...(c.flags || []).map((f) => badge(f.kind, f.kind === "ALTERNATIVES" ? "b-info" : "b-bad")), extra || ""),
     el("table", {}, el("tbody", {}, ...(c.actions || []).map((a) => el("tr", {},
       el("td", {}, a.action_code), el("td", {}, badge(`worked ${a.worked}`, a.worked ? "b-ok" : "b-mute")), el("td", {}, badge(`failed ${a.failed}`, a.failed ? "b-bad" : "b-mute")),
-      el("td", { class: "muted" }, `${a.machine_verified} machine-verified · sites ${[...a.sites_worked, ...a.sites_failed].join(", ")}`))))),
+      el("td", { class: "muted" }, `${a.machine_verified} machine-verified · sites ${[...a.sites_worked, ...a.sites_failed].join(", ")}` +
+        ` · last confirmed ${a.last_confirmed ? a.last_confirmed.slice(0, 10) : "never"}`))))),
+    c.n_duplicates_collapsed ? el("div", { class: "muted" }, `${c.n_duplicates_collapsed} duplicate report(s) of the same repair counted once`) : "",
     ...(c.flags || []).map((f) => el("div", { class: "muted" }, "⚑ " + f.detail)),
     ...(c.notes || []).slice(0, 2).map((n) => el("div", { class: "muted" }, `“${n.text}” — ${n.site_id}, ${n.action_code} ${n.outcome}`)));
 }
