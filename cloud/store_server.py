@@ -18,6 +18,7 @@ real server; in-process stores report supports_snapshots = False and devices fal
 from __future__ import annotations
 
 import re
+import queue
 import threading
 import time
 import zlib
@@ -48,31 +49,116 @@ def _cname(kind: str, tenant: str) -> str:
     return f"{kind}_{tenant}"
 
 
+class _PooledClient:
+    """Looks like one QdrantClient; every method call borrows a client from a small pool for the length of that call.
+    A few warm connections instead of one per short-lived server thread (bench/fleet_scale.py profile: 13 % of the
+    cloud's time was spent opening new connections), and never one client object used by two threads at once (a shared
+    client broke under 20 concurrent devices, WinError 10038)."""
+
+    def __init__(self, url: str, size: int = 8):
+        self._url, self._size = url, size
+        self._free: queue.LifoQueue = queue.LifoQueue()
+        self._made = 0
+        self._lock = threading.Lock()
+
+    def _borrow(self) -> QdrantClient:
+        try:
+            return self._free.get_nowait()
+        except queue.Empty:
+            with self._lock:
+                if self._made < self._size:
+                    self._made += 1
+                    # keep-alive ON: qdrant-client turns it off for localhost by default; measured here (28 Sep 2026,
+                    # 300 retrieves) p50 4.6 -> 2.9 ms and p95 23.9 -> 4.2 ms with it (every call was a new TCP connection)
+                    return QdrantClient(url=self._url, timeout=QDRANT_TIMEOUT_S, limits=httpx.Limits(
+                        max_connections=4, max_keepalive_connections=4, keepalive_expiry=30))
+            return self._free.get()
+
+    def __getattr__(self, name):
+        def call(*a, **kw):
+            c = self._borrow()
+            try:
+                return getattr(c, name)(*a, **kw)
+            finally:
+                self._free.put(c)
+        return call
+
+
+class _GroupWriter:
+    """Group commit for event inserts. Every push hands its events to ONE writer thread, which takes everything waiting
+    (up to MAX_POINTS), does one id lookup and one insert_only upsert per tenant, and answers each push.
+    Why (bench/fleet_scale.py): per-event-id lock stripes held across Qdrant calls overlapped between hundreds of
+    concurrent pushes and serialised them (~90 ms each, ~100 events/s); and each Qdrant write has a ~9 ms fixed cost
+    (measured: 1 point/write ~100 points/s, 100 points/write ~4,500/s). One writer also keeps check-then-insert exact:
+    the first copy of an event id is "accepted", every later one "duplicate"."""
+
+    MAX_POINTS = 1000
+    GATHER_S = 0.003           # after the first request arrives, wait this long for others to join the batch
+
+    def __init__(self, store: "CloudStore"):
+        self.store = store
+        self._q: queue.Queue = queue.Queue()
+        threading.Thread(target=self._run, name="event-writer", daemon=True).start()
+
+    def submit(self, tenant: str, items: list[tuple[str, dict, list[float]]]) -> dict[str, str]:
+        done = threading.Event()
+        box: dict = {}
+        self._q.put((tenant, items, done, box))
+        if not done.wait(QDRANT_TIMEOUT_S * 3):
+            raise TimeoutError("event writer did not answer in time (the device will retry)")
+        if "error" in box:
+            raise box["error"]
+        return box["result"]
+
+    def _run(self) -> None:
+        while True:
+            batch = [self._q.get()]
+            deadline = time.monotonic() + self.GATHER_S
+            n = len(batch[0][1])
+            while n < self.MAX_POINTS:
+                try:
+                    batch.append(self._q.get(timeout=max(0.0, deadline - time.monotonic())))
+                    n += len(batch[-1][1])
+                except queue.Empty:
+                    break
+            by_tenant: dict[str, list] = {}
+            for job in batch:
+                by_tenant.setdefault(job[0], []).append(job)
+            for tenant, jobs in by_tenant.items():
+                try:
+                    results = self.store._insert_batch(tenant, [it for j in jobs for it in j[1]])
+                    for _, items, done, box in jobs:
+                        box["result"] = {eid: results[eid] for eid, _, _ in items}
+                        done.set()
+                except Exception as e:                   # every waiting push gets the error -> devices retry
+                    for _, _, done, box in jobs:
+                        box["error"] = e
+                        done.set()
+
+
 class CloudStore:
     def __init__(self, url: str | None = None, location: str | None = None):
         # One Qdrant client PER THREAD for a server: FastAPI runs requests on a thread pool, and a shared client broke
         # under 20 concurrent devices on Windows ("WinError 10038 not a socket", bench/scale_fleet.py). In-memory
         # Qdrant (tests) lives inside one client object, so that one stays shared.
         self._local = threading.local()
-        self._shared = None if url else QdrantClient(location=location or ":memory:")
+        self._shared = _PooledClient(url.rstrip("/")) if url else QdrantClient(location=location or ":memory:")
         self.backend = url or location or ":memory:"
         self.url = url.rstrip("/") if url else None
         self.supports_snapshots = self.url is not None
         self._lock = threading.RLock()                      # schema creation and sequence numbers only
         self._stripes = [threading.Lock() for _ in range(64)]
+        self._writer: _GroupWriter | None = None
         self._snap_cache: dict[str, tuple[int, bytes]] = {}    # tenant -> (mirror seq, gzip full snapshot)
+        self.mirror_version: dict[str, int] = {}               # bumped on every mirror write (response caches)
+        self.events_version: dict[str, int] = {}               # bumped on every event insert / field change
         self._snap_locks: dict[str, threading.Lock] = {}
         self._ready: set[str] = set()
         self._seq: dict[str, int] = {}
 
     @property
     def client(self) -> QdrantClient:
-        if self._shared is not None:
-            return self._shared
-        c = getattr(self._local, "client", None)
-        if c is None:
-            c = self._local.client = QdrantClient(url=self.url, timeout=QDRANT_TIMEOUT_S)
-        return c
+        return self._shared
 
     @property
     def _http(self) -> httpx.Client | None:
@@ -135,6 +221,7 @@ class CloudStore:
         cond = m.Filter(must=[m.FieldCondition(key="version", range=m.Range(lt=payload["version"]))])
         self.client.upsert(_cname("mirror", tenant), [self._mirror_point(case_id, payload, vib, note)],
                            update_filter=cond, wait=True)
+        self.mirror_version[tenant] = self.mirror_version.get(tenant, 0) + 1
 
     def _backfill_mirror(self, tenant: str) -> None:
         """Bring the mirror level with cases_<tenant> (e.g. a mirror collection added to an existing tenant)."""
@@ -227,6 +314,20 @@ class CloudStore:
             return "accepted"
 
     def insert_events(self, tenant: str, items: list[tuple[str, dict, list[float]]]) -> dict[str, str]:
+        """accepted / duplicate per event id. Against a Qdrant Server the events go through the group-commit writer
+        (_GroupWriter); in-process Qdrant (tests) writes directly."""
+        if not items:
+            return {}
+        self.ensure_tenant(tenant)
+        if self.url is not None:
+            if self._writer is None:
+                with self._lock:
+                    if self._writer is None:
+                        self._writer = _GroupWriter(self)
+            return self._writer.submit(tenant, items)
+        return self._insert_batch(tenant, items)
+
+    def _insert_batch(self, tenant: str, items: list[tuple[str, dict, list[float]]]) -> dict[str, str]:
         """Batch form of insert_event: ONE lookup of the ids and ONE insert_only upsert for the new ones (a push of 50
         events was 100 Qdrant calls; bench/scale_fleet.py). The stripe locks of all ids are taken in a fixed order,
         so concurrent batches cannot deadlock and the check-then-insert stays atomic per event."""
@@ -249,6 +350,7 @@ class CloudStore:
                 new.append(m.PointStruct(id=eid, vector={"vib": vib}, payload=payload))
             if new:
                 self.client.upsert(c, new, update_mode=m.UpdateMode.INSERT_ONLY, wait=True)
+                self.events_version[tenant] = self.events_version.get(tenant, 0) + 1
             return out
         finally:
             for k in reversed(locks):
@@ -261,6 +363,7 @@ class CloudStore:
 
     def set_event_fields(self, tenant: str, event_id: str, fields: dict) -> None:
         self.client.set_payload(_cname("events", tenant), payload=fields, points=[event_id], wait=True)
+        self.events_version[tenant] = self.events_version.get(tenant, 0) + 1
 
     def events(self, tenant: str, case_id: str | None = None, with_vectors: bool = False) -> list[dict]:
         self.ensure_tenant(tenant)

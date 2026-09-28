@@ -5,6 +5,17 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D42 · Device clocks are measured and corrected by the cloud (28 Sep 2026)
+A device clock more than a day fast would have had its evidence REJECTED as "future" (found by bench/network_faults.py
+design review). Every push now carries the device time; the cloud computes the offset and shifts that batch's times
+onto its own clock (original kept); devices show "your clock is X h off". Measured: +72 h / -48 h clocks corrected to
+within 1.0 s (BENCHMARKS §30). Hybrid logical clocks stay cut: ordering is never needed, only honest dates.
+
+### D41 · Network faults injected per request, not per connection (28 Sep 2026)
+`tools/netem_proxy.py`. The first version decided faults per TCP connection; HTTP keep-alive sends many requests over
+one connection, so a "40 % loss" run cut 1 connection of 8. Per-chunk faults cut 111 of 113 in the same scenario.
+Result under every scenario: 0 lost, 0 counted twice, follow-ups once, mirrors identical (BENCHMARKS §30).
+
 ### D40 · Cloud scaling: per-thread Qdrant clients, lock stripes, batched ingest, coalesced recompute (28 Sep 2026)
 `bench/scale_fleet.py` (20 devices at once, real Qdrant Server, real HTTP) first **froze the whole cloud**: one Qdrant
 call hung while holding the store's single global lock. Fixed: one Qdrant client per thread, 64 lock stripes, 20 s

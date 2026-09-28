@@ -1,0 +1,243 @@
+{
+ "method": "Sync over BAD networks and with WRONG device clocks, end to end: real devices (Qdrant Edge shards, SQLite outbox,",
+ "protocol": "(each: 5 devices, 20 outcome events each sent in batches of 4, plus 4 follow-ups; then every device pulls the fleet mirror):\n  lan          no faults\n  slow_link    400 +- 200 ms per chunk, 16 kB/s per direction (a weak GSM/rural link)\n  lossy        40 % of connections cut after a random number of bytes (requests AND acknowledgements lost)\n  stalls       25 % of connections accepted but never answered (device read timeout shortened to 3 s for the run)\n  flapping     network down 2 s / up 2 s, repeatedly\n  all_at_once  latency + loss + stalls together\nDevice clocks in every scenario: +3 days, -2 days, +40 min, 0, 0 (the first two would be rejected as \"future\" /\nmisdated without the cloud's clock correction).\nChecked per scenario: all events delivered, 0 lost, 0 counted twice (tallies rebuilt from stored events), follow-ups\napplied once, corrected event times within 2 minutes of the real time, every mirror identical to the cloud.\nGenerated evidence records (a protocol test; nothing is trained).",
+ "results": [
+  {
+   "scenario": "lan",
+   "faults": {},
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 26,
+   "push_s": 8.9,
+   "pull_s": 10.7,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 0.4,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    0.0,
+    0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 7,
+    "dropped": 0,
+    "stalled": 0,
+    "refused": 0,
+    "bytes_up": 77538,
+    "bytes_down": 83141
+   }
+  },
+  {
+   "scenario": "slow_link",
+   "faults": {
+    "latency_ms": 400,
+    "jitter_ms": 200,
+    "bandwidth_bps": 16000
+   },
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 26,
+   "push_s": 43.2,
+   "pull_s": 33.2,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 0.7,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    -0.0,
+    -0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 30,
+    "dropped": 0,
+    "stalled": 0,
+    "refused": 0,
+    "bytes_up": 77538,
+    "bytes_down": 83151
+   }
+  },
+  {
+   "scenario": "lossy",
+   "faults": {
+    "drop_prob": 0.4
+   },
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 80,
+   "push_s": 6.2,
+   "pull_s": 6.6,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 1.0,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    0.0,
+    0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 113,
+    "dropped": 111,
+    "stalled": 0,
+    "refused": 0,
+    "bytes_up": 194403,
+    "bytes_down": 105199
+   }
+  },
+  {
+   "scenario": "stalls",
+   "faults": {
+    "stall_prob": 0.25
+   },
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 40,
+   "push_s": 32.9,
+   "pull_s": 37.8,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 0.6,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    0.0,
+    0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 39,
+    "dropped": 0,
+    "stalled": 24,
+    "refused": 0,
+    "bytes_up": 81870,
+    "bytes_down": 84531
+   }
+  },
+  {
+   "scenario": "flapping",
+   "faults": {
+    "flap": "2 s down / 2 s up"
+   },
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 38,
+   "push_s": 4.7,
+   "pull_s": 3.8,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 0.5,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    0.0,
+    0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 17,
+    "dropped": 1,
+    "stalled": 0,
+    "refused": 11,
+    "bytes_up": 80349,
+    "bytes_down": 83145
+   }
+  },
+  {
+   "scenario": "all_at_once",
+   "faults": {
+    "latency_ms": 150,
+    "jitter_ms": 100,
+    "drop_prob": 0.25,
+    "stall_prob": 0.1
+   },
+   "events_sent": 100,
+   "stored": 100,
+   "lost": 0,
+   "counted_in_tallies": 100,
+   "double_counted": 0,
+   "followups_applied_once": "4/4",
+   "push_attempts": 79,
+   "push_s": 51.4,
+   "pull_s": 44.1,
+   "mirrors_identical": true,
+   "worst_time_error_after_correction_s": 0.5,
+   "clock_offsets_seen_by_cloud_h": [
+    72.0,
+    -48.0,
+    0.67,
+    -0.0,
+    -0.0
+   ],
+   "device_clock_warnings": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "proxy": {
+    "connections": 97,
+    "dropped": 75,
+    "stalled": 14,
+    "refused": 0,
+    "bytes_up": 178294,
+    "bytes_down": 111746
+   }
+  }
+ ]
+}

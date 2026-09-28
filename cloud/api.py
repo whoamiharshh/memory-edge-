@@ -20,7 +20,9 @@ Tenant always comes from the token.
 from __future__ import annotations
 
 import collections
+import json
 import pathlib
+import time
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
@@ -38,6 +40,7 @@ from shared.embed import Embedder
 from shared.schema import PushRequest
 
 MAX_BODY = 512 * 1024
+HINT_RETRAIN_S = 30.0
 UI = pathlib.Path(__file__).resolve().parent / "ui"
 
 
@@ -110,13 +113,17 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
     @app.post("/v1/sync/push")
     def push(req: PushRequest, request: Request, ctx: AuthContext = Depends(auth)):
         h = request.headers.get("x-code-hash", "")[:64]
-        code_seen[ctx.device_id] = {"code_hash": h or None, "at": ingest._now()}
-        return ingest.push(store, embedder, ctx, req, defer=rc.mark if rc else None)
+        dev_time = request.headers.get("x-device-time", "")[:40] or None
+        off = ingest.clock_offset(dev_time)
+        code_seen[ctx.device_id] = {"code_hash": h or None, "at": ingest._now(),
+                                    "clock_offset_s": None if off is None else round(off, 1)}
+        return ingest.push(store, embedder, ctx, req, defer=rc.mark if rc else None, device_time=dev_time)
 
     @app.get("/v1/mirror/head")
     def mirror_head(since: int | None = None, ctx: AuthContext = Depends(auth)):
-        fresh(ctx.tenant_id)
-        return store.mirror_head(ctx.tenant_id, since) | {"text_model": embedder.name}   # model of the mirror's text vectors
+        # mirror reads do NOT force a recompute: the background worker keeps the mirror within ~0.5 s of the events
+        # (a device mirror is eventually consistent anyway); forcing it here cost 27 % of the cloud's time under load
+        return store.mirror_head(ctx.tenant_id, since) | {"text_model": embedder.name, "server_time": ingest._now()}   # model of the mirror's text vectors
 
     def _snapshot_response(tenant: str, manifest: dict | None):
         if not store.supports_snapshots:
@@ -131,24 +138,29 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
 
     @app.get("/v1/mirror/snapshot")
     def mirror_snapshot(ctx: AuthContext = Depends(auth)):
-        fresh(ctx.tenant_id)
         return _snapshot_response(ctx.tenant_id, None)
 
     @app.post("/v1/mirror/snapshot/partial")
     def mirror_partial(manifest: dict[str, Any] = Body(...), ctx: AuthContext = Depends(auth)):
         if not manifest or not all(isinstance(v, dict) for v in manifest.values()):
             raise HTTPException(422, "body must be an Edge snapshot manifest (segment id -> segment manifest)")
-        fresh(ctx.tenant_id)
         return _snapshot_response(ctx.tenant_id, manifest)
 
     @app.get("/v1/mirror/cases")
     def mirror(since: int = 0, limit: int = 200, ctx: AuthContext = Depends(auth)):
         limit = max(1, min(limit, 500))
-        fresh(ctx.tenant_id)
-        rows = store.cases(ctx.tenant_id, since=since, limit=limit + 1, with_vectors=True)
-        items = [{"id": r["case_id"], "payload": {k: v for k, v in r.items() if k != "_vectors"},
-                  "vib": r["_vectors"]["vib"], "note": r["_vectors"]["note"], "text": r["text"]} for r in rows[:limit]]
-        return {"items": items, "more": len(rows) > limit}
+        # every device asks for the same pages: encode each page once per mirror version and serve the bytes
+        key = (ctx.tenant_id, since, limit, store.mirror_version.get(ctx.tenant_id, 0))
+        body = page_cache.get(key)
+        if body is None:
+            rows = store.cases(ctx.tenant_id, since=since, limit=limit + 1, with_vectors=True)
+            items = [{"id": r["case_id"], "payload": {k: v for k, v in r.items() if k != "_vectors"},
+                      "vib": r["_vectors"]["vib"], "note": r["_vectors"]["note"], "text": r["text"]} for r in rows[:limit]]
+            body = json.dumps({"items": items, "more": len(rows) > limit}, separators=(",", ":")).encode()
+            if len(page_cache) > 512:
+                page_cache.clear()
+            page_cache[key] = body
+        return Response(content=body, media_type="application/json")
 
     @app.get("/v1/cases")
     def cases(ctx: AuthContext = Depends(auth)):
@@ -171,16 +183,18 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
         return [c for c in store.cases(ctx.tenant_id, since=0, limit=1000)
                 if any(f["kind"] in ("DISPUTED", "COMPETING", "RECURRED") for f in c.get("flags", []))]
 
-    hint_cache: dict[str, tuple[str, dict]] = {}
+    hint_cache: dict[str, tuple[int, dict, float]] = {}
+    page_cache: dict[tuple, bytes] = {}
 
     @app.get("/v1/fleet/hint-model")
     def fleet_hint_model(ctx: AuthContext = Depends(auth)):
-        evs = store.events(ctx.tenant_id)
-        from shared.ids import content_hash
-        key = content_hash(sorted((e.get("event_id"), e.get("status"), e.get("fault_class")) for e in evs))
+        """Retrained only when the tenant's evidence changed, and at most every HINT_RETRAIN_S under a push storm:
+        it reads every event, and doing that for each device's pull dominated the cloud at 5,000 devices."""
+        ver = store.events_version.get(ctx.tenant_id, 0)
         hit = hint_cache.get(ctx.tenant_id)
-        if hit is None or hit[0] != key:
-            hit = (key, hint_model.train(evs))
+        now = time.monotonic()
+        if hit is None or (hit[0] != ver and now - hit[2] >= HINT_RETRAIN_S):
+            hit = (ver, hint_model.train(store.events(ctx.tenant_id)), now)
             hint_cache[ctx.tenant_id] = hit
         return hit[1]
 
@@ -242,6 +256,7 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
             out.append({k: v for k, v in d.items()} | {
                 "evidence": dict(counts.get(d["device_id"], {})),
                 "code": None if not seen else ("matches this release" if seen["code_hash"] == release else "DIFFERS"),
+                "clock_offset_s": None if not seen else seen.get("clock_offset_s"),
                 "code_seen": seen})
         return out
 

@@ -40,6 +40,7 @@ MAX_EXEMPLARS = 30
 HINT_WINDOWS = 10          # physics-hint votes collected from the first windows of an episode
 TERMINAL = ("closed",)
 RETENTION_EVERY_S = 3600.0
+CLOCK_WARN_S = 120.0       # device vs cloud clock difference above which the device warns (and the cloud corrects)
 FLEET_TEXT_MODEL = "BAAI/bge-small-en-v1.5"   # default until the cloud announces its model (/v1/mirror/head)
 
 
@@ -130,6 +131,7 @@ class DeviceConfig:
     compress_storage: bool = False              # Windows: NTFS-compress the device folder at start + hourly
     encrypt_notes: bool = True                  # technician notes encrypted at rest (edge/crypto.py)
     hold_days: float = 30.0                     # after a verified fix: report 'held' after this, or 'recurred'
+    clock_offset_s: float = 0.0                 # SIMULATES a wrong device clock (tests/benchmarks); 0 in production
 
 
 class Device:
@@ -179,6 +181,24 @@ class Device:
         self.outbox.log("boot", f"device started; journal re-applied {replayed} op(s); {requeued} upload(s) re-queued")
         self._last_retention = 0.0
         self.maybe_run_retention()                 # also compresses the folder when compress_storage is on
+
+    # ---- the device's clock ------------------------------------------------------------------------------
+    def _now(self) -> dt.datetime:
+        """This device's wall clock. Real devices can be minutes or days off; the cloud measures the offset on every
+        sync and corrects the times of this device's evidence (cloud/ingest.py), and the device shows the offset."""
+        return dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=self.cfg.clock_offset_s)
+
+    def _now_iso(self) -> str:
+        return self._now().isoformat(timespec="milliseconds")
+
+    def clock_status(self) -> dict | None:
+        off = self.outbox.kv_get("clock_offset_vs_cloud_s")
+        if off is None:
+            return None
+        return {"offset_vs_cloud_s": round(float(off), 1), "ok": abs(float(off)) <= CLOCK_WARN_S,
+                "text": ("clock agrees with the fleet cloud" if abs(float(off)) <= CLOCK_WARN_S else
+                         f"this device's clock is {abs(off) / 3600:.1f} h {'ahead of' if off > 0 else 'behind'} the "
+                         "fleet cloud: shared evidence is time-corrected by the cloud; set the clock (NTP)")}
 
     # ---- persistence: journal first, then shard ---------------------------------------------------------
     def _apply(self, body: dict) -> None:
@@ -499,7 +519,7 @@ class Device:
             self.gate_ms.append(r.latency_ms)
             self.counters["windows"] += 1
             self.counters[r.state] += 1
-            ts = now_iso()
+            ts = self._now_iso()
             out: dict[str, Any] = {"state": r.state, "d_baseline": round(r.d_baseline, 2),
                                    "latency_ms": round(r.latency_ms, 3), "episode_id": r.episode_id, "source": source}
             if learned is not None:
@@ -686,7 +706,7 @@ class Device:
                 RootCause(root_cause)
             lim, src = self.limit_for_verification()
             mode = "replacement" if action_code in V.REPLACEMENT_ACTIONS else "same_part"
-            self._rewrite(eid, action_code=action_code, root_cause_claim=root_cause or None, action_at=now_iso(),
+            self._rewrite(eid, action_code=action_code, root_cause_claim=root_cause or None, action_at=self._now_iso(),
                           status="verifying", verify=V.VerifyState(required=int(required_windows), limit_mm_s=lim,
                                                                    limit_source=src, mode=mode).to_dict(),
                           outcome="pending", technician_confirmed=False)
@@ -710,7 +730,7 @@ class Device:
         ep = self.store.get(eid).payload
         vs = V.VerifyState.from_dict(ep.get("verify"))
         if vs.done and ep.get("technician_confirmed") and ep["status"] != "closed":
-            self._set(eid, status="closed", closed_at=now_iso())
+            self._set(eid, status="closed", closed_at=self._now_iso())
             self.store.set_payload_where({"type": "exemplar", "episode_id": eid}, {"episode_active": False})
             self.outbox.log("episode", f"episode closed ({vs.label()})", eid)
         self._decide(eid)
@@ -772,7 +792,7 @@ class Device:
             seq = int(self.outbox.kv_get("episode_seq", 0)) + 1
             self.outbox.kv_set("episode_seq", seq)
             eid = ids.episode_id(self.cfg.device_id, seq)
-            ts = now_iso()
+            ts = self._now_iso()
             payload = {"type": "episode", "episode_id": eid, "seq": seq, "machine_id": self.cfg.machine_id,
                        "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "component": self.component,
                        "profile": self.profile.name, "first_seen": ts, "last_seen": ts, "occurrences": 1,
@@ -810,8 +830,8 @@ class Device:
             if pts:
                 self._upsert(pts)
             self._write({"kind": "archive", "episode_id": eid, "keep": None,
-                         "fields": {"status": "closed", "closed_at": now_iso(), "n_exemplars": 0,
-                                    "dismissed": {"reason": "normal operation (not a fault)", "at": now_iso(),
+                         "fields": {"status": "closed", "closed_at": self._now_iso(), "n_exemplars": 0,
+                                    "dismissed": {"reason": "normal operation (not a fault)", "at": self._now_iso(),
                                                   "baseline_points_added": len(pts)}}})
             self._teach_ops([ep.get("operating_point"), getattr(self, "_op", None) if self._run_episode == eid else None])
             if self.gate is not None:
@@ -827,7 +847,7 @@ class Device:
         """ARCHIVE closed, decided episodes older than policy.ARCHIVE_AFTER_DAYS: keep the episode point and its
         first exemplar (so a recurrence is still recognised), drop the other exemplar fingerprints. Knowledge is
         never deleted; open, undecided or not-yet-uploaded episodes are never touched."""
-        now = now or dt.datetime.now(dt.timezone.utc)
+        now = now or self._now()
         archived, checked = [], 0
         with self._lock:
             for ep in self.episodes(status="closed"):
@@ -853,7 +873,7 @@ class Device:
         """For every shared 'worked' fix without a follow-up: 'recurred' if this machine opened a new episode that
         resembles it (the gate's recurrence match) or carries the same confirmed fault class within hold_days of the
         action; 'held' once hold_days passed without that. One follow-up per fix, queued in the outbox."""
-        now = now or dt.datetime.now(dt.timezone.utc)
+        now = now or self._now()
         out = []
         with self._lock:
             eps = self.episodes()
@@ -877,7 +897,7 @@ class Device:
                     continue
                 fu = FollowUp(event_id=ids.followup_id(self.cfg.device_id, ep["event_id"]), episode_id=ep["episode_id"],
                               refers_to=ep["event_id"], status=status, days_after_fix=round(max(days, 0.0), 3),
-                              hold_days=self.cfg.hold_days, occurred_at=now_iso()).model_dump(mode="json")
+                              hold_days=self.cfg.hold_days, occurred_at=self._now_iso()).model_dump(mode="json")
                 self.outbox.enqueue(fu)
                 self._set(ep["episode_id"], followup={
                     "status": status, "days_after_fix": fu["days_after_fix"], "hold_days": self.cfg.hold_days,
@@ -1000,6 +1020,7 @@ class Device:
             "risk_hint": getattr(self, "risk_hint", None), "note_protection": self.note_protection,
             "machine_card": self.card.to_dict() if self.card else None,
             "fleet_hint_model": self._model_summary(), "hold_days": self.cfg.hold_days,
+            "clock": self.clock_status(),
             "local_detector": ({k: v for k, v in (self.outbox.kv_get("local_detector") or {}).items()
                                 if k in ("trained_on", "cross_validated", "trained_at")} or None)
             if self.profile.learned_detector else None,

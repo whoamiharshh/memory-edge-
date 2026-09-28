@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import collections
 import hashlib
-import hmac
 import json
 import pathlib
 import secrets
@@ -57,7 +56,8 @@ class TokenRegistry:
             tmp.replace(self.path)
 
     def issue(self, device_id: str, site_id: str, tenant_id: str, role: str = "device", token: str | None = None,
-              ttl_s: float = TOKEN_TTL_S) -> str:
+              ttl_s: float = TOKEN_TTL_S, save: bool = True) -> str:
+        """save=False: for bulk enrolment (call save() once at the end) - the file is rewritten per token otherwise."""
         if role not in ("device", "admin"):
             raise ValueError("role must be device or admin")
         token = token or secrets.token_urlsafe(32)
@@ -65,8 +65,13 @@ class TokenRegistry:
         with self._lock:
             self._tokens[_h(token)] = asdict(AuthContext(device_id, site_id, tenant_id, role)) | {
                 "revoked": False, "issued_at": now, "expires_at": now + ttl_s}
-            self._save()
+            if save:
+                self._save()
         return token
+
+    def save(self) -> None:
+        with self._lock:
+            self._save()
 
     def renew(self, token: str, ttl_s: float = TOKEN_TTL_S) -> tuple[str, float] | None:
         """A still-valid token gets a successor with the same identity; the old one lives RENEW_GRACE_S longer at
@@ -101,12 +106,14 @@ class TokenRegistry:
             return None
         h = _h(token)
         with self._lock:
-            for k, rec in self._tokens.items():          # constant-time compare against each stored hash
-                if hmac.compare_digest(k, h):
-                    if rec["revoked"] or time.time() >= self._expiry(rec):
-                        return None
-                    return AuthContext(rec["device_id"], rec["site_id"], rec["tenant_id"], rec["role"], self._expiry(rec))
-        return None
+            # Lookup by the token's SHA-256: O(1) for fleets of thousands (the old loop compared against EVERY stored
+            # hash per request). Timing does not leak the token: an attacker cannot choose the hash of a guess.
+            rec = self._tokens.get(h)
+            if rec is None:
+                return None
+            if rec["revoked"] or time.time() >= self._expiry(rec):
+                return None
+            return AuthContext(rec["device_id"], rec["site_id"], rec["tenant_id"], rec["role"], self._expiry(rec))
 
     def allow(self, ctx: AuthContext, now: float | None = None) -> bool:
         """Sliding-window rate limit per device."""

@@ -443,3 +443,24 @@ min(10, relevant) is added. Tune half / test half of the 500 queries:
 | hybrid, BM25 x2 / dense x2 | 0.883 / 0.881 | 0.934 / 0.923 | 0.872 / 0.884 |
 
 Hybrid is best or tied on every metric; neither weighting beat equal weights consistently on the tune half.
+
+## 30. Bad networks and wrong device clocks (`bench/network_faults.py`, tests `tests/failure/test_network_faults.py`)
+Real devices (Qdrant Edge, SQLite outbox, sync worker) -> a fault-injecting TCP proxy (`tools/netem_proxy.py`; faults
+drawn per request and per reply, because HTTP keeps one connection alive) -> the cloud over real HTTP -> Qdrant Server.
+5 devices x 20 events in batches of 4, + 4 follow-ups, then every device pulls the mirror. Device clocks: **+3 days,
+-2 days, +40 min**, 0, 0.
+
+| Scenario | Faults that actually happened | Lost | Counted twice | Follow-ups once | Mirrors = cloud | Push time |
+|---|---|---|---|---|---|---|
+| normal link | - | **0** | **0** | 4/4 | yes | 8.9 s |
+| slow link: 400 +- 200 ms per chunk, 16 kB/s | every chunk | **0** | **0** | 4/4 | yes | 43 s |
+| lossy: 40 % of requests/replies cut | **111 connections cut** (incl. lost acknowledgements) | **0** | **0** | 4/4 | yes | 6.2 s |
+| stalls: 25 % never answered (3 s client timeout) | **24 stalled** | **0** | **0** | 4/4 | yes | 33 s |
+| flapping: 2 s down / 2 s up | 11 refused, 1 cut | **0** | **0** | 4/4 | yes | 4.7 s |
+| all at once: delay + 25 % cut + 10 % stall | **75 cut, 14 stalled** | **0** | **0** | 4/4 | yes | 51 s |
+
+**Clocks:** before this pass a device whose clock ran >1 day fast would have had its evidence REJECTED as "future".
+Now every push carries the device time; the cloud measures the offset (it saw exactly +72 h, -48 h, +0.67 h) and
+shifts that device's timestamps onto its own clock (the device's original is kept). Worst error of a corrected time
+across all scenarios: **1.0 s**. Devices more than 2 min off show a warning ("set the clock (NTP)"); the fleet UI shows
+each device's offset. A push WITHOUT a device time and with a future date is still refused.

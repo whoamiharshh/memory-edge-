@@ -14,8 +14,10 @@ from cloud.ingest import recompute_case
 
 
 class Recomputer:
-    def __init__(self, store, embedder, interval_s: float = 0.5, background: bool = True):
+    def __init__(self, store, embedder, interval_s: float = 0.5, background: bool = True, min_gap_s: float = 2.0):
         self.store, self.embedder = store, embedder
+        self.min_gap_s = min_gap_s          # background: one case at most every min_gap_s (reads still flush at once)
+        self._last: dict[tuple[str, str], float] = {}
         self._dirty: dict[tuple[str, str], tuple[str, str]] = {}
         self._lock = threading.Lock()
         self._run_lock = threading.Lock()
@@ -28,16 +30,23 @@ class Recomputer:
         with self._lock:
             self._dirty[(tenant, cid)] = (component, fault_class)
 
-    def flush(self, tenant: str | None = None) -> int:
+    def flush(self, tenant: str | None = None, throttled: bool = False) -> int:
+        """Recompute dirty cases. throttled=True (the background loop) skips a case recomputed less than min_gap_s ago:
+        under a push storm the same cases stay dirty and each recompute reads all their events (53 % of the cloud's
+        time at 1,000 devices before this). A READ always flushes at once."""
+        import time as _t
         with self._run_lock:                     # one recompute pass at a time; later marks are picked up next time
             with self._lock:
-                todo = {k: v for k, v in self._dirty.items() if tenant is None or k[0] == tenant}
+                now = _t.monotonic()
+                todo = {k: v for k, v in self._dirty.items() if (tenant is None or k[0] == tenant)
+                        and not (throttled and now - self._last.get(k, 0.0) < self.min_gap_s)}
                 for k in todo:
                     del self._dirty[k]
             done = 0
             try:
                 for (t, cid), (comp, fc) in todo.items():
                     recompute_case(self.store, self.embedder, t, cid, comp, fc)
+                    self._last[(t, cid)] = _t.monotonic()
                     done += 1
             finally:
                 if done < len(todo):             # put back what was not recomputed (retried on the next pass)
@@ -54,7 +63,7 @@ class Recomputer:
     def _loop(self, interval_s: float) -> None:
         while not self._stop.wait(interval_s):
             try:
-                self.flush()
+                self.flush(throttled=True)
             except Exception:                    # the unfinished marks were put back; the next pass retries them
                 pass
 

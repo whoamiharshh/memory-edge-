@@ -24,8 +24,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "runtime" / "cloud"
 
 
-def bootstrap(reg: TokenRegistry, tenant: str) -> dict:
-    path = RUNTIME / "bootstrap.json"
+def bootstrap(reg: TokenRegistry, tenant: str, runtime: pathlib.Path = RUNTIME) -> dict:
+    path = runtime / "bootstrap.json"
     if path.exists():
         b = json.loads(path.read_text())
         if "admin2" not in b:                          # bootstrap files from before the two-person rule
@@ -57,21 +57,23 @@ def main() -> None:
                    "revoke <id> -> runtime/tls/crl.pem) are refused")
     p.add_argument("--single-admin-retract", action="store_true",
                    help="one admin may retract evidence alone (default: two different admins, the two-person rule)")
+    p.add_argument("--runtime-dir", default=str(RUNTIME), help="token registry, bootstrap and audit log folder")
     a = p.parse_args()
+    runtime = pathlib.Path(a.runtime_dir)
     a.tls = a.tls or a.mtls
     if a.host not in ("127.0.0.1", "localhost", "::1") and not a.tls and not a.insecure_lan:
         raise SystemExit("refusing to serve plain HTTP on the network: add --tls (run tools/make_certs.py first); "
                          "device tokens would otherwise cross the network unencrypted")
-    reg = TokenRegistry(RUNTIME / "tokens.json")
+    reg = TokenRegistry(runtime / "tokens.json")
     if a.bootstrap:
-        b = bootstrap(reg, a.tenant)
-        print(f"[cloud] admin token: {b['admin']}  (all tokens: {RUNTIME / 'bootstrap.json'})", flush=True)
+        b = bootstrap(reg, a.tenant, runtime)
+        print(f"[cloud] admin token: {b['admin']}  (all tokens: {runtime / 'bootstrap.json'})", flush=True)
     store = CloudStore(location=":memory:") if a.memory else CloudStore(url=a.qdrant_url)
     embedder = HashEmbedder() if a.hash_embedder else load_embedder()
     scheme = "https" if a.tls else "http"
     print(f"[cloud] fleet UI: {scheme}://{a.host}:{a.port}/   Qdrant: {store.backend}", flush=True)
     tls = ROOT / "runtime" / "tls"
-    app = create_app(store, reg, embedder, AuditLog(RUNTIME / "audit.log"), 1 if a.single_admin_retract else 2,
+    app = create_app(store, reg, embedder, AuditLog(runtime / "audit.log"), 1 if a.single_admin_retract else 2,
                      coalesce=True)
     # our own TLS context (uvicorn's ssl_context_factory hook): TLS >= 1.2; with mTLS, client certificates + CRL
     factory = (lambda _cfg, _default: server_context(tls / "server.pem", tls / "server.key",

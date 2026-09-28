@@ -98,7 +98,8 @@ async function refreshDevices() {
   $("devBody").replaceChildren(...ds.map((d) => el("tr", {}, el("td", {}, d.device_id), el("td", {}, d.site_id), el("td", {}, d.role),
     el("td", {}, d.revoked ? badge("revoked", "b-bad") : badge("active", "b-ok")),
     el("td", { class: "muted" }, Object.entries(d.evidence || {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "–"),
-    el("td", {}, d.code ? badge(d.code, d.code === "DIFFERS" ? "b-bad" : "b-ok") : el("span", { class: "muted" }, "not seen yet")),
+    el("td", {}, d.code ? badge(d.code, d.code === "DIFFERS" ? "b-bad" : "b-ok") : el("span", { class: "muted" }, "not seen yet"),
+      d.clock_offset_s != null && Math.abs(d.clock_offset_s) > 120 ? badge(`clock ${(d.clock_offset_s / 3600).toFixed(1)} h off (times corrected)`, "b-warn") : ""),
     el("td", {}, d.role === "device" ? el("span", {},
       !d.revoked ? el("button", { class: "danger", on: { click: act(async () => { await api(`/v1/admin/devices/${d.device_id}/revoke`, {}); toast("revoked"); refreshDevices(); }) } }, "Revoke") : "",
       (d.evidence || {}).active ? el("button", { class: "danger", on: { click: act(async () => {

@@ -23,6 +23,7 @@ def test_reads_after_a_push_are_never_stale():
     cases = c.get("/v1/cases", headers=hdr(admin)).json()
     assert cases[0]["n_events"] == 3 and rc.pending() == 0
     push(c, tok, [event(episode=ids.make_id("ep", 9), outcome="failed")])
-    head = c.get("/v1/mirror/head", headers=hdr(tok)).json()
-    assert head["cases"] == 1 and rc.pending() == 0
+    assert rc.pending() == 1                               # mirror reads do not force it (background keeps it ~0.5 s)
+    c.get("/v1/mirror/head", headers=hdr(tok))
+    assert rc.pending() == 1
     assert any(f["kind"] == "DISPUTED" for f in c.get("/v1/cases", headers=hdr(admin)).json()[0]["flags"])

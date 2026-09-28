@@ -107,6 +107,7 @@ async function refreshStats() {
   $("bSent").textContent = fmtBytes(sy.bytes_sent); $("bRaw").textContent = fmtBytes(s.raw_bytes_kept_local);
   $("lPush").textContent = fmtTime(sy.last_push); $("lPull").textContent = fmtTime(sy.last_pull);
   $("syncErr").textContent = sy.last_error ? "⚠ " + sy.last_error : "";
+  $("clockWarn").textContent = s.clock && !s.clock.ok ? "⚠ " + s.clock.text : "";
   const mi = sy.mirror || {}, lr = mi.last_refresh;
   $("mMode").textContent = (mi.mode ? mi.mode + " fill" : "not pulled yet") + (mi.needs_full ? " · full snapshot due" : "") +
     (lr ? (lr.kind === "scroll"

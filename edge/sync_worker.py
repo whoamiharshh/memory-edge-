@@ -58,8 +58,9 @@ SNAPSHOT_BYTES_DEFAULT = 400_000  # bench/mirror_sync.py: gzip full snapshot, 18
 class SyncWorker:
     def __init__(self, device: Device, cloud_url: str | None, token: str | None,
                  client: httpx.Client | None = None, interval: float = 2.0, mirror_mode: str = "auto",
-                 ca: str | None = None, client_cert: tuple[str, str] | None = None):
+                 ca: str | None = None, client_cert: tuple[str, str] | None = None, push_batch: int = 50):
         self.device, self.cloud_url = device, (cloud_url or "").rstrip("/")
+        self.push_batch = max(1, min(int(push_batch), 100))      # events per push request (the cloud accepts <= 100)
         # A token this device renewed itself is kept in its SQLite; it wins unless the operator started the device
         # with a DIFFERENT token (e.g. a new one issued by the admin), which then starts a new chain.
         kv = device.outbox
@@ -100,7 +101,7 @@ class SyncWorker:
 
     def _headers(self) -> dict:
         from shared.integrity import code_hash      # tamper evidence: the cloud compares it with its release
-        h = {"X-Code-Hash": code_hash()}
+        h = {"X-Code-Hash": code_hash(), "X-Device-Time": self.device._now_iso()}
         return h | ({"Authorization": f"Bearer {self.token}"} if self.token else {})
 
     # ---- push -------------------------------------------------------------------------------------------
@@ -109,7 +110,7 @@ class SyncWorker:
             if not self.online:
                 return {"skipped": "offline"}
             ob = self.device.outbox
-            events = ob.claim_due(limit=50)
+            events = ob.claim_due(limit=self.push_batch)
             if not events:
                 return {"sent": 0}
             body = {"batch_id": uuid.uuid4().hex, "events": events}
@@ -179,6 +180,8 @@ class SyncWorker:
                 return bad
             self.bytes_received += r.num_bytes_downloaded
             head = r.json()
+            if head.get("server_time"):
+                self._note_clock(head["server_time"])
             if head.get("text_model"):
                 self.device.outbox.kv_set("fleet_text_model", head["text_model"])
             mode = self.mirror_mode if self.mirror_mode != "scroll" and head.get("snapshots") else "scroll"
@@ -190,6 +193,20 @@ class SyncWorker:
                 self.last["error"] = None
                 out["hint_model"] = self._pull_hint_model()
             return out | {"mode": mode}
+
+    def _note_clock(self, server_time: str) -> None:
+        import datetime as dt
+        try:
+            off = (self.device._now() - dt.datetime.fromisoformat(server_time)).total_seconds()
+        except (TypeError, ValueError):
+            return
+        ob = self.device.outbox
+        old = ob.kv_get("clock_offset_vs_cloud_s")
+        ob.kv_set("clock_offset_vs_cloud_s", off)
+        from edge.device import CLOCK_WARN_S
+        if abs(off) > CLOCK_WARN_S and (old is None or abs(old - off) > CLOCK_WARN_S):
+            ob.log("clock", f"device clock differs from the fleet cloud by {off / 3600:+.2f} h; the cloud corrects the "
+                            "times of this device's evidence - set the device clock (NTP)")
 
     def _pull_hint_model(self) -> str:
         """The fleet-learned fault hint (plain JSON numbers). A failure here never fails the mirror pull."""

@@ -23,9 +23,39 @@ def _now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
-def push(store: CloudStore, embedder: Embedder, ctx: AuthContext, req: PushRequest, defer=None) -> PushResponse:
+CLOCK_TOLERANCE_S = 120.0     # device clocks within 2 minutes of the cloud are trusted as they are
+
+
+def clock_offset(device_time: str | None) -> float | None:
+    """Device clock minus cloud clock, in seconds (from the X-Device-Time header of this request), or None."""
+    if not device_time:
+        return None
+    try:
+        t = dt.datetime.fromisoformat(device_time)
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=dt.timezone.utc)
+    return (t - dt.datetime.now(dt.timezone.utc)).total_seconds()
+
+
+def corrected(ts: str, offset: float | None) -> str:
+    """A device timestamp on the cloud's clock (unchanged when the offset is within tolerance or unknown)."""
+    if offset is None or abs(offset) <= CLOCK_TOLERANCE_S:
+        return ts
+    t = dt.datetime.fromisoformat(ts)
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=dt.timezone.utc)
+    return (t - dt.timedelta(seconds=offset)).isoformat(timespec="seconds")
+
+
+def push(store: CloudStore, embedder: Embedder, ctx: AuthContext, req: PushRequest, defer=None,
+         device_time: str | None = None) -> PushResponse:
     """`defer(tenant, case_id, component, fault_class)`: hand the case recomputation to cloud/recompute.py instead of
-    doing it inside the request (the events are already durable when acknowledged)."""
+    doing it inside the request (the events are already durable when acknowledged).
+    `device_time`: the device's clock at sending time; if it is off by more than CLOCK_TOLERANCE_S, every timestamp
+    of this batch is shifted onto the cloud's clock (the device's own value is kept as occurred_at_device)."""
+    offset = clock_offset(device_time)
     results: list[EventResult] = []
     touched: dict[str, tuple[str, str]] = {}
     batch: list[tuple[str, dict, list[float]]] = []
@@ -33,7 +63,7 @@ def push(store: CloudStore, embedder: Embedder, ctx: AuthContext, req: PushReque
     for raw in req.events:
         eid = str(raw.get("event_id", "?"))[:36] if isinstance(raw, dict) else "?"
         if isinstance(raw, dict) and raw.get("kind") == "followup":
-            res, case = _followup(store, ctx, raw, eid)
+            res, case = _followup(store, ctx, raw, eid, offset)
             results.append(res)
             if case:
                 touched[case[0]] = case[1:]
@@ -50,14 +80,17 @@ def push(store: CloudStore, embedder: Embedder, ctx: AuthContext, req: PushReque
             results.append(EventResult(event_id=eid, status="rejected",
                                        reason="event id does not belong to the authenticated device"))
             continue
-        why = implausible(ev)
+        occurred = corrected(ev.occurred_at, offset)
+        why = implausible(ev, occurred)
         if why:
             results.append(EventResult(event_id=eid, status="rejected", reason=f"implausible: {why}"))
             continue
         cid = ids.case_id(ctx.tenant_id, ev.component.value, ev.fault_class.value)
         payload = ev.model_dump(mode="json", exclude={"fingerprint"}) | {
             "case_id": cid, "site_id": ctx.site_id, "device_id": ctx.device_id, "status": "active",
-            "received_at": _now()}
+            "received_at": _now(), "occurred_at": occurred}
+        if occurred != ev.occurred_at:
+            payload |= {"occurred_at_device": ev.occurred_at, "clock_offset_s": round(offset, 1)}
         where.setdefault(ev.event_id, (len(results), cid, ev.component.value, ev.fault_class.value))
         results.append(EventResult(event_id=ev.event_id, status="duplicate"))   # set below
         batch.append((ev.event_id, payload, ev.fingerprint))
@@ -74,7 +107,7 @@ def push(store: CloudStore, embedder: Embedder, ctx: AuthContext, req: PushReque
     return PushResponse(batch_id=req.batch_id, results=results)
 
 
-def implausible(ev: ShareEvent) -> str | None:
+def implausible(ev: ShareEvent, occurred_at: str | None = None) -> str | None:
     """Cheap sanity checks a lying or broken device fails: the claimed verification must be complete, the time must
     be real and not in the future, a limit claim must be consistent."""
     if not ev.machine_verified or not ev.technician_confirmed:
@@ -82,7 +115,7 @@ def implausible(ev: ShareEvent) -> str | None:
     if ev.verify_windows_ok < ev.verify_windows_required:
         return f"verification shorter than required ({ev.verify_windows_ok} < {ev.verify_windows_required} windows)"
     try:
-        t = dt.datetime.fromisoformat(ev.occurred_at)
+        t = dt.datetime.fromisoformat(occurred_at or ev.occurred_at)
     except ValueError:
         return "occurred_at is not an ISO timestamp"
     if t.tzinfo is None:
@@ -95,7 +128,7 @@ def implausible(ev: ShareEvent) -> str | None:
     return None
 
 
-def _followup(store: CloudStore, ctx: AuthContext, raw: dict, eid: str):
+def _followup(store: CloudStore, ctx: AuthContext, raw: dict, eid: str, offset: float | None = None):
     """A device reports whether ITS OWN shared fix held for the hold period or the fault recurred first. The first
     report is final; the original event keeps it and the case tallies count held / recurred per action."""
     try:
@@ -115,7 +148,7 @@ def _followup(store: CloudStore, ctx: AuthContext, raw: dict, eid: str):
         return EventResult(event_id=eid, status="duplicate"), None
     store.set_event_fields(ctx.tenant_id, fu.refers_to, {"followup": {
         "status": fu.status, "days_after_fix": round(fu.days_after_fix, 2), "hold_days": fu.hold_days,
-        "reported_at": fu.occurred_at, "received_at": _now()}})
+        "reported_at": corrected(fu.occurred_at, offset), "received_at": _now()}})
     return EventResult(event_id=eid, status="accepted"), (orig["case_id"], orig["component"], orig["fault_class"])
 
 
