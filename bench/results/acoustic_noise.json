@@ -1,0 +1,92 @@
+{
+ "method": "Phone microphone with a LOUDER NEIGHBOURING MACHINE in the room: false alarms and detection, measured.",
+ "protocol": "the University of Ottawa microphone recordings of bench/acoustic_uottawa.py (20 bearings, healthy /\ndeveloping / faulty, 42 kHz) PLUS the microphone of a different, running machine: MaFaulDa's SpectraQuest simulator\nin normal operation (UFRJ; data/fetch_mafaulda.py), resampled 50 -> 42 kHz. Both are REAL recordings; they are added\nsample by sample (sound pressures add), which is how two machines reach one microphone. Nothing is trained or tuned:\nshipped profile `acoustic`, shipped thresholds.\nLoudness: the neighbour is scaled so that its RMS is `snr_db` below (+) or above (-) the RMS of the bearing's own\nhealthy recording: +10 dB (quieter neighbour), 0 dB (as loud), -10 dB (3.2x louder).\nScenarios per bearing and loudness:\n  quiet       no neighbour (reference, = bench/acoustic_uottawa.py)\n  steady      the neighbour always runs at one speed, also while the device learns \"healthy\"\n  starts      the device learned \"healthy\" in a quiet room; the neighbour starts afterwards\n  changes     the neighbour ran at one speed while the device learned; later it runs at another speed\n  starts+teach  as \"starts\", then the technician's ONE \"normal operation\" confirmation on the first 10 windows with the\n              neighbour running (the product's mark_normal, as in bench/hust_holdout.py); measured on the windows after\nMeasured: false-alarm share on the unseen half of the healthy recording; share of the first 15 developing / faulty\nwindows flagged (the neighbour present in the same way as in the healthy test).",
+ "bearings": 20,
+ "neighbour_speeds_available": 49,
+ "by_snr_db": {
+  "+10": {
+   "quiet": {
+    "false_alarm_window_share": 0.0,
+    "bearings_with_any_false_alarm": 0,
+    "developing_flagged": 0.95,
+    "faulty_flagged": 0.95
+   },
+   "steady": {
+    "false_alarm_window_share": 0.064,
+    "bearings_with_any_false_alarm": 2,
+    "developing_flagged": 0.853,
+    "faulty_flagged": 0.853
+   },
+   "starts": {
+    "false_alarm_window_share": 0.603,
+    "bearings_with_any_false_alarm": 14,
+    "developing_flagged": 0.953,
+    "faulty_flagged": 0.953
+   },
+   "changes": {
+    "false_alarm_window_share": 0.156,
+    "bearings_with_any_false_alarm": 5,
+    "developing_flagged": 0.87,
+    "faulty_flagged": 0.95
+   },
+   "starts+teach": {
+    "false_alarm_window_share": 0.0,
+    "bearings_with_any_false_alarm": 0,
+    "developing_flagged": 0.853,
+    "faulty_flagged": 0.853
+   }
+  },
+  "+0": {
+   "steady": {
+    "false_alarm_window_share": 0.147,
+    "bearings_with_any_false_alarm": 4,
+    "developing_flagged": 0.633,
+    "faulty_flagged": 0.647
+   },
+   "starts": {
+    "false_alarm_window_share": 0.956,
+    "bearings_with_any_false_alarm": 20,
+    "developing_flagged": 1.0,
+    "faulty_flagged": 1.0
+   },
+   "changes": {
+    "false_alarm_window_share": 0.653,
+    "bearings_with_any_false_alarm": 16,
+    "developing_flagged": 0.843,
+    "faulty_flagged": 0.873
+   },
+   "starts+teach": {
+    "false_alarm_window_share": 0.043,
+    "bearings_with_any_false_alarm": 4,
+    "developing_flagged": 0.613,
+    "faulty_flagged": 0.697
+   }
+  },
+  "-10": {
+   "steady": {
+    "false_alarm_window_share": 0.197,
+    "bearings_with_any_false_alarm": 7,
+    "developing_flagged": 0.567,
+    "faulty_flagged": 0.5
+   },
+   "starts": {
+    "false_alarm_window_share": 1.0,
+    "bearings_with_any_false_alarm": 20,
+    "developing_flagged": 1.0,
+    "faulty_flagged": 1.0
+   },
+   "changes": {
+    "false_alarm_window_share": 0.95,
+    "bearings_with_any_false_alarm": 19,
+    "developing_flagged": 0.95,
+    "faulty_flagged": 0.95
+   },
+   "starts+teach": {
+    "false_alarm_window_share": 0.014,
+    "bearings_with_any_false_alarm": 1,
+    "developing_flagged": 0.33,
+    "faulty_flagged": 0.343
+   }
+  }
+ }
+}

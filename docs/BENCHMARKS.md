@@ -378,6 +378,7 @@ Each fault is a DIFFERENT physical motor here, so motor-to-motor differences are
 by condition the unbalanced motor's 1x was higher than the healthy motor's in 7/8 and the misaligned motor's 2x/1x
 in 5/8, but the hint names a bearing class. Naming shaft faults is therefore **not validated on real data**; the
 coin-on-a-fan phone test (docs/FIELD_TEST.md) is the planned check. Nothing was tuned on this confounded set.
+**Update:** naming on ONE real machine with both faults is measured in §32 (MaFaulDa).
 
 ## 25. Kiosks / apps: the `events` profile on REAL logs (`bench/events_hdfs.py`)
 Loghub HDFS_v1 (CC BY 4.0, DOI 10.5281/zenodo.8196385; labels from Xu et al., SOSP 2009): each block session = one
@@ -493,10 +494,71 @@ one process gets (the GIL). A py-spy profile of the cloud under load: about a th
 (mirror page scrolls, the recompute reading a case's events), JSON encode/decode is next. Beyond one core needs several
 cloud processes behind a load balancer; that needs a shared token registry and sequence counter (not built).
 
-**Before this pass** (same bench, older code, saved results replaced): 1,000 + 50 devices took 108 s with a push p50 of
+**Before this pass** (same bench, older code; that result file is in git history: `git show 57af994:bench/results/fleet_scale_1000p_50c.json`): 1,000 + 50 devices took 108 s with a push p50 of
 7.8 s. Changes, each found with the profiler or the bench: token lookup by hash instead of a loop over every token (O(1));
 group commit of event inserts (one writer thread, one Qdrant write per ~1,000 events: a write has ~9 ms fixed cost);
 a small pool of keep-alive Qdrant clients (p95 of a call 23.9 -> 4.2 ms); each mirror page encoded once per mirror
 version; mirror reads no longer force a recompute (the background worker keeps them within ~2 s); the fleet hint
 model retrained at most every 30 s. The complete devices' mirror pull looked like **87-160 s**: an artifact - 50
 devices ran as threads of ONE bench process and took turns; in their own processes it is 3.9 s.
+
+## 32. Naming imbalance and misalignment on ONE real machine: MaFaulDa (`bench/mafaulda_rules.py`)
+MaFaulDa (Machinery Fault Database, UFRJ; `data/fetch_mafaulda.py`; no licence text published, used for evaluation
+only, not redistributed): a SpectraQuest simulator recorded normal (49 speeds, 737-3686 rpm), with rotor imbalance
+(6-35 g, 333 recordings), horizontal (0.5-2.0 mm, 197) and vertical (0.51-1.90 mm, 301) shaft misalignment; 50 kHz,
+5 s. Unlike the University of Ottawa motors (§24) every fault is on the SAME machine. Nothing tuned: shipped profiles and
+thresholds; baseline = taught normal recordings at the two nearest speeds (every other speed taught, the rest held out
+for false alarms); a recording is named by the majority hint over its flagged windows. "Wrong" = a specific wrong class
+(a bearing class, or the other shaft fault); "inspect" answers are neither right nor wrong.
+
+Underhang bearing housing, radial accelerometer (the best channel; false alarms 0.0 % of held-out normal windows):
+
+| Fault | Windows flagged | Named right: start of the day | ... after D46 | Named WRONG: start | ... after D46 |
+|---|---|---|---|---|---|
+| Imbalance (333) | 86.9 % | 0 | **258 (77 %)** | 301 | **34** |
+| Horizontal misalignment (197) | 65.8 % | 0 | 15 | 164 | **28** |
+| Vertical misalignment (301) | 74.3 % | - | 2 | - | 55 |
+
+Other channels after D46 (right / wrong): axial imbalance 197 / 37 of 333, horizontal 4 / 42, vertical 13 / 65;
+overhang radial (next to the rotor disk) flags only 19-33 % of fault windows, imbalance 20 / 18; microphone imbalance
+11 / 97, horizontal 25 / 71, vertical 53 / 96. The absolute textbook order rules: 0-2 right on every channel.
+
+Why the device first said "outer race" for imbalance, and what changed (D46): this simulator's bearing has BPFO 2.998x
+and BPFI 5.002x shaft speed, so its defect lines lie ON shaft harmonics, and its healthy bearings already show them
+strongly. The device now takes such a line as a bearing fault only if it grew versus this machine's healthy state;
+otherwise it names the shaft order that grew (1x -> imbalance) or says "inspect". Cost, measured: HUST device hint
+97.6 % -> 95.2 % (§12: B604, whose BSF sits within 3 % of 5x).
+
+**Still not solved:** misalignment is detected but rarely NAMED (2-15 right on the best channel): no single shaft order
+grows past 3 sigma on this rig. Naming it needs a different signature (e.g. phase between the two bearing housings);
+left for later rather than fitting a rule to this one data set. The microphone names poorly here.
+
+## 33. Phone microphone with a louder machine next to it (`bench/acoustic_noise.py`)
+The 20 University of Ottawa bearings' microphone recordings (§21) PLUS the real microphone recording of a DIFFERENT
+running machine (MaFaulDa's simulator in normal operation, 50 -> 42 kHz), added sample by sample (sound pressures
+add). Neighbour loudness relative to the bearing's own healthy sound: +10 dB quieter, 0 dB as loud, -10 dB 3.2x louder.
+Shipped profile `acoustic` and thresholds, nothing tuned. False alarms: share of the unseen healthy windows flagged;
+detection: share of the first 15 developing / faulty windows flagged. "+ one confirmation" = the neighbour starts after
+the device learned, the technician marks the first 10 windows "normal operation" (the product's `mark_normal`, as in
+§12); measured on the 7 windows per bearing after that (140 in all) - a small sample.
+
+| Neighbour | Situation | False alarms (bearings with any) | Developing / faulty flagged |
+|---|---|---|---|
+| none | quiet room (reference) | 0.0 % (0) | 95 % / 95 % |
+| 10 dB quieter | runs all the time, also while learning | 6.4 % (2) | 85 % / 85 % |
+| | **starts after learning** | **60 % (14)** | 95 % / 95 % |
+| | starts, + one "normal operation" confirmation | **0.0 % (0)** | 85 % / 85 % |
+| | changes speed after learning | 16 % (5) | 87 % / 95 % |
+| as loud | runs all the time | 15 % (4) | 63 % / 65 % |
+| | **starts after learning** | **96 % (20)** | 100 % / 100 % |
+| | starts, + one confirmation | 4.3 % (4) | 61 % / 70 % |
+| | changes speed after learning | 65 % (16) | 84 % / 87 % |
+| 3.2x louder | runs all the time | 20 % (7) | 57 % / 50 % |
+| | **starts after learning** | **100 % (20)** | (every window flagged) |
+| | starts, + one confirmation | 1.4 % (1) | **33 % / 34 %** |
+| | changes speed after learning | 95 % (19) | 95 % / 95 % |
+
+Reading: the gate correctly reports that the SOUND changed; it cannot tell a new neighbour from a new fault. One
+"normal operation" confirmation removes the false alarms at every loudness, but a neighbour as loud as the machine or
+louder then hides a third to two thirds of the faulty windows. The microphone is a fallback for a quiet room or a
+dominant machine; with a louder neighbour use an accelerometer on the machine (vibration is local, sound is not).

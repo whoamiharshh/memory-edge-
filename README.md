@@ -169,7 +169,8 @@ network access blocked (`bench/offline_check.py`): **15/15, 0 connection attempt
 | Hybrid search on real maintenance text (6,169 records) | P@3 **0.885**, MRR 0.93, capped recall 0.88 - best of dense / BM25 / hybrid on every metric | §29 |
 | Fingerprint similarity across machines (why the fleet groups by confirmed class) | leaky split 0.997 vs honest bearing-level **0.429** | §3 (K2) |
 | Names in notes that nobody listed | 95 % found in normal typing, 85-87 % in ALL CAPS / lower case (was 0/60); clean notes kept local 0.8-2.6 % | §26 |
-| Real drive-fed motors: healthy / faulty | no alarm **8/8**; faulty detected **16/16**; naming imbalance vs misalignment **not validated** | §24 |
+| Real drive-fed motors: healthy / faulty | no alarm **8/8**; faulty detected **16/16** (one motor per fault, so naming could not be tested) | §24 |
+| One real machine with imbalance and misalignment (MaFaulDa, 831 recordings) | imbalance named **258/333** (was 0; 34 wrong); misalignment detected 66-74 % of windows but named only 2-15 times - mostly "inspect" | §32 |
 | Robots, subtle failures | gate alone 36-55 % -> with the robot's learned detector **96-99 %** | §27 |
 | Real trucks, early warning | AUC 0.75; top 10 % alerts catch 32 % of repairs (3.4x base rate). A bigger training set was tried: worse, rejected | §20, §28 |
 
@@ -180,7 +181,7 @@ real-time monitoring 16.5 % of one core, ~0.3 GB RAM. One shared fix is ~0.9 kB;
 
 ## Tests
 
-`.venv\Scripts\python.exe -m pytest` runs **289 tests, all passing** on the machine above (~9 min; 0 skipped with
+`.venv\Scripts\python.exe -m pytest` runs **302 tests, all passing** on the machine above (~9.5 min; 0 skipped with
 the data sets downloaded). Some tests start the real Qdrant Server binary themselves.
 
 | Folder | What it proves |
@@ -233,9 +234,12 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
 - **Sensor-verified is not root cause confirmed**; the root cause comes from the technician's inspection (ISO 15243).
 - **Fault TYPE from vibration alone is hard where the physics is weak:** 33-35 % on naturally worn bearings by physics,
   70-73 % with the fleet model; the system says "inspect" instead of guessing, and the fleet uses confirmed classes.
-- **Imbalance vs misalignment naming is not validated on real data** (the only public motor set has one motor per
-  fault); detection of the faulty motors is (16/16).
-- **Microphone:** background noise from louder machines was not tested; no calibrated severity from sound.
+- **Misalignment is detected but rarely named** (MaFaulDa, one real machine: 2-15 of 197-301 recordings named right,
+  28-55 wrong, the rest "inspect"); imbalance is named 77 % on the best channel. The HUST bearing hint paid 1 recording
+  for this (97.6 -> 95.2 %, D46).
+- **Microphone:** a neighbouring machine that starts later causes false alarms (60-100 % of windows) until one
+  "normal operation" confirmation (then 0-4 %); a neighbour as loud or louder then hides 30-66 % of faulty windows
+  (BENCHMARKS §33). No calibrated severity from sound. Use an accelerometer where machines are loud.
 - **Vehicles:** the risk hint is modest (AUC 0.75); variables are anonymised, so it cannot explain why.
 - **Names:** names not on the 10,562-name list are missed 13-15 % of the time in ALL CAPS / lower-case notes (25 % on
   phrasings written after the rules); such notes are shared only if nothing is flagged, and notes stay local by default.
@@ -253,6 +257,8 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
 - **HUST bearing:** Hong & Thuan 2023, DOI 10.17632/cbv7jyx4p9.3, CC BY 4.0.
 - **University of Ottawa** bearing (DOI 10.17632/y2px5tg92h.1) and motor (DOI 10.17632/msxs4vj48g.2) datasets,
   Sehri, Dumond et al., CC BY 4.0.
+- **MaFaulDa** Machinery Fault Database, Ribeiro et al., UFRJ SMT (no licence text published; used for evaluation
+  only, not redistributed).
 - **UCI Robot Execution Failures:** Lopes & Camarinha-Matos 1998, DOI 10.24432/C5M89N, CC BY 4.0.
 - **SCANIA Component X:** Scania CV AB, DOI 10.5878/jvb5-d390, CC BY 4.0.
 - **Loghub HDFS_v1:** He et al., DOI 10.5281/zenodo.8196385, CC BY 4.0 (labels: Xu et al., SOSP 2009).

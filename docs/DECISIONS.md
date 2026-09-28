@@ -5,6 +5,13 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D47 · Microphone next to a louder machine: measured, and the answer is the existing confirmation (28 Sep 2026)
+The README limit "background noise from louder machines was not tested" is now measured with two REAL recordings mixed
+(BENCHMARKS §33). No new mechanism was added: the existing one-click "normal operation" confirmation removes the false
+alarms (60-100 % -> 0-4 %), and the cost is stated rather than hidden - a neighbour as loud or louder masks 30-66 % of
+faulty windows afterwards. A noise-cancelling second microphone or source separation would be the next step; not built
+(the phone test in docs/FIELD_TEST.md will show whether it matters in a real room).
+
 ### D46 · A bearing line that sits on a shaft harmonic is not taken as a bearing fault unless it grew (28 Sep 2026)
 MaFaulDa (one real machine, imbalance and misalignment on the same rig; BENCHMARKS §32) showed the device naming
 imbalance "outer/inner race" (underhang radial: 0/333 right, 301/333 wrong). Cause, measured: this simulator's bearing

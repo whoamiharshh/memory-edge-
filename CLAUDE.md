@@ -208,14 +208,21 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   coalesced recompute, snapshot cache, bytes-based bootstrap (20 devices: 1,000 events in 9.8 s, 0 lost);
   tools/qdrant_local.py (any OS), tools/backup.py, tools/sensor_bridge.py, .github/workflows/tests.yml (unrun).
   REJECTED (kept as evidence): physics v2, cross-dataset prior, bearing-growth gating, SCANIA training-split model.
-- [ ] Remaining improvement ideas (after the user's "ready" notice): network-fault proxy + clock-skew tests, 50+ device
-  scale run, an Android capture app, more motor data for imbalance/misalignment naming.
+- [x] (28 Sep, finish pass; D42-D47, BENCHMARKS §30-33) network-fault proxy + clock-offset correction; fleet scale
+  1,000 / 5,000 devices + 50 complete (0 lost / 0 double); mTLS cert bound to token + live CRL; names after cue words;
+  CI fetches CWRU (simulated clean run 239 pass); MaFaulDa (one real machine): imbalance named 0 -> 258/333 via the
+  harmonic-clash rule, HUST hint 97.6 -> 95.2 % (B604, documented); microphone + louder neighbour measured (one
+  "normal operation" confirmation: FA 0-4 %, but 30-66 % of faulty windows masked when the neighbour is as loud).
+  302 tests pass (9 min 21 s). Android app NOT built (user's choice).
+- [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
+  bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
+  cancelling for the microphone; hardware attestation (needs TPM hardware).
 - [ ] USER: real-world field test + phone tests (docs/FIELD_TEST.md) - remind them (they will do it after the web part)
 - [ ] USER: the invalid `permissions.allow` rule in `C:\Users\Sir\.claude\settings.json` - needs their yes (global config)
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
-- Tests: `.venv\Scripts\python.exe -m pytest` (289 tests, all passing, ~9 min on 28 Sep; some tests start `qdrant_server\qdrant.exe` themselves;
+- Tests: `.venv\Scripts\python.exe -m pytest` (302 tests, all passing, ~9.5 min on 28 Sep; some tests start `qdrant_server\qdrant.exe` themselves;
   pytest.ini already adds -q: do not add another -q or the summary line disappears)
 - Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →
   `runtime\recording\backup_demo.webm`

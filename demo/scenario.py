@@ -56,7 +56,22 @@ def latest(c: httpx.Client) -> dict:
     return call(c, "GET", "/api/episodes")[0]
 
 
+def wait_until_up(timeout_s: float = 90.0) -> None:
+    """run_demo.ps1 returns before the devices listen (they load models first): wait instead of failing step 1."""
+    deadline = time.time() + timeout_s
+    for c in (CLOUD, A, B, C):
+        while True:
+            try:
+                c.get("/")
+                break
+            except httpx.TransportError:
+                if time.time() > deadline:
+                    raise RuntimeError(f"{c.base_url} not up after {timeout_s:.0f} s - is demo\\run_demo.ps1 running?")
+                time.sleep(0.5)
+
+
 def main() -> None:
+    wait_until_up()
     t0 = time.time()
     step("Device A goes OFFLINE; healthy data then an inner-race fault (CWRU 105) is replayed")
     call(A, "POST", "/api/network", {"online": False})
