@@ -1,10 +1,11 @@
 """Robots: a failure detector TRAINED ON REAL labelled data (UCI Robot Execution Failures, CC BY 4.0), compared with
 the unsupervised gate (bench/robot_failures.py), especially on subtle failures.
 
-Per learning problem: stratified 5-fold cross-validation (every trace is tested by a model that never saw it). The
-alert threshold is fixed on the TRAINING folds so that at most 5 % of their normal traces alarm, then applied to the
-held-out fold. Features: the force-torque profile's fingerprint (fp-ft1) plus simple temporal shape (first-to-last
-change and largest step per channel). Models: logistic regression and gradient boosting.
+SHIPPED METHOD ("device_learned_detector", edge/local_detector.py): exactly what a device stores - the fp-ft1
+fingerprint z-scored against the healthy traces of the training folds - class-balanced logistic regression, alarm when
+p > 0.5 (no threshold tuning), 10 x stratified 5-fold CV (seeds 0-9), mean and range over the repetitions.
+EARLIER METHOD (kept for comparison, "previous_*"): fingerprint + temporal-shape features, threshold set so that 5 %
+of the TRAINING normals alarm - overfit scores made that threshold too low (9-15 % false alarms).
 Honest limit: 47-164 traces per problem; results have wide uncertainty; the classes differ between problems, so a
 model is trained per problem (a robot cell would train on its own labelled history).
 Run: .venv\\Scripts\\python.exe -m bench.robot_model
@@ -53,12 +54,38 @@ def run(lp: str, make) -> dict:
             "per_failure_type": per, "traces": int(len(y))}
 
 
+def device_detector(lp: str) -> dict:
+    from edge.fingerprint import Baseline
+    from edge.local_detector import probability, train
+    inst = load(lp)
+    X = np.stack([FT.features(np.asarray(r)) for _, r in inst])
+    lab = np.array([l for l, _ in inst])
+    y = np.array([l not in NORMAL for l in lab])
+    strat = lab if min(collections.Counter(lab).values()) >= 5 else y
+    fa, det, per = [], [], collections.defaultdict(list)
+    for seed in range(10):
+        al = np.zeros(len(y), bool)
+        for tr, te in StratifiedKFold(5, shuffle=True, random_state=seed).split(X, strat):
+            bl = Baseline.fit(X[tr][~y[tr]], FT.fp_version, FT.min_std)
+            m = train(bl.z(X[tr][~y[tr]]), bl.z(X[tr][y[tr]]))
+            al[te] = [probability(m, z) > 0.5 for z in bl.z(X[te])]
+        fa.append(al[~y].mean()); det.append(al[y].mean())
+        for c in set(lab[y]):
+            per[c].append(al[lab == c].mean())
+    return {"false_alarm_rate": round(float(np.mean(fa)), 3), "false_alarm_range": [round(min(fa), 3), round(max(fa), 3)],
+            "detection_rate": round(float(np.mean(det)), 3), "detection_range": [round(min(det), 3), round(max(det), 3)],
+            "per_failure_type": {c: round(float(np.mean(v)), 3) for c, v in sorted(per.items())},
+            "normal_traces": int((~y).sum()), "failure_traces": int(y.sum())}
+
+
 def main() -> dict:
     makers = {"logistic_regression": lambda: make_pipeline(StandardScaler(), LogisticRegression(C=0.5, max_iter=5000, class_weight="balanced")),
               "gradient_boosting": lambda: HistGradientBoostingClassifier(max_iter=200, learning_rate=0.05, random_state=0,
                                                                           class_weight="balanced")}
     out = {"method": __doc__.strip().splitlines()[0], "dataset": "UCI Robot Execution Failures, CC BY 4.0 (real)",
-           "results": {lp: {name: run(lp, mk) for name, mk in makers.items()} for lp in ("lp1", "lp2", "lp3", "lp4", "lp5")}}
+           "results": {lp: {"device_learned_detector": device_detector(lp)}
+                       | {f"previous_{name}": run(lp, mk) for name, mk in makers.items()}
+                       for lp in ("lp1", "lp2", "lp3", "lp4", "lp5")}}
     try:
         gate = json.loads((OUT / "robot_failures.json").read_text())["problems"]
         out["unsupervised_gate_for_comparison"] = {lp: {k: v for k, v in r.items() if k != "held_out_normals_per_seed"}

@@ -22,7 +22,8 @@ from typing import Any
 
 import numpy as np
 
-from edge import policy, profiles, storage_os, vehicle_risk
+from edge import fleet_hint, local_detector, machine_card, policy, profiles, storage_os, vehicle_risk
+from edge import physics as P
 from edge import verifier as V
 from edge.fingerprint import Baseline
 from edge.gate import GateConfig, NoveltyGate, calibrate
@@ -33,7 +34,7 @@ from edge.store_edge import EdgeStore, StorePoint, canonical_id
 from shared import ids
 from shared.embed import Embedder
 from shared.redact import redact
-from shared.schema import ActionCode, FaultClass, RootCause
+from shared.schema import ActionCode, DamageMode, FaultClass, FollowUp, RootCause
 
 MAX_EXEMPLARS = 30
 HINT_WINDOWS = 10          # physics-hint votes collected from the first windows of an episode
@@ -128,6 +129,7 @@ class DeviceConfig:
     profile_params: dict = field(default_factory=dict)
     compress_storage: bool = False              # Windows: NTFS-compress the device folder at start + hourly
     encrypt_notes: bool = True                  # technician notes encrypted at rest (edge/crypto.py)
+    hold_days: float = 30.0                     # after a verified fix: report 'held' after this, or 'recurred'
 
 
 class Device:
@@ -137,6 +139,8 @@ class Device:
         self.component = cfg.component or self.profile.default_component
         root = pathlib.Path(cfg.root)
         root.mkdir(parents=True, exist_ok=True)
+        self.card = machine_card.load(root)          # manufacturer data (bearing, limits, mains), if entered
+        self.profile.apply_card(self.card)
         self.store = EdgeStore(root / "local", text_model=embedder.name, note_dim=embedder.dim,
                                fp_version=self.profile.fp_version, allow_text_model_change=True)
         self.note_protection = "none (encrypt_notes off)"
@@ -281,7 +285,7 @@ class Device:
             self._teach_ops(ops or [])
             b = Baseline.fit(healthy_raw, self.profile.fp_version, self.profile.min_std)
             z = b.z(np.asarray(healthy_raw, dtype=np.float64))
-            g = calibrate(z, normal_factor=self.profile.normal_factor)
+            g = calibrate(z, normal_factor=self.profile.normal_factor, target_false_alarm=self.profile.target_false_alarm)
             pts = [StorePoint(ids.baseline_point_id(self.cfg.machine_id, i),
                               {"type": "baseline", "machine_id": self.cfg.machine_id,
                                "fp_version": self.profile.fp_version}, vib=z[i].tolist()) for i in range(len(z))]
@@ -319,6 +323,9 @@ class Device:
         if rpm and rpm > 0:
             op["speed_hz"] = rpm / 60.0
         fs_w = self.profile.analysis_fs or fs            # profile.windows() already resampled to the analysis rate
+        # order features of the whole chunk at its native rate (fleet-learned hint; needs >= 0.5 s)
+        of = None if isinstance(x, dict) else self.profile.order_features(np.asarray(x, dtype=float), fs, rpm)
+        touched: set[str] = set()
         for w in self.profile.windows(x, fs) if not isinstance(x, dict) else [x]:
             f = self.profile.features(w, fs_w, rpm)
             self._tm_windows = getattr(self, "_tm_windows", 0) + 1    # readouts seen = windows + 1 (telemetry)
@@ -335,7 +342,7 @@ class Device:
                     else:
                         results.append({"state": "capturing", **self.capture_state()})
                     continue
-            r = self.ingest_window(f, source, op or None)
+            r = self.ingest_window(f, source, op or None, velocity=self._velocity(w, fs_w))
             if self.profile.name == "telemetry":             # vehicle early-warning hint (trained on real data)
                 self.risk_hint = vehicle_risk.risk(f, self.baseline, float(op.get("age", 0.0)), self._tm_windows + 1)
                 if self.risk_hint and r.get("episode_id"):
@@ -344,8 +351,113 @@ class Device:
                 self.attach_diagnosis(r.get("episode_id"), w, fs_w, rpm)
             if r["state"] != "normal" and isinstance(w, dict) and r.get("episode_id") and w.get("codes"):
                 self._note_codes(r["episode_id"], w.get("codes") or {})
+            if r["state"] != "normal" and r.get("episode_id"):
+                touched.add(r["episode_id"])
             results.append(r)
+        for eid in touched:
+            self.attach_order_features(eid, of)
         return results
+
+    def _velocity(self, w, fs: float) -> float | None:
+        """Vibration velocity of one window, only while an episode is verifying against a machine-card limit."""
+        if self.card is None or isinstance(w, dict) or not self.verifying_with_limit():
+            return None
+        try:
+            v = P.velocity_rms_mm_s(np.asarray(w, dtype=float), fs)
+        except (TypeError, ValueError):
+            return None
+        return float(v) if np.isfinite(v) else None
+
+    def verifying_with_limit(self) -> bool:
+        return any((ep.get("verify") or {}).get("limit_mm_s") for ep in self.episodes(status="verifying"))
+
+    def limit_for_verification(self) -> tuple[float | None, str | None]:
+        """The acceptable velocity a fix must get below, from the machine card; None when this profile's signal is not
+        a calibrated acceleration (phone, microphone, robots, events) or there is no card."""
+        if self.card is None or self.profile.name not in ("bearing-12k", "rotating-hf"):
+            return None, None
+        bounds, ref = self.card.severity_bounds()
+        return float(bounds[1]), ref
+
+    # ---- the machine's own learned detector (edge/local_detector.py) --------------------------------------
+    def _learned_alarm(self, z) -> float | None:
+        if not self.profile.learned_detector:
+            return None
+        m = self.outbox.kv_get("local_detector")
+        if not m:
+            return None
+        p = local_detector.probability(m, z)
+        return p if p > 0.5 else None
+
+    def train_local_detector(self) -> dict:
+        """Healthy baseline fingerprints vs exemplars of technician-confirmed fault episodes of this machine."""
+        with self._lock:
+            normal = [r.vectors["vib"] for r in self.store.scroll(filter={"type": "baseline",
+                                                                          "machine_id": self.cfg.machine_id}, with_vectors=True)]
+            confirmed = {e["episode_id"] for e in self.episodes() if e.get("fault_class_source") == "technician"
+                         and not e.get("dismissed") and e.get("fault_class") not in (None, "unknown")}
+            faults = [r.vectors["vib"] for r in self.store.scroll(filter={"type": "exemplar",
+                                                                          "machine_id": self.cfg.machine_id}, with_vectors=True)
+                      if r.payload.get("episode_id") in confirmed]
+            m = local_detector.train(np.asarray(normal, dtype=float), np.asarray(faults, dtype=float))
+            self.outbox.kv_set("local_detector", m)
+            cv = m["cross_validated"]
+            self.outbox.log("detector", f"learned detector trained on this machine: {len(normal)} healthy vs "
+                                        f"{len(faults)} confirmed-fault fingerprints ({len(confirmed)} episodes); "
+                                        f"cross-validated detection {cv['detection_rate']:.0%}, false alarms "
+                                        f"{cv['false_alarm_rate']:.0%}")
+            return m
+
+    # ---- fleet-learned fault hint -------------------------------------------------------------------------
+    def fleet_model(self) -> dict | None:
+        m = self.outbox.kv_get("fleet_hint_model")
+        return m if fleet_hint.valid(m) else None
+
+    def attach_order_features(self, eid: str | None, feats: list[float] | None) -> dict | None:
+        """Keep the order features of an episode's first chunks (median = robust) and refresh the combined hint."""
+        if not eid or feats is None:
+            return None
+        with self._lock:
+            ep = self.store.get(eid)
+            if ep is None or ep.payload.get("type") != "episode" or ep.payload["status"] == "closed":
+                return None
+            seen = list(ep.payload.get("order_feats_seen") or [])
+            if len(seen) >= HINT_WINDOWS:
+                return ep.payload.get("fleet_hint")
+            seen.append([round(float(v), 4) for v in feats])
+            med = np.median(np.asarray(seen), axis=0).round(4).tolist()
+            h = fleet_hint.combine(ep.payload.get("fault_hint"), med, self.fleet_model())
+            self._set(eid, order_feats_seen=seen, order_features=med, fleet_hint=h,
+                      bearing=getattr(getattr(self.profile, "geometry", None), "name", None))
+            return h
+
+    def refresh_fleet_hints(self) -> int:
+        """After a new fleet model arrives: recompute the combined hint of open episodes."""
+        n = 0
+        with self._lock:
+            for ep in self.episodes():
+                if ep["status"] != "closed" and ep.get("order_features"):
+                    self._set(ep["episode_id"], fleet_hint=fleet_hint.combine(ep.get("fault_hint"), ep["order_features"],
+                                                                              self.fleet_model()))
+                    n += 1
+        return n
+
+    # ---- machine card (manufacturer data) -----------------------------------------------------------------
+    def set_machine_card(self, data: dict) -> dict:
+        card = machine_card.MachineCard.from_dict(data)
+        with self._lock:
+            old_geo = getattr(self.profile, "geometry", None)
+            prof = profiles.make(self.cfg.profile, **self.cfg.profile_params)
+            prof.apply_card(card)
+            machine_card.save(self.cfg.root, card)
+            self.card, self.profile = card, prof
+            new_geo = getattr(prof, "geometry", None)
+            recapture = bool(self.baseline is not None and old_geo != new_geo and prof.name != "bearing-12k")
+            self.outbox.log("machine_card", f"machine card saved ({card.manufacturer} {card.model}); severity: "
+                            f"{card.severity_bounds()[1]}" + ("; bearing geometry changed: RE-CAPTURE the healthy "
+                                                               "baseline (the fingerprint uses defect frequencies)"
+                                                               if recapture else ""))
+            return card.to_dict() | {"baseline_recapture_recommended": recapture}
 
     def _note_codes(self, eid: str, codes: dict) -> None:
         """Event profile: remember which error codes this episode showed (for the code dictionary and search)."""
@@ -373,27 +485,50 @@ class Device:
         return d
 
     # ---- the per-window path ----------------------------------------------------------------------------
-    def ingest_window(self, raw: np.ndarray, source: str | None = None, op: dict | None = None) -> dict:
+    def ingest_window(self, raw: np.ndarray, source: str | None = None, op: dict | None = None,
+                      velocity: float | None = None) -> dict:
         if self.gate is None or self.baseline is None:
             raise RuntimeError("fit a healthy baseline first")
         with self._lock:
             self._op = op
             z = self.baseline.z(np.asarray(raw, dtype=float))
             r = self.gate.classify(z)
+            learned = self._learned_alarm(z) if r.state == "normal" else None
+            if learned is not None:                  # the machine's own learned detector adds an alarm
+                r = self.gate.classify_abnormal(z, r)
             self.gate_ms.append(r.latency_ms)
             self.counters["windows"] += 1
             self.counters[r.state] += 1
             ts = now_iso()
             out: dict[str, Any] = {"state": r.state, "d_baseline": round(r.d_baseline, 2),
                                    "latency_ms": round(r.latency_ms, 3), "episode_id": r.episode_id, "source": source}
+            if learned is not None:
+                out["learned_detector"] = round(learned, 3)
             healthy = r.state == "normal"
+            new_part = False
             # feed the verifier of every episode that is waiting for its post-action verdict
             for ep in self.episodes(status="verifying"):
-                vs = V.step(V.VerifyState.from_dict(ep.get("verify")), healthy)
-                self._set(ep["episode_id"], verify=vs.to_dict())
+                h = healthy
+                vs = V.VerifyState.from_dict(ep.get("verify"))
+                extra: dict[str, Any] = {}
+                if not h and vs.mode == "replacement" and not vs.done:
+                    hits = self.store.nearest(z, filter={"type": "exemplar", "episode_id": ep["episode_id"]}, limit=1)
+                    if hits and r.d_baseline < hits[0].score:      # nearer to healthy than to the fault
+                        h = new_part = True
+                        vs.new_part_windows += 1
+                        extra["new_part_z"] = [*(ep.get("new_part_z") or [])[-199:], [round(float(v), 5) for v in z]]
+                vs = V.step(vs, h, velocity)
+                self._set(ep["episode_id"], verify=vs.to_dict(), **extra)
                 if vs.done:
                     self.outbox.log("verify", f"{vs.label()}", ep["episode_id"])
+                    if vs.verdict == "symptom_resolved" and vs.mode == "replacement":
+                        self._adopt_new_part(ep["episode_id"])
                     self._after_verdict(ep["episode_id"])
+            if new_part and r.state != "normal":          # a new part's normal: do not open or grow an episode
+                self.counters[r.state] -= 1
+                self.counters["normal"] += 1
+                r.state, r.episode_id = "normal", None
+                out.update(state="normal", episode_id=None, new_part=True)
             cont = self._run_episode
             if r.state == "new" and cont and self.store.get(cont).payload["status"] != "closed":
                 # Continuity rule: an uninterrupted abnormal run is ONE episode, even if a noisy window lands
@@ -419,7 +554,7 @@ class Device:
         seq = int(self.outbox.kv_get("episode_seq", 0)) + 1
         self.outbox.kv_set("episode_seq", seq)
         eid = ids.episode_id(self.cfg.device_id, seq)
-        hint = self.profile.hint(raw)
+        hint = self.profile.hint(raw, z)
         payload = {
             "type": "episode", "episode_id": eid, "seq": seq, "machine_id": self.cfg.machine_id,
             "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "component": self.component,
@@ -452,6 +587,7 @@ class Device:
             msg += "; UNTAUGHT operating point: " + payload["untaught_operating_point"]["suggestion"]
         self.outbox.log("gate", msg + f"; physics hint: {hint['fault_class']}", eid)
         self._decide(eid)
+        self.check_followups()
         return eid
 
     def _merge(self, eid: str, z: np.ndarray, raw: np.ndarray, d_episode: float | None, ts: str) -> None:
@@ -465,7 +601,7 @@ class Device:
                 fields["untaught_operating_point"] = u | {"suggestion": self._op_suggestion(u)}
         if ep["occurrences"] < HINT_WINDOWS:                   # majority vote of the first windows' hints
             votes = dict(ep.get("hint_votes") or {})
-            h = self.profile.hint(raw)
+            h = self.profile.hint(raw, z)
             votes[h["fault_class"]] = votes.get(h["fault_class"], 0) + 1
             best = max(votes, key=votes.get)
             fields["hint_votes"] = votes
@@ -524,12 +660,18 @@ class Device:
             self.outbox.log("note", f"note saved ({len(text)} chars, share opt-in={bool(share_opt_in)})", eid)
             return self._decide(eid)
 
-    def set_fault_class(self, eid: str, fault_class: str, expected_version: int | None = None) -> dict:
+    def set_fault_class(self, eid: str, fault_class: str, expected_version: int | None = None,
+                        damage_mode: str | None = None) -> dict:
+        """The technician confirms the fault class, ideally from what they SAW (ISO 15243 damage mode on the removed
+        bearing). This confirmed class - never the hint - is what the fleet groups by and learns from."""
         with self._lock:
             self._require(eid, expected_version)
             FaultClass(fault_class)
-            self._rewrite(eid, fault_class=fault_class, fault_class_source="technician")
-            self.outbox.log("fault_class", f"technician confirmed fault class {fault_class}", eid)
+            if damage_mode:
+                DamageMode(damage_mode)
+            self._rewrite(eid, fault_class=fault_class, fault_class_source="technician", damage_mode=damage_mode or None)
+            self.outbox.log("fault_class", f"technician confirmed fault class {fault_class}"
+                            + (f" (seen: {damage_mode.replace('_', ' ')}, ISO 15243)" if damage_mode else ""), eid)
             return self._decide(eid)
 
     def record_action(self, eid: str, action_code: str, root_cause: str | None = None,
@@ -542,8 +684,11 @@ class Device:
             ActionCode(action_code)
             if root_cause:
                 RootCause(root_cause)
+            lim, src = self.limit_for_verification()
+            mode = "replacement" if action_code in V.REPLACEMENT_ACTIONS else "same_part"
             self._rewrite(eid, action_code=action_code, root_cause_claim=root_cause or None, action_at=now_iso(),
-                          status="verifying", verify=V.VerifyState(required=int(required_windows)).to_dict(),
+                          status="verifying", verify=V.VerifyState(required=int(required_windows), limit_mm_s=lim,
+                                                                   limit_source=src, mode=mode).to_dict(),
                           outcome="pending", technician_confirmed=False)
             self.store.set_payload_where({"type": "exemplar", "episode_id": eid}, {"episode_active": True})
             self.outbox.log("action", f"action {action_code} recorded; verifying over {required_windows} windows", eid)
@@ -569,6 +714,21 @@ class Device:
             self.store.set_payload_where({"type": "exemplar", "episode_id": eid}, {"episode_active": False})
             self.outbox.log("episode", f"episode closed ({vs.label()})", eid)
         self._decide(eid)
+
+    def _adopt_new_part(self, eid: str) -> int:
+        """A replacement verified by the nearest-state rule: its windows become extra healthy-baseline points, so the
+        new part's normal is normal from now on (z-normalisation not refitted, like mark_normal)."""
+        ep = self.store.get(eid).payload
+        zs = ep.get("new_part_z") or []
+        pts = [StorePoint(ids.make_id("baseline-newpart", self.cfg.machine_id, eid, k),
+                          {"type": "baseline", "machine_id": self.cfg.machine_id, "fp_version": self.profile.fp_version,
+                           "regime_from_episode": eid, "new_part": True}, vib=list(v)) for k, v in enumerate(zs)]
+        if pts:
+            self._upsert(pts)
+            self._set(eid, new_part_z=None, new_part_adopted=len(pts))
+            self.outbox.log("baseline", f"new part verified: {len(pts)} of its windows added to this machine's healthy "
+                                        "baseline", eid)
+        return len(pts)
 
     # ---- policy -----------------------------------------------------------------------------------------
     def _decide(self, eid: str) -> dict:
@@ -597,6 +757,41 @@ class Device:
             self.outbox.log("policy", f"{d.action}: {last.detail}", eid)
         self._set(eid, **fields)
         return fields["decision"]
+
+    # ---- "this WAS a fault": teach a failure the gate did not flag ----------------------------------------
+    def teach_fault(self, raw: np.ndarray, fault_class: str, note: str = "") -> dict:
+        """The technician saw a failure (e.g. the robot collided) in a cycle the gate called normal. The window is
+        stored as a confirmed-fault example (a closed, 'taught' episode: never shared, no action), so the machine's
+        learned detector (edge/local_detector.py) can learn it and the gate recognises it as a recurrence later.
+        The mirror image of mark_normal()."""
+        if self.gate is None or self.baseline is None:
+            raise RuntimeError("fit a healthy baseline first")
+        FaultClass(fault_class)
+        with self._lock:
+            z = self.baseline.z(np.asarray(raw, dtype=float))
+            seq = int(self.outbox.kv_get("episode_seq", 0)) + 1
+            self.outbox.kv_set("episode_seq", seq)
+            eid = ids.episode_id(self.cfg.device_id, seq)
+            ts = now_iso()
+            payload = {"type": "episode", "episode_id": eid, "seq": seq, "machine_id": self.cfg.machine_id,
+                       "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "component": self.component,
+                       "profile": self.profile.name, "first_seen": ts, "last_seen": ts, "occurrences": 1,
+                       "status": "closed", "closed_at": ts, "n_exemplars": 1,
+                       "fault_hint": {"fault_class": "unknown", "why": "taught by the technician"}, "hint_votes": {},
+                       "fault_class": fault_class, "fault_class_source": "technician", "action_code": None,
+                       "root_cause_claim": None, "action_at": None, "note_text": note.strip()[:2000],
+                       "note_share_opt_in": False, "outcome": "pending", "technician_confirmed": True, "verify": None,
+                       "share_state": "local", "decision": None, "recurrence_of": None, "schema_version": 1,
+                       "fp_version": self.profile.fp_version, "text_model": self.embedder.name, "version": 1,
+                       "taught_fault": True}
+            text = self._doc_text(payload)
+            self._upsert([
+                StorePoint(eid, payload, vib=z.tolist(), note=self.embedder.embed_documents([text])[0], bm25_text=text),
+                StorePoint(ids.make_id("exemplar", eid, 0), {"type": "exemplar", "machine_id": self.cfg.machine_id,
+                                                             "episode_id": eid, "episode_active": False}, vib=z.tolist())])
+            self.outbox.log("teach", f"technician taught a {fault_class.replace('_', ' ')} the gate had called normal "
+                                     "(kept on this device as a learning example)", eid)
+            return self._decide(eid)
 
     # ---- "not a fault": teach a new healthy operating state ----------------------------------------------
     def mark_normal(self, eid: str, expected_version: int | None = None) -> dict:
@@ -653,9 +848,52 @@ class Device:
         self._last_retention = time.time()
         return {"checked": checked, "archived": archived}
 
+    # ---- did the fix HOLD? (follow-ups weeks after a verified fix) ------------------------------------------
+    def check_followups(self, now: dt.datetime | None = None) -> list[dict]:
+        """For every shared 'worked' fix without a follow-up: 'recurred' if this machine opened a new episode that
+        resembles it (the gate's recurrence match) or carries the same confirmed fault class within hold_days of the
+        action; 'held' once hold_days passed without that. One follow-up per fix, queued in the outbox."""
+        now = now or dt.datetime.now(dt.timezone.utc)
+        out = []
+        with self._lock:
+            eps = self.episodes()
+            for ep in eps:
+                if (ep.get("outcome") != "worked" or not ep.get("event_id") or ep.get("followup")
+                        or not ep.get("action_at") or self.outbox.status_of(ep["event_id"]) in (None, "rejected")):
+                    continue
+                t0 = dt.datetime.fromisoformat(ep["action_at"])
+                later = [e for e in eps if e["seq"] > ep["seq"] and not e.get("dismissed") and (
+                    e.get("recurrence_of") == ep["episode_id"]
+                    or (ep.get("fault_class") and e.get("fault_class") == ep["fault_class"]))]
+                recur = next((e for e in sorted(later, key=lambda e: e["first_seen"])
+                              if dt.datetime.fromisoformat(e["first_seen"]) >= t0), None)
+                days_recur = ((dt.datetime.fromisoformat(recur["first_seen"]) - t0).total_seconds() / 86400
+                              if recur else None)
+                if recur is not None and days_recur <= self.cfg.hold_days:
+                    status, days = "recurred", days_recur
+                elif (now - t0).total_seconds() / 86400 >= self.cfg.hold_days:
+                    status, days = "held", self.cfg.hold_days
+                else:
+                    continue
+                fu = FollowUp(event_id=ids.followup_id(self.cfg.device_id, ep["event_id"]), episode_id=ep["episode_id"],
+                              refers_to=ep["event_id"], status=status, days_after_fix=round(max(days, 0.0), 3),
+                              hold_days=self.cfg.hold_days, occurred_at=now_iso()).model_dump(mode="json")
+                self.outbox.enqueue(fu)
+                self._set(ep["episode_id"], followup={
+                    "status": status, "days_after_fix": fu["days_after_fix"], "hold_days": self.cfg.hold_days,
+                    "event_id": fu["event_id"],
+                    "recurrence_episode": recur["episode_id"] if recur is not None and status == "recurred" else None})
+                self.outbox.log("followup", (f"fix HELD for {self.cfg.hold_days:g} days" if status == "held" else
+                                             f"fault RECURRED {fu['days_after_fix']:.1f} days after the fix")
+                                + "; follow-up queued for the fleet", ep["episode_id"])
+                out.append(fu)
+        return out
+
     def maybe_run_retention(self) -> dict | None:
-        """Hourly housekeeping: retention, and (if enabled) re-compressing files Edge created since last time."""
+        """Hourly housekeeping: retention, follow-ups, and (if enabled) re-compressing files Edge created since last
+        time."""
         if time.time() - self._last_retention >= RETENTION_EVERY_S:
+            self.check_followups()
             out = self.run_retention()
             if self.cfg.compress_storage:
                 out["compression"] = storage_os.enable_compression(self.cfg.root)
@@ -760,6 +998,11 @@ class Device:
             "machine_class": self.cfg.machine_class, "component": self.component, "profile": self.profile.describe(),
             "baseline_capture": self.capture_state(), "last_diagnosis": self.last_diagnosis,
             "risk_hint": getattr(self, "risk_hint", None), "note_protection": self.note_protection,
+            "machine_card": self.card.to_dict() if self.card else None,
+            "fleet_hint_model": self._model_summary(), "hold_days": self.cfg.hold_days,
+            "local_detector": ({k: v for k, v in (self.outbox.kv_get("local_detector") or {}).items()
+                                if k in ("trained_on", "cross_validated", "trained_at")} or None)
+            if self.profile.learned_detector else None,
             "baseline_ready": self.gate is not None, "gate": self.gate.cfg.to_dict() if self.gate else None,
             "windows": dict(self.counters), "last_gate": self.last_gate, "recent": list(self.recent),
             "gate_ms": {"p50": pct(g, 50), "p95": pct(g, 95), "n": len(g)},
@@ -770,6 +1013,11 @@ class Device:
             "raw_bytes_kept_local": int(self.counters["windows"] * 2048 * 4),
             "embedder": self.embedder.name,
         }
+
+    def _model_summary(self) -> dict | None:
+        m = self.fleet_model()
+        return None if m is None else {k: m.get(k) for k in ("classes", "trained_on", "unseen_device_accuracy",
+                                                             "unseen_device_cases", "trained_at")}
 
     def close(self) -> None:
         with self._lock:

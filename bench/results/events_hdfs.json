@@ -1,0 +1,15 @@
+{
+ "method": "The `events` profile (kiosks / apps / vehicle codes: \"which codes, how many, per bucket\") on REAL labelled logs.",
+ "protocol": "(seed 7, nothing tuned on the test sessions): the device's own pipeline - Events.features -> Baseline.fit ->\ngate.calibrate (as shipped for events: radius at a 1 % false-alarm target, set from\nhealthy data only) - learns \"normal\" from 5,000 Success sessions; tested on 50,000 other\nSuccess sessions (false alarms) and ALL Fail sessions not used anywhere (detection). A session is flagged when its\ndistance to the nearest healthy baseline point exceeds tau_normal (the gate's \"not normal\" decision).\nReference points from the Loghub/loglizer benchmark (He et al., ISSRE 2016, HDFS, unsupervised): PCA F1 0.79,\nInvariant Mining F1 0.91, Log Clustering F1 0.80 - different splits, shown for scale only.",
+ "baseline_sessions": 5000,
+ "tau_normal": 0.001,
+ "normal_sessions_tested": 50000,
+ "false_alarms": 193,
+ "false_alarm_rate": 0.0039,
+ "fail_sessions": 16838,
+ "detected": 16835,
+ "recall": 0.9998,
+ "precision_at_dataset_ratio": 0.9887,
+ "f1": 0.9942,
+ "note": "precision uses the tested sessions (50,000 normal : all failed); in HDFS ~3 % of sessions fail"
+}

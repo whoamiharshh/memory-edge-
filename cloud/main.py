@@ -1,8 +1,9 @@
 """Run the fleet cloud (Sync API + fleet UI) against Qdrant Server.
 
   .venv\\Scripts\\python.exe -m cloud.main --qdrant-url http://127.0.0.1:6333 --port 8100 --bootstrap
---bootstrap issues an admin token and device tokens (devA/site1, devB/site2, devC/site3) once and writes them to
-runtime/cloud/bootstrap.json (local demo secrets; the registry itself stores only hashes).
+--bootstrap issues two admin tokens (retraction needs two different admins) and device tokens (devA/site1,
+devB/site2, devC/site3) once and writes them to runtime/cloud/bootstrap.json (local demo secrets; the registry itself
+stores only hashes). Admin actions are appended to runtime/cloud/audit.log (hash-chained).
 """
 from __future__ import annotations
 
@@ -13,7 +14,9 @@ import pathlib
 import uvicorn
 
 from cloud.api import create_app
+from cloud.audit import AuditLog
 from cloud.auth import TokenRegistry
+from cloud.tls import server_context
 from cloud.store_server import CloudStore
 from shared.embed import HashEmbedder, load_embedder
 
@@ -24,8 +27,13 @@ RUNTIME = ROOT / "runtime" / "cloud"
 def bootstrap(reg: TokenRegistry, tenant: str) -> dict:
     path = RUNTIME / "bootstrap.json"
     if path.exists():
-        return json.loads(path.read_text())
-    out = {"tenant": tenant, "admin": reg.issue("admin", "hq", tenant, role="admin"), "devices": {}}
+        b = json.loads(path.read_text())
+        if "admin2" not in b:                          # bootstrap files from before the two-person rule
+            b["admin2"] = reg.issue("admin2", "hq", tenant, role="admin")
+            path.write_text(json.dumps(b, indent=2))
+        return b
+    out = {"tenant": tenant, "admin": reg.issue("admin", "hq", tenant, role="admin"),
+           "admin2": reg.issue("admin2", "hq", tenant, role="admin"), "devices": {}}
     for dev, site in (("devA", "site1"), ("devB", "site2"), ("devC", "site3")):
         out["devices"][dev] = {"site": site, "token": reg.issue(dev, site, tenant)}
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -45,7 +53,10 @@ def main() -> None:
     p.add_argument("--tls", action="store_true", help="serve HTTPS with runtime/tls/server.pem (tools/make_certs.py)")
     p.add_argument("--insecure-lan", action="store_true", help="allow plain HTTP on a non-localhost address (NOT advised)")
     p.add_argument("--mtls", action="store_true", help="mutual TLS: only devices with a CA-signed client certificate may "
-                   "connect (tools/make_certs.py device <id>); implies --tls")
+                   "connect (tools/make_certs.py device <id>); implies --tls; revoked certificates (tools/make_certs.py "
+                   "revoke <id> -> runtime/tls/crl.pem) are refused")
+    p.add_argument("--single-admin-retract", action="store_true",
+                   help="one admin may retract evidence alone (default: two different admins, the two-person rule)")
     a = p.parse_args()
     a.tls = a.tls or a.mtls
     if a.host not in ("127.0.0.1", "localhost", "::1") and not a.tls and not a.insecure_lan:
@@ -60,12 +71,13 @@ def main() -> None:
     scheme = "https" if a.tls else "http"
     print(f"[cloud] fleet UI: {scheme}://{a.host}:{a.port}/   Qdrant: {store.backend}", flush=True)
     tls = ROOT / "runtime" / "tls"
-    ssl = {"ssl_certfile": str(tls / "server.pem"), "ssl_keyfile": str(tls / "server.key")} if a.tls else {}
-    if a.mtls:
-        import ssl as ssl_mod
-        ssl |= {"ssl_ca_certs": str(tls / "ca.pem"), "ssl_cert_reqs": ssl_mod.CERT_REQUIRED}
-    uvicorn.run(create_app(store, reg, embedder), host=a.host, port=a.port, log_level="warning", **ssl)
-
+    app = create_app(store, reg, embedder, AuditLog(RUNTIME / "audit.log"), 1 if a.single_admin_retract else 2,
+                     coalesce=True)
+    # our own TLS context (uvicorn's ssl_context_factory hook): TLS >= 1.2; with mTLS, client certificates + CRL
+    factory = (lambda _cfg, _default: server_context(tls / "server.pem", tls / "server.key",
+                                                     tls / "ca.pem" if a.mtls else None,
+                                                     tls / "crl.pem" if a.mtls else None)) if a.tls else None
+    uvicorn.run(app, host=a.host, port=a.port, log_level="warning", ssl_context_factory=factory)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,478 @@
+{
+ "method": "Phone-microphone answer to the \"60 Hz phone\" weakness, measured on REAL microphone recordings.",
+ "dataset": "UODS-VAFDC v1, CC BY 4.0, DOI 10.17632/y2px5tg92h.1",
+ "protocol": "= one machine with its own device (profile `acoustic` on the microphone, `rotating-hf` on the\naccelerometer, bearing NSK 6203 from the paper):\n  baseline        first half of its healthy recording\n  false alarms    second half of the healthy recording (never seen)\n  detection       share of abnormal windows in the first 15 windows of the developing and of the faulty recording\n  fix verified    15 faulty windows -> action -> the rest of its healthy recording, then another bearing's healthy\n                  recording (\"a new bearing\") -> symptom_resolved?   (N = 15: recordings are only 10 s long)\n  still faulty    the fault continues after the action -> symptom_persists?\nAlso at a PHONE rate: the microphone decimated to 16 kHz happens inside the profile (analysis rate), i.e. exactly\nwhat a phone's 44.1/48 kHz audio becomes.",
+ "N_verify": 15,
+ "microphone": {
+  "profile": "acoustic",
+  "channel": "microphone",
+  "bearings": 20,
+  "false_alarms": {
+   "windows": 380,
+   "alarms": 0
+  },
+  "detection_developing": 0.927,
+  "detection_faulty": 0.957,
+  "fix_verified_same_bearing_healthy": "20/20",
+  "fix_verified_new_bearing": "19/20",
+  "still_faulty_caught": "19/20",
+  "rows": [
+   {
+    "bearing": 1,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 2,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_persists",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 3,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 4,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 5,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 6,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 7,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 8,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 9,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 10,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 11,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 12,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 0.467,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 13,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 0.067,
+    "detected_faulty": 0.133,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_resolved"
+   },
+   {
+    "bearing": 14,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 15,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 16,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 17,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 18,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 19,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 20,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 19,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   }
+  ]
+ },
+ "accelerometer": {
+  "profile": "rotating-hf",
+  "channel": "accelerometer",
+  "bearings": 20,
+  "false_alarms": {
+   "windows": 620,
+   "alarms": 0
+  },
+  "detection_developing": 0.95,
+  "detection_faulty": 0.97,
+  "fix_verified_same_bearing_healthy": "20/20",
+  "fix_verified_new_bearing": "18/20",
+  "still_faulty_caught": "19/20",
+  "rows": [
+   {
+    "bearing": 1,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 2,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 3,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 4,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 5,
+    "fault": "inner_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 6,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 7,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 8,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 9,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_persists",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 10,
+    "fault": "outer_race",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 11,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 12,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 13,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 0.0,
+    "detected_faulty": 0.4,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_resolved"
+   },
+   {
+    "bearing": 14,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 15,
+    "fault": "ball",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 16,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "verifying",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 17,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 18,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 19,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   },
+   {
+    "bearing": 20,
+    "fault": "cage",
+    "false_alarms": 0,
+    "healthy_windows": 31,
+    "detected_developing": 1.0,
+    "detected_faulty": 1.0,
+    "fixed_same_bearing_healthy": "symptom_resolved",
+    "fixed_new_bearing": "symptom_resolved",
+    "still_faulty": "symptom_persists"
+   }
+  ]
+ }
+}

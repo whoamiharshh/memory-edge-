@@ -6,14 +6,20 @@
   POST /v1/mirror/snapshot/partial   device  body = the device's snapshot_manifest -> partial snapshot (gzip), or 304
   GET  /v1/mirror/cases?since=&limit device  case groups with seq > since (scroll fallback, kill test K5)
   GET  /v1/cases, /v1/cases/{id}     device|admin  fleet evidence (admin also sees the events)
-  GET  /v1/disputes                  device|admin  cases carrying DISPUTED / COMPETING flags
-  POST /v1/events/{id}/retract       admin   tombstone one piece of evidence (never hard-deleted)
+  GET  /v1/disputes                  device|admin  cases carrying DISPUTED / COMPETING / RECURRED flags
+  GET  /v1/fleet/hint-model          device|admin  fleet-learned fault hint (plain JSON coefficients + its
+                                                   leave-one-device-out accuracy), trained on confirmed cases
+  POST /v1/events/{id}/retract       admin   request a tombstone; a SECOND, different admin's call carries it out
   POST /v1/admin/devices             admin   issue a device token      POST /v1/admin/devices/{id}/revoke
+  POST /v1/admin/devices/{id}/quarantine | /unquarantine   admin   pull / restore ALL evidence of one device
+  GET  /v1/admin/devices             admin   tokens + per-device evidence counts + code-integrity status
+  GET  /v1/admin/audit               admin   hash-chained audit log of admin actions + chain check
   GET  /v1/health                    public  GET /  fleet UI
 Tenant always comes from the token.
 """
 from __future__ import annotations
 
+import collections
 import pathlib
 from typing import Any
 
@@ -22,7 +28,10 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from cloud import ingest
+from cloud import hint_model, ingest
+from cloud.audit import AuditLog
+from cloud.recompute import Recomputer
+from shared.integrity import code_hash
 from cloud.auth import AuthContext, TokenRegistry
 from cloud.store_server import CloudStore, SnapshotError
 from shared.embed import Embedder
@@ -42,16 +51,43 @@ class IssueBody(BaseModel):
     role: str = Field(default="device", pattern=r"^(device|admin)$")
 
 
-def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -> FastAPI:
+class QuarantineBody(BaseModel):
+    reason: str = Field(min_length=3, max_length=200)
+
+
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                               "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+                               "form-action 'self'",
+    "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), accelerometer=()",
+}
+
+
+def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, audit: AuditLog | None = None,
+               retract_approvals: int = 2, coalesce: bool = False) -> FastAPI:
+    """coalesce=True (the production launcher): pushes return once events are durable and case tallies are recomputed
+    by one background worker (cloud/recompute.py); every read flushes its tenant's pending cases first."""
     app = FastAPI(title="Machine Memory - Fleet Cloud", docs_url="/docs")
-    app.state.store, app.state.registry = store, registry
+    audit = audit or AuditLog()
+    app.state.store, app.state.registry, app.state.audit = store, registry, audit
+    code_seen: dict[str, dict] = {}
+    rc = Recomputer(store, embedder) if coalesce else None
+    app.state.recomputer = rc
+    fresh = (lambda tenant: rc.flush(tenant)) if rc else (lambda tenant: 0)
+    release = code_hash()
 
     @app.middleware("http")
     async def limit_body(request: Request, call_next):
         cl = request.headers.get("content-length")
-        if cl and int(cl) > MAX_BODY:
+        if cl and (not cl.isdigit() or int(cl) > MAX_BODY):
             return JSONResponse({"detail": "request body too large"}, status_code=413)
-        return await call_next(request)
+        resp = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            resp.headers.setdefault(k, v)
+        if request.url.path.startswith("/v1/"):
+            resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     def auth(request: Request) -> AuthContext:
         h = request.headers.get("authorization", "")
@@ -72,11 +108,14 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
         return {"ok": True, "backend": store.backend}
 
     @app.post("/v1/sync/push")
-    def push(req: PushRequest, ctx: AuthContext = Depends(auth)):
-        return ingest.push(store, embedder, ctx, req)
+    def push(req: PushRequest, request: Request, ctx: AuthContext = Depends(auth)):
+        h = request.headers.get("x-code-hash", "")[:64]
+        code_seen[ctx.device_id] = {"code_hash": h or None, "at": ingest._now()}
+        return ingest.push(store, embedder, ctx, req, defer=rc.mark if rc else None)
 
     @app.get("/v1/mirror/head")
     def mirror_head(since: int | None = None, ctx: AuthContext = Depends(auth)):
+        fresh(ctx.tenant_id)
         return store.mirror_head(ctx.tenant_id, since) | {"text_model": embedder.name}   # model of the mirror's text vectors
 
     def _snapshot_response(tenant: str, manifest: dict | None):
@@ -92,17 +131,20 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
 
     @app.get("/v1/mirror/snapshot")
     def mirror_snapshot(ctx: AuthContext = Depends(auth)):
+        fresh(ctx.tenant_id)
         return _snapshot_response(ctx.tenant_id, None)
 
     @app.post("/v1/mirror/snapshot/partial")
     def mirror_partial(manifest: dict[str, Any] = Body(...), ctx: AuthContext = Depends(auth)):
         if not manifest or not all(isinstance(v, dict) for v in manifest.values()):
             raise HTTPException(422, "body must be an Edge snapshot manifest (segment id -> segment manifest)")
+        fresh(ctx.tenant_id)
         return _snapshot_response(ctx.tenant_id, manifest)
 
     @app.get("/v1/mirror/cases")
     def mirror(since: int = 0, limit: int = 200, ctx: AuthContext = Depends(auth)):
         limit = max(1, min(limit, 500))
+        fresh(ctx.tenant_id)
         rows = store.cases(ctx.tenant_id, since=since, limit=limit + 1, with_vectors=True)
         items = [{"id": r["case_id"], "payload": {k: v for k, v in r.items() if k != "_vectors"},
                   "vib": r["_vectors"]["vib"], "note": r["_vectors"]["note"], "text": r["text"]} for r in rows[:limit]]
@@ -110,10 +152,12 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
 
     @app.get("/v1/cases")
     def cases(ctx: AuthContext = Depends(auth)):
+        fresh(ctx.tenant_id)
         return sorted(store.cases(ctx.tenant_id, since=0, limit=1000), key=lambda c: c.get("updated_at", ""), reverse=True)
 
     @app.get("/v1/cases/{case_id}")
     def case(case_id: str, ctx: AuthContext = Depends(auth)):
+        fresh(ctx.tenant_id)
         c = store.get_case(ctx.tenant_id, case_id)
         if c is None:
             raise HTTPException(404, "no such case in your tenant")
@@ -123,28 +167,88 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder) -
 
     @app.get("/v1/disputes")
     def disputes(ctx: AuthContext = Depends(auth)):
+        fresh(ctx.tenant_id)
         return [c for c in store.cases(ctx.tenant_id, since=0, limit=1000)
-                if any(f["kind"] in ("DISPUTED", "COMPETING") for f in c.get("flags", []))]
+                if any(f["kind"] in ("DISPUTED", "COMPETING", "RECURRED") for f in c.get("flags", []))]
+
+    hint_cache: dict[str, tuple[str, dict]] = {}
+
+    @app.get("/v1/fleet/hint-model")
+    def fleet_hint_model(ctx: AuthContext = Depends(auth)):
+        evs = store.events(ctx.tenant_id)
+        from shared.ids import content_hash
+        key = content_hash(sorted((e.get("event_id"), e.get("status"), e.get("fault_class")) for e in evs))
+        hit = hint_cache.get(ctx.tenant_id)
+        if hit is None or hit[0] != key:
+            hit = (key, hint_model.train(evs))
+            hint_cache[ctx.tenant_id] = hit
+        return hit[1]
 
     @app.post("/v1/events/{event_id}/retract")
     def retract(event_id: str, body: RetractBody, ctx: AuthContext = Depends(admin)):
         try:
-            return ingest.retract(store, embedder, ctx, event_id, body.reason)
+            ev = ingest.retract(store, embedder, ctx, event_id, body.reason, retract_approvals)
         except KeyError:
             raise HTTPException(404, "no such event in your tenant")
+        except ingest.SameApprover as e:
+            raise HTTPException(409, str(e))
+        done = ev.get("status") == "retracted"
+        audit.append(ctx.device_id, ctx.tenant_id, "retract_approved" if done else "retract_requested",
+                     event_id=event_id, reason=body.reason)
+        return ev | {"retraction": "done" if done else "pending: a second admin must approve"}
 
     @app.post("/v1/admin/devices")
     def issue(body: IssueBody, ctx: AuthContext = Depends(admin)):
         token = registry.issue(body.device_id, body.site_id, ctx.tenant_id, body.role)
+        audit.append(ctx.device_id, ctx.tenant_id, "token_issued", device_id=body.device_id, role=body.role)
         return {"device_id": body.device_id, "token": token, "note": "shown once; only its hash is stored"}
 
     @app.post("/v1/admin/devices/{device_id}/revoke")
     def revoke(device_id: str, ctx: AuthContext = Depends(admin)):
-        return {"revoked": registry.revoke(device_id)}
+        n = registry.revoke(device_id)
+        audit.append(ctx.device_id, ctx.tenant_id, "token_revoked", device_id=device_id, tokens=n)
+        return {"revoked": n}
+
+    @app.post("/v1/admin/devices/{device_id}/quarantine")
+    def quarantine(device_id: str, body: QuarantineBody, ctx: AuthContext = Depends(admin)):
+        out = ingest.quarantine(store, embedder, ctx.tenant_id, device_id, True, body.reason)
+        out["tokens_revoked"] = registry.revoke(device_id)
+        audit.append(ctx.device_id, ctx.tenant_id, "device_quarantined", device_id=device_id, reason=body.reason,
+                     events=out["quarantined"])
+        return out
+
+    @app.post("/v1/admin/devices/{device_id}/unquarantine")
+    def unquarantine(device_id: str, body: QuarantineBody, ctx: AuthContext = Depends(admin)):
+        out = ingest.quarantine(store, embedder, ctx.tenant_id, device_id, False)
+        audit.append(ctx.device_id, ctx.tenant_id, "device_restored", device_id=device_id, reason=body.reason,
+                     events=out["restored"], note="its old tokens stay revoked: issue a new one")
+        return out
 
     @app.get("/v1/admin/devices")
     def devices(ctx: AuthContext = Depends(admin)):
-        return [{k: v for k, v in d.items()} for d in registry.devices(ctx.tenant_id)]
+        """Tokens plus, per device, COUNTS of its evidence (never a trust score) and whether its code matches this
+        release (shared/integrity.py: tamper evidence, not attestation)."""
+        counts: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+        for e in store.events(ctx.tenant_id):
+            c = counts[e.get("device_id")]
+            c[e.get("status", "active")] += 1
+            c[e.get("outcome", "?")] += 1
+            fu = (e.get("followup") or {}).get("status")
+            if fu:
+                c[fu] += 1
+        out = []
+        for d in registry.devices(ctx.tenant_id):
+            seen = code_seen.get(d["device_id"])
+            out.append({k: v for k, v in d.items()} | {
+                "evidence": dict(counts.get(d["device_id"], {})),
+                "code": None if not seen else ("matches this release" if seen["code_hash"] == release else "DIFFERS"),
+                "code_seen": seen})
+        return out
+
+    @app.get("/v1/admin/audit")
+    def audit_log(limit: int = 200, ctx: AuthContext = Depends(admin)):
+        return {"chain": audit.verify(),
+                "entries": [e for e in audit.entries() if e["tenant"] == ctx.tenant_id][-max(1, min(limit, 5000)):]}
 
     @app.post("/v1/token/renew")
     def renew(request: Request, ctx: AuthContext = Depends(auth)):

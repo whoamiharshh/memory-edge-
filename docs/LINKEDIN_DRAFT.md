@@ -1,27 +1,25 @@
-# LinkedIn post draft (edit freely; every number is from bench/results/)
+# LinkedIn post draft (a DRAFT only - nothing is posted without your manual decision; every number is from bench/results/)
 
 Built for Code Cubicle 6.0 (Geek Room) × Qdrant, PS3: **Machine Memory at the Edge**.
 
-Industrial machines fail, get fixed, and the fix is often forgotten or repeated wrongly at the next site. I built
-an offline fault memory on **Qdrant Edge**. Each machine's device remembers vibration fault episodes and what
-fixed them, and it searches that memory with no network.
+Machines fail, get fixed, and the fix is forgotten or repeated wrongly at the next site. I built an offline fault
+memory on **Qdrant Edge**: each machine's device remembers fault episodes and what fixed them, searches that memory
+with no network, and shares a fix with the fleet **only after its own sensor data shows the fix held** - then reports
+weeks later whether it still held. The cloud keeps disagreement as evidence ("worked at 2 sites, failed at 1") instead
+of overwriting it.
 
-The core idea: a fix is shared with the fleet **only after the machine's own sensor data shows it held**.
-Failed fixes are shared too. The cloud keeps disagreement as evidence ("worked at 2 sites, failed at 1")
-instead of overwriting it.
+What I measured, on public real-world data:
+🔹 Fix verification: 36/36 fixes verified and 36/36 still-faulty cases caught on CWRU, **0 false promotions**; 42/42 on a second lab (HUST) it was never tuned on
+🔹 A **phone microphone** as the sensor: 0 false alarms in 380 healthy windows and 96 % of faulty windows flagged on bearings that wore out naturally (University of Ottawa data)
+🔹 The fleet **learns fault types** from technician-confirmed cases: when physics and the fleet model agree the hint was right 39/39 (HUST) and 12/13 (natural wear) on bearings it never saw
+🔹 Hybrid search (dense + BM25 fused in one Qdrant Edge query) beat either alone on real maintenance logs: P@3 0.885
+🔹 20 devices syncing at once: 1,000 events, 0 lost, 0 double-counted
+🔹 The honest one: vibration similarity is 99.7 % on the usual (leaky) split but 43 % on unseen bearings - so the fleet groups by the technician-confirmed fault class, not by similarity
 
-What I measured, honestly:
-🔹 Sensor verification on all 36 CWRU fault recordings: 36/36 fixes verified, 36/36 still-faulty cases caught, **0 false promotions**
-🔹 Hybrid search (dense + BM25, fused in one Qdrant Edge query) beat either alone on real maintenance logs: P@3 0.881 vs 0.843 vs 0.794
-🔹 A shared fix is 863 bytes; the raw signal it summarises (~500 kB) never leaves the machine
-🔹 Crash + network-partition harness: 0 lost, 0 double-counted events
-🔹 The honest one: vibration similarity reaches 99.7% on the usual (leaky) split but only 43% on bearings it has never seen. So fleet matching uses the technician-confirmed fault class, not vibration similarity.
+Every model is trained on real data only; made-up data appears only in unit tests.
 
-A small local LLM (Qwen2.5-1.5B, offline) writes a cited summary of the evidence. Uncited or advice-giving
-sentences are removed, and it never makes a decision.
-
-Stack: Qdrant Edge + Qdrant Server, FastEmbed (bge-small), FastAPI, SQLite outbox, llama.cpp. It runs on a
-laptop with no GPU and no Docker.
+Stack: Qdrant Edge + Qdrant Server, FastEmbed (bge-small), FastAPI, SQLite outbox, llama.cpp (optional cited summary).
+Runs on a laptop with no GPU and no Docker.
 
 Repo: <GitHub link>
 #Qdrant #EdgeAI #VectorSearch #PredictiveMaintenance #Hackathon #CodeCubicle

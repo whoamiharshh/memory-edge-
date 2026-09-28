@@ -24,6 +24,7 @@ from edge.store_edge import EdgeStore
 NORMAL_FACTOR = 2.0        # bench/gate_sweep.py: 0 false alarms and 100 % detection for 1.5 <= factor <= 4.0
 MERGE_FACTOR = 1.5         # bench/gate_sweep.py (docs/DECISIONS.md D11): 3.0 separated only 11/20 different faults;
                            # 1.5 separates 20/20, recurrence 36/36, intermittent same fault stays 1 episode 35/36
+TAU_FLOOR = 1e-3          # float32 distances of identical states are not exactly 0
 RECURRENCE_FACTOR = 1.0     # "seen before" if within tau_merge of a closed episode's exemplar
 
 
@@ -38,17 +39,32 @@ class GateConfig:
         return asdict(self)
 
 
-def calibrate(healthy_z: np.ndarray, seed: int = 0, normal_factor: float | None = None) -> GateConfig:
+def _nn(b: np.ndarray, a: np.ndarray, chunk: int = 1024) -> np.ndarray:
+    """Distance of each row of b to its nearest row of a (chunked: large event baselines stay in memory bounds)."""
+    return np.concatenate([np.sqrt(((b[i:i + chunk, None, :] - a[None, :, :]) ** 2).sum(-1)).min(axis=1)
+                           for i in range(0, len(b), chunk)])
+
+
+def calibrate(healthy_z: np.ndarray, seed: int = 0, normal_factor: float | None = None,
+              target_false_alarm: float | None = None) -> GateConfig:
     """Split-half calibration: distance of each held-out healthy window to its nearest neighbour in the
     other half. Needs >= 10 windows. normal_factor overrides NORMAL_FACTOR for a profile that measured its own
-    (e.g. force-torque: bench/robot_failures.py tunes it on two robot tasks and tests it on three others)."""
+    (e.g. force-torque: bench/robot_failures.py tunes it on two robot tasks and tests it on three others).
+    target_false_alarm (events profile): tau_normal = the (1 - target) quantile of those held-out healthy distances,
+    i.e. the radius is set from HEALTHY data only so that about that share of unseen healthy states would alarm.
+    Needed because event buckets repeat exactly: q99 of the split-half distances is 0 and 2 x 0 = 0
+    (bench/events_hdfs.py on real HDFS logs)."""
     if len(healthy_z) < 10:
         raise ValueError("need at least 10 healthy windows to calibrate the gate")
+    healthy_z = np.asarray(healthy_z, dtype=np.float64)
     idx = np.random.default_rng(seed).permutation(len(healthy_z))
     a, b = healthy_z[idx[: len(idx) // 2]], healthy_z[idx[len(idx) // 2:]]
-    d = np.sqrt(((b[:, None, :] - a[None, :, :]) ** 2).sum(-1)).min(axis=1)
+    d = _nn(b, a)
     q99 = float(np.percentile(d, 99))
-    tau_n = (NORMAL_FACTOR if normal_factor is None else normal_factor) * q99
+    if target_false_alarm is not None:
+        tau_n = max(float(np.quantile(d, 1.0 - target_false_alarm)), TAU_FLOOR)
+    else:
+        tau_n = (NORMAL_FACTOR if normal_factor is None else normal_factor) * q99
     return GateConfig(tau_normal=tau_n, tau_merge=MERGE_FACTOR * tau_n, calib_q99=q99, n_calib=len(healthy_z))
 
 
@@ -71,6 +87,20 @@ class NoveltyGate:
         if not hits:
             raise RuntimeError("no baseline stored for this machine; fit the baseline first")
         return hits[0].score
+
+    def classify_abnormal(self, z: np.ndarray, first: GateResult) -> GateResult:
+        """The rest of classify() for a window another detector called abnormal although it is inside the healthy
+        radius: merge into an active episode it is close to, else a new one."""
+        t = time.perf_counter()
+        hits = self.store.nearest(z, filter={"type": "exemplar", "machine_id": self.machine_id}, limit=5)
+        active = [h for h in hits if h.payload.get("episode_active")]
+        if active and active[0].score <= self.cfg.tau_merge:
+            return GateResult("merge", first.d_baseline, active[0].score, active[0].payload["episode_id"], None,
+                              first.latency_ms + (time.perf_counter() - t) * 1000)
+        closed = [h for h in hits if not h.payload.get("episode_active")]
+        rec = closed[0].payload["episode_id"] if closed and closed[0].score <= self.cfg.tau_merge * RECURRENCE_FACTOR else None
+        return GateResult("new", first.d_baseline, hits[0].score if hits else None, None, rec,
+                          first.latency_ms + (time.perf_counter() - t) * 1000)
 
     def classify(self, z: np.ndarray) -> GateResult:
         t = time.perf_counter()

@@ -75,12 +75,19 @@ async function refreshDetail() {
       el("tbody", {}, ...c.events.map((e) => el("tr", { class: e.status === "retracted" ? "strike" : "" },
         el("td", {}, e.site_id), el("td", {}, e.action_code), el("td", {}, badge(e.outcome, e.outcome === "worked" ? "b-ok" : "b-bad")),
         el("td", { class: "muted" }, `${e.verify_windows_ok}/${e.verify_windows_required} windows`),
-        el("td", {}, e.status === "retracted" ? badge("retracted: " + (e.retract_reason || ""), "b-warn") : badge("active", "b-ok")),
-        el("td", {}, e.status !== "retracted" ? el("button", { class: "danger", on: { click: act(async () => {
-          const reason = window.prompt("Reason for retracting this report (kept as a tombstone):", "fabricated report");
+        el("td", {}, e.status === "retracted" ? badge("retracted: " + (e.retract_reason || ""), "b-warn")
+          : e.status === "quarantined" ? badge("quarantined: " + (e.quarantine_reason || ""), "b-warn")
+          : e.retraction_request ? badge(`retraction requested by ${e.retraction_request.by}: ${e.retraction_request.reason}`, "b-warn")
+          : badge("active", "b-ok"),
+          e.followup ? badge(e.followup.status === "held" ? `held ${e.followup.hold_days} d` : `recurred after ${e.followup.days_after_fix} d`, e.followup.status === "held" ? "b-ok" : "b-bad") : ""),
+        el("td", {}, e.status === "active" || !e.status ? el("button", { class: "danger", on: { click: act(async () => {
+          const second = !!e.retraction_request;
+          const reason = second ? e.retraction_request.reason : window.prompt("Reason for retracting this report (kept as a tombstone; a second admin must confirm):", "fabricated report");
           if (!reason) return;
-          await api(`/v1/events/${e.event_id}/retract`, { reason }); toast("retracted (tombstoned, not deleted)"); refreshDetail(); refreshCases();
-        }) } }, "Retract") : ""))))))));
+          const r = await api(`/v1/events/${e.event_id}/retract`, { reason });
+          toast(r.retraction === "done" ? "retracted (tombstoned, not deleted)" : "retraction requested: a second admin must confirm");
+          refreshDetail(); refreshCases();
+        }) } }, e.retraction_request ? "Confirm retraction" : "Retract") : ""))))))));
   }
   $("detail").replaceChildren(...kids);
 }
@@ -90,16 +97,37 @@ async function refreshDevices() {
   const ds = await api("/v1/admin/devices");
   $("devBody").replaceChildren(...ds.map((d) => el("tr", {}, el("td", {}, d.device_id), el("td", {}, d.site_id), el("td", {}, d.role),
     el("td", {}, d.revoked ? badge("revoked", "b-bad") : badge("active", "b-ok")),
-    el("td", {}, !d.revoked && d.role === "device" ? el("button", { class: "danger", on: { click: act(async () => { await api(`/v1/admin/devices/${d.device_id}/revoke`, {}); toast("revoked"); refreshDevices(); }) } }, "Revoke") : ""))));
+    el("td", { class: "muted" }, Object.entries(d.evidence || {}).map(([k, v]) => `${k} ${v}`).join(" · ") || "–"),
+    el("td", {}, d.code ? badge(d.code, d.code === "DIFFERS" ? "b-bad" : "b-ok") : el("span", { class: "muted" }, "not seen yet")),
+    el("td", {}, d.role === "device" ? el("span", {},
+      !d.revoked ? el("button", { class: "danger", on: { click: act(async () => { await api(`/v1/admin/devices/${d.device_id}/revoke`, {}); toast("revoked"); refreshDevices(); }) } }, "Revoke") : "",
+      (d.evidence || {}).active ? el("button", { class: "danger", on: { click: act(async () => {
+        const reason = window.prompt("Quarantine ALL evidence of this device (reversible) and revoke its tokens. Reason:", "suspected compromised device");
+        if (!reason) return;
+        const r = await api(`/v1/admin/devices/${d.device_id}/quarantine`, { reason });
+        toast(`quarantined ${r.quarantined} report(s); ${r.cases_recomputed} case(s) recomputed`); refreshDevices(); refreshCases(); }) } }, "Quarantine") : "",
+      (d.evidence || {}).quarantined ? el("button", { on: { click: act(async () => {
+        const reason = window.prompt("Restore this device's quarantined evidence. Reason:", "investigated: device is fine");
+        if (!reason) return;
+        await api(`/v1/admin/devices/${d.device_id}/unquarantine`, { reason }); toast("restored (issue a new token for the device)"); refreshDevices(); refreshCases(); }) } }, "Restore") : "") : ""))));
+}
+
+async function refreshAudit() {
+  if (!me || me.role !== "admin") return;
+  const a = await api("/v1/admin/audit?limit=100");
+  $("auditChain").replaceChildren(a.chain.ok ? badge(`chain intact · ${a.chain.entries} entries`, "b-ok") : badge(`CHAIN BROKEN at entry ${a.chain.broken_at}`, "b-bad"));
+  $("auditBody").replaceChildren(...a.entries.slice().reverse().map((e) => el("tr", {}, el("td", { class: "mono" }, e.at), el("td", {}, e.actor),
+    el("td", {}, e.action), el("td", { class: "muted" }, Object.entries(e.detail).map(([k, v]) => `${k}: ${v}`).join(" · ")))));
 }
 
 async function boot() {
   me = me || await api("/v1/whoami");
   $("hTen").textContent = me.tenant_id; $("hWho").textContent = `${me.device_id} (${me.role})`;
   $("devCard").hidden = me.role !== "admin";
+  $("auditCard").hidden = me.role !== "admin";
   const h = await fetch("/v1/health").then((r) => r.json()); $("hBackend").textContent = "Qdrant: " + h.backend;
   $("onlyDisputes").onchange = act(refreshCases);
   $("issueBtn").onclick = act(async () => { const r = await api("/v1/admin/devices", { device_id: $("nDev").value.trim(), site_id: $("nSite").value.trim() }); $("issued").textContent = `token (shown once): ${r.token}`; refreshDevices(); });
-  for (const [fn, ms] of [[refreshCases, 3000], [refreshDetail, 3000], [refreshDevices, 5000]]) { fn().catch(() => {}); setInterval(() => fn().catch(() => {}), ms); }
+  for (const [fn, ms] of [[refreshCases, 3000], [refreshDetail, 3000], [refreshDevices, 5000], [refreshAudit, 5000]]) { fn().catch(() => {}); setInterval(() => fn().catch(() => {}), ms); }
 }
 if (!token) showLogin(); else api("/v1/whoami").then((w) => { me = w; boot(); }).catch(showLogin);

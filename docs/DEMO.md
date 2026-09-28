@@ -28,12 +28,23 @@ phone on a desk fan as a live sensor (docs/FIELD_TEST.md Part 2). There is no Do
 | 6 | Switch **ONLINE** | "Connectivity returns: the outbox drains." Press **Resend**: "Same event again: the cloud says duplicate, and counts it once." | QUEUED → SYNCED; activity shows `1 duplicate` |
 | 6b | Device C tab (site 3, `operator-devC`): OFFLINE; Play `106`; confirm *inner_race*; record *replace_bearing* with root cause *lubrication_starvation*; Play `106` again from window 30; *Failed*; ONLINE | "Another site tried the same fix, and on its machine the fault persisted. That is shared too, as failed evidence." | Verification: symptom persists → SHARE as failed evidence |
 | 7 | Fleet cloud tab → the case | "Grouped by component and **technician-confirmed** fault class, because we measured that vibration similarity does not transfer across bearings (43 %). Disagreement is kept, not overwritten." | replace_bearing worked at site1, failed at site3: **DISPUTED + COMPETING** (fatigue wear vs lubrication starvation), both kept |
-| 8 | Device B: ONLINE → Sync now → OFFLINE; Play `169 · inner_race 14 mil` (a bearing A never saw); Similar to selected episode | "B pulled the fleet mirror: a full Qdrant shard snapshot the first time (gzip ~190 kB), then small deltas. Now it is offline and meets a new bearing." | **Fleet evidence offline**, including the disagreement; per-leg ranks vib / note / bm25; physics panel (severity, defect frequencies) and the cited **documented procedure** for the fault class |
+| 8 | Device B: ONLINE → Sync now → OFFLINE; Play `169 · inner_race 14 mil` (a bearing A never saw); Similar to selected episode | "B pulled the fleet mirror - whichever is cheaper in measured bytes: rows for a small fleet, a Qdrant shard snapshot for a big one. Now it is offline and meets a new bearing." | **Fleet evidence offline**, including the disagreement; per-leg ranks vib / note / bm25; physics panel (severity, defect frequencies) and the cited **documented procedure** for the fault class |
 | 9 | Evidence brief → Generate | "A local 1.5B model summarises only the retrieved evidence. Every sentence must cite it, and advice is removed. It is never used for decisions." | Cited brief, removed sentences listed |
 | 10 | (optional) Wi-Fi off, repeat step 8's search | "Nothing here needs the network." | Same result |
 
+**Extra beats if there is time (each ~30 s):**
+- **Machine card** (Device A, bottom): enter the manufacturer's limits and bearing from a manual - "fixed" now also
+  means *below the manufacturer's limit*; upload a PDF manual and the episode shows the manual's page on the fault.
+- **Fault-type confidence:** the hint shows `CONFIDENT: physics + fleet agree` or `UNCERTAIN: inspect`, with the fleet
+  model's accuracy on devices it never saw.
+- **Two-admin retraction** (fleet tab): Retract with the first admin token -> "requested"; sign in with the second
+  admin token (`admin2` in `runtime\cloud\bootstrap.json`) -> Confirm retraction; the audit log shows both, chain intact.
+- **Phone microphone** (needs HTTPS, docs/SETUP.md): a device started with `--profile acoustic`, `/sensor` on the phone,
+  mode Microphone - the phone listens to a running fan or motor.
+
 **Proof panel to show at the end** (README "Measurements"): K3 0 false promotions; K2 honest table; partition bench
-0 lost / 0 duplicates over 1,000 events; offline check 15/15 with 0 connection attempts; mirror bytes; latency.
+0 lost / 0 duplicates over 1,000 events; 20 devices at once, 0 lost; offline check 15/15 with 0 connection attempts;
+microphone on naturally worn bearings 0/380 false alarms; the fleet-hint table; latency.
 
 ## Rehearsal checklist
 - [ ] `demo\run_demo.ps1 -Reset` starts all four processes (launcher prints the four URLs)

@@ -1,0 +1,12 @@
+{
+ "status": "HISTORICAL - the run that FOUND the cloud freeze, before the fixes (docs/DECISIONS.md D40). Superseded by scale_fleet_20x50.json.",
+ "what_happened": "20 devices pushed 5 events each at once. One Qdrant client call hung while holding the cloud store's single global lock, so every push timed out on the device side (5 s timeout).",
+ "events_not_accepted_by_the_cloud": 100,
+ "events_lost_on_the_devices": 0,
+ "note": "'not accepted' is NOT data loss: every event stayed in its device's outbox as failed-and-retry, exactly as designed; after the fixes the same test accepted 1,000/1,000 with 0 lost and 0 double-counted.",
+ "devices": 20,
+ "events_per_device": 5,
+ "push_request_ms_p50": 5049.9,
+ "pull_wall_s_all_devices": 134.01,
+ "machine": "Intel i5-1335U laptop, all processes on one machine (network = loopback)"
+}

@@ -1,0 +1,72 @@
+{
+  "method": "Vehicles, bigger REAL training set: the SCANIA Component X TRAINING split (time-to-event labels) instead of only the",
+  "protocol": "(all real): for each training truck, up to 3 random cut points in its life (plus up to 2 more inside\nthe last 48 time steps of trucks that were repaired). Label at a cut = \"Component X repaired within 48 time steps\"\n(repaired AND study end - cut <= 48). Cuts of NOT-repaired trucks within 48 steps of the study end are censored (the\noutcome is unknown) and dropped - never guessed. Features at a cut: bench.vehicle_scania.truck_features on the\nreadouts up to that cut (the same features as the shipped model).\nData note: the training readouts downloaded up to 1,182,793,728 bytes before the SND server began refusing requests\n(HTTP 401); the file is sorted by vehicle id, so the first 22,982 of 23,550 trucks are complete - the last, cut-off\ntruck is dropped (22,981 used). Vehicle ids are anonymised, so the missing 2.4 % should not bias the result.\nModel choice: 5-fold GROUP cross-validation over training TRUCKS (a truck's cuts never straddle folds) - logistic\nregression vs gradient boosting. The winner is then trained on all training cuts and evaluated ONCE on the test trucks\n(each with Scania's own class label of its last readout; target class >= 1), with the alert threshold fixed on the\ntraining scores (riskiest 10 %), exactly like bench/vehicle_scania.py, and compared with that earlier model.",
+  "train_cuts": {
+    "examples": 67781,
+    "trucks": 21637,
+    "positives": 6296
+  },
+  "cv_over_trucks": {
+    "logistic_regression": {
+      "roc_auc_mean": 0.779,
+      "roc_auc_folds": [
+        0.789,
+        0.767,
+        0.771,
+        0.779,
+        0.788
+      ]
+    },
+    "gradient_boosting": {
+      "roc_auc_mean": 0.794,
+      "roc_auc_folds": [
+        0.798,
+        0.792,
+        0.792,
+        0.793,
+        0.795
+      ]
+    }
+  },
+  "chosen_by_cv": "gradient_boosting",
+  "test": {
+    "logistic_regression": {
+      "roc_auc": 0.601,
+      "pr_auc": 0.038,
+      "alert_rate": 0.175,
+      "recall_repair_within_48": 0.225,
+      "recall_repair_within_6": 0.333,
+      "precision": 0.036,
+      "base_rate": 0.028
+    },
+    "gradient_boosting": {
+      "roc_auc": 0.66,
+      "pr_auc": 0.053,
+      "alert_rate": 0.191,
+      "recall_repair_within_48": 0.317,
+      "recall_repair_within_6": 0.383,
+      "precision": 0.047,
+      "base_rate": 0.028
+    }
+  },
+  "previous_model_trained_on_validation_only": {
+    "logistic_regression": {
+      "test_roc_auc": 0.75,
+      "test_pr_auc": 0.074,
+      "test_alert_rate": 0.097,
+      "test_recall_repair_within_48": 0.324,
+      "test_recall_repair_within_6": 0.317,
+      "test_precision": 0.094,
+      "base_rate": 0.028
+    },
+    "gradient_boosting": {
+      "test_roc_auc": 0.677,
+      "test_pr_auc": 0.065,
+      "test_alert_rate": 0.091,
+      "test_recall_repair_within_48": 0.239,
+      "test_recall_repair_within_6": 0.233,
+      "test_precision": 0.074,
+      "base_rate": 0.028
+    }
+  }
+}

@@ -5,6 +5,64 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D40 · Cloud scaling: per-thread Qdrant clients, lock stripes, batched ingest, coalesced recompute (28 Sep 2026)
+`bench/scale_fleet.py` (20 devices at once, real Qdrant Server, real HTTP) first **froze the whole cloud**: one Qdrant
+call hung while holding the store's single global lock. Fixed: one Qdrant client per thread, 64 lock stripes, 20 s
+timeouts, one lookup + one insert per pushed batch (was 2 calls per event), case tallies recomputed once per case by a
+background worker (reads flush first, so never stale), the full mirror snapshot built once per version, a small
+fleet's first mirror pull by rows (bytes decide), device push timeout 5 -> 30 s. Correctness held in every run:
+1,000 events, 0 lost, 0 double-counted, identical mirrors.
+
+### D39 · Vehicle model: the 21,637 training trucks were tried and rejected (28 Sep 2026)
+CV AUC 0.79 inside training, 0.60-0.66 on the test trucks vs 0.75 for the shipped validation-trained model
+(BENCHMARKS §28). Label construction mismatch; shipped model unchanged.
+
+### D38 · Robots learn from their own confirmed failures (28 Sep 2026)
+`edge/local_detector.py` + "teach a failure": 96-99 % detection, 0-10 % false alarms (was 9-15 % with a threshold from
+overfit training scores). Enabled for the force-torque profile only, where it is measured; it only adds alarms.
+
+### D37 · Event profile radius from healthy data at a 1 % false-alarm target (28 Sep 2026)
+Event buckets repeat exactly, so split-half q99 = 0 and tau_normal collapsed to 0 on real HDFS logs. Now: 99.98 %
+detection, 0.39 % false alarms (BENCHMARKS §25). Vibration profiles unchanged (continuous signals never repeat).
+
+### D36 · Name detection without a denylist (28 Sep 2026)
+10,562 Wikidata given names (CC0) + maintenance vocabulary + a name-likeness n-gram model: unlisted names found 96 %
+in normal typing (was 0/60), 64-66 % in ALL CAPS / lower case (BENCHMARKS §26).
+
+### D35 · Security hardening (28 Sep 2026)
+Certificate revocation list for mutual TLS (TLS >= 1.2), two-admin retraction, device quarantine, plausibility checks,
+hash-chained audit log, code-integrity status, CSP and security headers, body limits, weak operator tokens refused on a
+network address. Threat model updated row by row with the test that proves each.
+
+### D34 · Relative order rule for imbalance / misalignment / looseness (28 Sep 2026)
+Absolute textbook rules called every drive-fed motor "looseness", healthy ones included. The hint now names the shaft
+order that GREW versus this machine's healthy state (> 3 sigma). Naming shaft faults remains unvalidated on real data
+(the only public set has one motor per fault; BENCHMARKS §24). Also tried: requiring bearing defect lines to have grown
+- it cut the HUST hint 97.6 -> 78.6 % and was reverted.
+
+### D33 · Fleet-learned fault hint + "confident only when physics and fleet agree" (28 Sep 2026)
+Order-domain envelope features travel with CONFIRMED evidence; the cloud trains a logistic regression and measures it
+on devices it never saw; devices pull the coefficients as JSON. Confident hints: HUST 100 %, UOttawa 92 %, CWRU 85 %
+(BENCHMARKS §23). Rejected: a collision-aware physics v2 (worse on HUST) and a cross-dataset prior (53-83 %).
+
+### D32 · Replacement-aware fix verification (28 Sep 2026)
+Nearest-state rule for replace actions: new bearing verified 19/20 (mic) and 18/20 (accel) instead of 3/20 and 0/20;
+HUST 42/42 without teaching (was 15/42); no false promotion anywhere (BENCHMARKS §22).
+
+### D31 · Manufacturer data: machine card, manuals, ISO 15243, follow-ups (28 Sep 2026)
+ISO 10816-3 tables A.1-A.4 read from the standard's text (it says acceptance limits belong to manufacturer and
+customer - so a machine card can override them); "fixed" = back to healthy AND below the machine's limit; manuals
+indexed offline with page citations; technicians record the ISO 15243 damage mode they saw; devices report weeks
+later whether a fix HELD or the fault RECURRED, and the cloud flags RECURRED.
+
+### D30 · Phone = microphone, not only the 60 Hz motion sensor (28 Sep 2026)
+Real natural-wear bearings: 0/380 false alarms, 95.7 % of faulty windows flagged, from sound (BENCHMARKS §21).
+
+### D29 · Licence stays Apache-2.0 (28 Sep 2026)
+Chosen by Claude at the user's request: permissive, with a patent grant, the same licence as Qdrant. Nothing is
+published; publishing stays the user's decision.
+
+
 ### D28 · Trained models only on real data (28 Sep 2026)
 The user's rule: every trained model is trained on real data; made-up data only as a last resort, and labelled.
 Trained: the vehicle early-warning model (SCANIA validation → test), the robot failure models (UCI, cross-validated),

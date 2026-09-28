@@ -71,7 +71,7 @@ def main() -> None:
 
     with sync_playwright() as p:
         br = p.chromium.launch(channel="msedge", headless=True)
-        ctx = br.new_context(viewport={"width": 1440, "height": 900}, record_video_dir=str(OUT),
+        ctx = br.new_context(viewport={"width": 1440, "height": 900}, record_video_dir=str(OUT), bypass_csp=True,
                              record_video_size={"width": 1440, "height": 900})
         pg = ctx.new_page()
         for key, (url, tok) in PAGES.items():            # sign in once per origin (token kept per tab + origin)

@@ -12,12 +12,15 @@ import secrets
 
 import uvicorn
 
+from cloud.tls import server_context
+
 from edge import profiles, rag, storage_os
 from edge.api import create_app
 from edge.device import Device, DeviceConfig
 from edge.sync_worker import SyncWorker
 from shared.embed import HashEmbedder, load_embedder
 
+MIN_NETWORK_TOKEN = 16
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TLS = ROOT / "runtime" / "tls"
 
@@ -53,9 +56,14 @@ def main() -> None:
                    help="Windows: NTFS-compress the device folder (Edge pre-allocates ~200 MB of zero pages per shard)")
     a = p.parse_args()
 
-    if a.host not in ("127.0.0.1", "localhost", "::1") and not a.tls and not a.insecure_lan:
+    network = a.host not in ("127.0.0.1", "localhost", "::1")
+    if network and not a.tls and not a.insecure_lan:
         raise SystemExit("refusing to serve plain HTTP on the network: add --tls (run tools/make_certs.py first); the "
                          "operator token and technician notes would otherwise cross the network unencrypted")
+    if network and a.operator_token and (len(a.operator_token) < MIN_NETWORK_TOKEN
+                                         or a.operator_token.lower().startswith(("operator-", "demo", "test"))):
+        raise SystemExit(f"refusing a weak operator token on a network address: use >= {MIN_NETWORK_TOKEN} random "
+                         "characters (omit --operator-token and one is generated), not a demo-style name")
     root = pathlib.Path(a.root) if a.root else ROOT / "runtime" / a.name
     embedder = HashEmbedder() if a.hash_embedder else load_embedder()
     dev = Device(DeviceConfig(device_id=a.name, site_id=a.site, machine_id=a.machine or f"{a.name}-motor1", root=root,
@@ -69,13 +77,14 @@ def main() -> None:
     worker = SyncWorker(dev, a.cloud, a.device_token, mirror_mode=a.mirror_mode, ca=ca, client_cert=cert)
     if not a.no_sync:
         worker.start()
-    op = a.operator_token or secrets.token_urlsafe(12)
+    op = a.operator_token or secrets.token_urlsafe(18 if network else 12)
     llm = None if a.no_llm else rag.LocalLLM()
     scheme = "https" if a.tls else "http"
     print(f"[{a.name}] UI: {scheme}://{a.host}:{a.port}/   phone sensor: {scheme}://<this-ip>:{a.port}/sensor   "
           f"profile: {dev.profile.name}   operator token: {op}", flush=True)
-    ssl = {"ssl_certfile": str(TLS / "server.pem"), "ssl_keyfile": str(TLS / "server.key")} if a.tls else {}
-    uvicorn.run(create_app(dev, worker, op, llm), host=a.host, port=a.port, log_level="warning", **ssl)
+    factory = (lambda _cfg, _default: server_context(TLS / "server.pem", TLS / "server.key")) if a.tls else None
+    uvicorn.run(create_app(dev, worker, op, llm), host=a.host, port=a.port, log_level="warning",
+                ssl_context_factory=factory)
 
 
 if __name__ == "__main__":

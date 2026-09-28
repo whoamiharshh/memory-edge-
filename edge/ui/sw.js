@@ -2,8 +2,8 @@
 // Service worker for the installable device web app. It caches ONLY the app shell (page, script, styles, icon) so
 // the app opens instantly and still shows its screen when the device is briefly unreachable. It NEVER caches /api/*:
 // technician notes and episodes must not sit in the phone browser's cache (a shared phone would leak them).
-const SHELL = "mm-shell-v1";
-const FILES = ["/", "/sensor", "/static/app.js", "/static/style.css", "/static/sensor.js", "/static/icon.svg",
+const SHELL = "mm-shell-v2";
+const FILES = ["/", "/sensor", "/static/app.js", "/static/style.css", "/static/sensor.js", "/static/mic-worklet.js", "/static/icon.svg",
   "/static/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

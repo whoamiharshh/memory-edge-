@@ -43,3 +43,8 @@ def repair_hash(machine_id: str, fault_class: str, action_code: str, outcome: st
     norm = lambda s: " ".join(str(s or "").split()).lower()
     return content_hash({"machine": norm(machine_id), "fault": norm(fault_class), "action": norm(action_code),
                          "outcome": norm(outcome), "day": str(when or "")[:10]})
+
+
+def followup_id(device_id: str, refers_to: str) -> str:
+    """One hold/recurrence follow-up per shared fix: whichever comes first is final (idempotent on retries)."""
+    return make_id("followup", device_id, refers_to)

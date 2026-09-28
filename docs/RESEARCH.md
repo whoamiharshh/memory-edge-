@@ -2,6 +2,12 @@
 
 Research → challenge → architecture document. Written 27 Sep 2026. No code has been written yet.
 
+> **Status note (28 Sep 2026): this is the pre-build research document, kept as history.** Several statements here were
+> superseded by measurements during the build - e.g. it plans Docker (not used: the Qdrant Server release binary runs
+> directly), "no LLM" (an optional, cited, decision-free local LLM was added at the user's request), "no mTLS / no
+> encryption at rest / no token rotation" (all built since), and K2 as unknown (measured: 0.429 bearing-level). The
+> current system, numbers and threat model are in README.md, docs/BENCHMARKS.md, docs/DECISIONS.md and docs/THREATS.md.
+
 **Labels used throughout**
 - **Verified Fact**: read directly from an official doc, source page, paper, or package registry during this pass (source in §Sources).
 - **Prior-pass fact**: verified in an earlier session (see CONTEXT.md). I did not re-verify it today.

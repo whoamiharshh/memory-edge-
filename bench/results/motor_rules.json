@@ -1,0 +1,424 @@
+{
+ "method": "Imbalance / misalignment hints on REAL motors: the absolute textbook order rules vs the RELATIVE rule shipped now",
+ "protocol": "University of Ottawa electric-motor set UOEMD-VAFCVS (CC BY 4.0, DOI 10.17632/msxs4vj48g.2), drive-fed Marathon\nmotors at constant 15/30/45/60 Hz, unloaded and loaded (8 conditions), accelerometer + microphone, 42 kHz.\nCAVEAT (stated in every result): each fault is ONE physical motor, so the healthy baseline comes from a different\nmotor than the faulty one; motor-to-motor differences are mixed into the change. Nothing is trained here.\nPer condition: baseline = first 5 s of the healthy motor H-H; tested = the last 5 s of H-H (should say \"no shaft\nfault\"), rotor unbalance R-U (should say imbalance) and rotor misalignment R-M (should say misalignment).\nOnly windows the device's gate flags as NOT normal get a hint (as in the product: a healthy window opens no episode);\na recording whose windows are all normal counts as \"no fault\" (unknown). Majority hint over the flagged windows;\nshaft speed from the healthy recording's 1x peak.",
+ "accelerometer": {
+  "summary": {
+   "relative": {
+    "H_H": "8/8",
+    "R_U": "0/8",
+    "R_M": "0/8",
+    "all": "8/24"
+   },
+   "absolute": {
+    "H_H": "8/8",
+    "R_U": "0/8",
+    "R_M": "0/8",
+    "all": "8/24"
+   }
+  },
+  "rows": [
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   }
+  ]
+ },
+ "microphone": {
+  "summary": {
+   "relative": {
+    "H_H": "8/8",
+    "R_U": "0/8",
+    "R_M": "0/8",
+    "all": "8/24"
+   },
+   "absolute": {
+    "H_H": "8/8",
+    "R_U": "0/8",
+    "R_M": "0/8",
+    "all": "8/24"
+   }
+  },
+  "rows": [
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 15,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 30,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 45,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "ball",
+    "absolute": "ball"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "outer_race",
+    "absolute": "outer_race"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": false,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "H_H",
+    "want": "unknown",
+    "relative": "unknown",
+    "absolute": "unknown"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "R_U",
+    "want": "imbalance",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   },
+   {
+    "speed_hz": 60,
+    "loaded": true,
+    "motor": "R_M",
+    "want": "misalignment",
+    "relative": "inner_race",
+    "absolute": "inner_race"
+   }
+  ]
+ }
+}

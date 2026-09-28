@@ -13,6 +13,11 @@ compared with each other (the cloud groups by component + confirmed fault class,
                           rules + indicative velocity; cannot see bearing defect frequencies (far above Nyquist)
   force-torque    fp-ft1  robot wrist force/torque, 6 channels (Fx Fy Fz Tx Ty Tz)
   events          fp-ev1  kiosks, vehicles, apps: error / event codes per time bucket; "fixed" = the codes stay away
+  telemetry       fp-tm1  vehicle / machine counters and histograms between readouts
+  acoustic        fp-ac1  a MICROPHONE (phone at 44.1/48 kHz, or any mic) next to a rotating machine: the same
+                          defect-frequency and order physics as rotating-hf, on sound (bench/acoustic_uottawa.py)
+A machine card (edge/machine_card.py) makes a profile machine-specific: the manufacturer's bearing geometry, speed,
+severity table / limits and mains frequency (profile.apply_card).
 """
 from __future__ import annotations
 
@@ -73,14 +78,21 @@ class Profile:
     params: dict[str, Any] = field(default_factory=dict)
     min_std: float = 0.05              # baseline spread floor (log10 units); see fingerprint.Baseline.fit
     normal_factor: float | None = None # healthy radius factor; None = the gate default (2.0, swept on CWRU)
+    target_false_alarm: float | None = None   # set the radius from healthy data at this alarm rate (events)
+    learned_detector: bool = False     # edge/local_detector.py: learn from this machine's confirmed faults
 
     # --- to implement per profile ---
     def features(self, x, fs: float, rpm: float | None = None) -> np.ndarray:
         raise NotImplementedError
 
-    def hint(self, raw_features: np.ndarray) -> dict:
+    def hint(self, raw_features: np.ndarray, z: np.ndarray | None = None) -> dict:
+        """Fault-class hint for one window. `z` = the window's z-scores against THIS machine's healthy baseline, so
+        rules can ask "what changed?" instead of applying absolute textbook thresholds."""
         return {"fault_class": "unknown", "why": "no physics rule for this profile; the technician classifies",
                 "measured_accuracy": None}
+
+    GROWN_Z = 3.0      # a shaft order "grew" when it is > 3 standard deviations above this machine's healthy level
+
 
     def diagnose(self, x, fs: float, rpm: float | None = None) -> dict:
         return {}
@@ -109,6 +121,37 @@ class Profile:
                 "default_component": self.default_component, "detects": self.detects, "cannot": self.cannot,
                 "params": self.params}
 
+    card: Any = None                    # edge/machine_card.MachineCard, set by apply_card
+
+    def apply_card(self, card) -> None:
+        """Use the manufacturer's data from the machine card: bearing geometry (defect frequencies), nominal speed
+        (when no tachometer), severity table / limits. The CWRU profile keeps its measured SKF 6205 geometry."""
+        self.card = card
+        if card is None:
+            return
+        g = card.geometry()
+        if g is not None and hasattr(self, "geometry") and self.name != "bearing-12k":
+            self.geometry = g
+            self.params = self.params | {"bearing_from_card": g.name}
+        if card.nominal_rpm and hasattr(self, "shaft_hz") and not self.shaft_hz:
+            self.shaft_hz = card.nominal_rpm / 60.0
+
+    def _severity(self, v_mm_s: float) -> dict:
+        if self.card is not None:
+            bounds, ref = self.card.severity_bounds()
+            return P.severity_zone(v_mm_s, bounds, ref)
+        return P.severity_zone(v_mm_s)
+
+    def order_features(self, x, fs: float, rpm: float | None = None) -> list[float] | None:
+        """Order-domain features for the fleet-learned fault hint (physics.order_features), or None when this
+        profile has no bearing geometry, no shaft speed or too short a segment."""
+        geo = getattr(self, "geometry", None)
+        x = np.asarray(x, dtype=np.float64)
+        shaft = rpm / 60.0 if rpm and rpm > 0 else getattr(self, "shaft_hz", None)
+        if geo is None or not shaft or x.ndim != 1 or len(x) < P.ORDER_FEATURES_MIN_S * fs:
+            return None
+        return P.order_features(x, fs, float(shaft), geo)
+
     def windows(self, x: np.ndarray, fs: float) -> list[np.ndarray]:
         x = np.asarray(x, dtype=np.float64)
         if self.analysis_fs:
@@ -116,6 +159,25 @@ class Profile:
         hop = self.window // 2
         n = 1 + (len(x) - self.window) // hop if len(x) >= self.window else 0
         return [x[i * hop:i * hop + self.window] for i in range(n)]
+
+
+
+def _grown_orders(z, idx: dict[str, int], blind: tuple = ()) -> dict | None:
+    """The relative order rule (bench/motor_rules.py): which shaft order grew most versus the machine's own healthy
+    state. 1x -> imbalance, 2x -> misalignment, 0.5x / 3x -> looseness; nothing grew -> not a shaft-rate fault.
+    Measured on real drive-fed motors, where the ABSOLUTE textbook rules called every motor, healthy ones included,
+    'looseness' (electrical harmonics of the drive sit on shaft orders)."""
+    if z is None:
+        return None
+    zz = {k: float(z[i]) for k, i in idx.items() if k not in blind}
+    best = max(zz, key=zz.get)
+    if zz[best] <= Profile.GROWN_Z:
+        return {"fault_class": "unknown", "why": "no shaft order grew above this machine's healthy level (largest: "
+                f"{best} at {zz[best]:.1f} sigma): not a shaft-rate fault - inspect", "measured_accuracy": None}
+    cls = {"1x": "imbalance", "2x": "misalignment"}.get(best, "looseness")
+    return {"fault_class": cls, "why": f"{best} grew {zz[best]:.1f} sigma above this machine's healthy level "
+                                       "(relative order rule)", "measured_accuracy": None,
+            "grown_sigma": {k: round(v, 1) for k, v in zz.items()}}
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -126,12 +188,14 @@ class BearingCWRU(Profile):
                          ["healthy vs abnormal", "inner race / outer race / ball hint (measured, K2)",
                           "severity zone (velocity)"], ["cage faults", "other bearing geometries"], params,
                          min_std=1e-6)   # unchanged: the CWRU numbers (K2/K3/sweep) were measured with it
+        self.geometry = P.BEARINGS["SKF6205-CWRU"]
+        self.shaft_hz = None
 
     def features(self, x, fs, rpm=None):
         return fp.features(_resample(np.asarray(x, dtype=np.float64), fs, fp.FS), fp.FS,
                            float("nan") if rpm is None else rpm)
 
-    def hint(self, raw_features):
+    def hint(self, raw_features, z=None):
         return fault_hint.suggest(raw_features)
 
     def measured(self, fault_class):
@@ -144,7 +208,7 @@ class BearingCWRU(Profile):
     def diagnose(self, x, fs, rpm=None):
         """Physics shown to the technician (display only; the hint above is the measured CWRU rule)."""
         x = _resample(np.asarray(x, dtype=np.float64), fs, fp.FS)
-        out = {"severity": P.severity_zone(P.velocity_rms_mm_s(x, fp.FS))}
+        out = {"severity": self._severity(P.velocity_rms_mm_s(x, fp.FS))}
         if rpm and rpm > 0:
             shaft, geo = rpm / 60.0, P.BEARINGS["SKF6205-CWRU"]
             freqs, amp = P.spectrum(x, fp.FS)
@@ -160,15 +224,21 @@ class BearingCWRU(Profile):
 class RotatingHF(Profile):
     """Any rotating machine with an accelerometer (in g) sampled >= 2 kHz. Analysis at 12.8 kHz, 4096 samples."""
 
-    def __init__(self, bearing: str = "SKF6205-CWRU", shaft_hz: float | None = None, **params):
-        super().__init__("rotating-hf", "fp-rh1", "Rotating machine, accelerometer >= 2 kHz; bearing geometry "
-                         f"'{bearing}'; physics from defect frequencies and the order spectrum.", "bearing", "g",
-                         12800.0, 4096,
+    def __init__(self, bearing: str = "SKF6205-CWRU", shaft_hz: float | None = None, geometry: dict | None = None,
+                 **params):
+        self._init_rotating("rotating-hf", "fp-rh1", "Rotating machine, accelerometer >= 2 kHz", "g", 12800.0, 4096,
+                            bearing, shaft_hz, geometry, params)
+
+    def _init_rotating(self, name, fpv, what, units, fsa, window, bearing, shaft_hz, geometry, params):
+        geo = P.custom_geometry(geometry) if geometry else P.BEARINGS[bearing]
+        super().__init__(name, fpv, f"{what}; bearing geometry '{geo.name}'; physics from defect frequencies and the "
+                         "order spectrum.", "bearing", units, fsa, window,
                          ["healthy vs abnormal", "inner/outer race/ball (envelope at geometry-derived defect "
                           "frequencies)", "imbalance / misalignment / looseness (order rules)", "severity zone"],
                          ["cage faults (reported, not classified)", "electrical faults"],
-                         {"bearing": bearing, "shaft_hz": shaft_hz, **params})
-        self.geometry = P.BEARINGS[bearing]
+                         {"bearing": bearing, "shaft_hz": shaft_hz, **({"geometry": geometry} if geometry else {}),
+                          **params})
+        self.geometry = geo
         self.shaft_hz = shaft_hz
 
     def _shaft(self, rpm, freqs=None, amp=None):
@@ -211,17 +281,22 @@ class RotatingHF(Profile):
 
     BEARING_MIN_SCORE = 1.0      # log10 ratio over the median envelope level (10x) to call a bearing defect
 
-    def hint(self, raw_features):
+    def hint(self, raw_features, z=None):
         r = np.asarray(raw_features)
         defects = {"bpfo": r[15], "bpfi": r[16], "bsf": r[17]}
         if not np.any(r[15:23]):
             return {"fault_class": "unknown", "why": "no shaft speed (give rpm or shaft_hz)", "measured_accuracy": None}
         best = max(defects, key=defects.get)
+        # (tried: also requiring the defect line to have GROWN vs the healthy baseline - it cut the HUST hint from
+        # 97.6 % to 78.6 % and only helped on healthy windows, which never open an episode; reverted)
         if defects[best] >= self.BEARING_MIN_SCORE:
             cls = P.DEFECT_TO_CLASS[best]
             return {"fault_class": cls, "why": f"{best.upper()} ({self.geometry.name}) envelope energy "
                                                f"{10 ** defects[best]:.0f}x the median", "measured_accuracy":
                     HF_MEASURED.get(cls), "measured_source": "bench/results/hust_holdout.json"}
+        rel = _grown_orders(z, {"0.5x": 19, "1x": 20, "2x": 21, "3x": 22})
+        if rel is not None:
+            return rel
         o = {k: 10 ** r[i] for k, i in (("0.5x", 19), ("1x", 20), ("2x", 21), ("3x", 22))}
         a1 = max(o["1x"], _EPS)
         if o["0.5x"] > 0.25 * a1 or o["3x"] > 0.25 * a1:
@@ -230,13 +305,14 @@ class RotatingHF(Profile):
             cls, why = "misalignment", f"2x is {o['2x'] / a1:.2f} of 1x"
         else:
             cls, why = "imbalance", f"1x dominates; no bearing defect frequency stands out"
-        return {"fault_class": cls, "why": why + " (order-spectrum heuristic)", "measured_accuracy": None}
+        return {"fault_class": cls, "why": why + " (absolute order-spectrum heuristic: no baseline)",
+                "measured_accuracy": None}
 
     def diagnose(self, x, fs, rpm=None):
         x = _resample(np.asarray(x, dtype=np.float64), fs, self.analysis_fs)
         freqs, amp = P.spectrum(x, self.analysis_fs)
         shaft = self._shaft(rpm, freqs, amp)
-        out = {"severity": P.severity_zone(P.velocity_rms_mm_s(x, self.analysis_fs)),
+        out = {"severity": self._severity(P.velocity_rms_mm_s(x, self.analysis_fs)),
                "shaft_hz": round(shaft, 3) if shaft else None,
                "defect_frequencies_hz": {k: round(v * shaft, 2) for k, v in self.geometry.orders().items()} if shaft else None}
         if shaft:
@@ -261,6 +337,38 @@ def _load_hf() -> None:
 
 
 _load_hf()
+
+
+# --------------------------------------------------------------------------------------------------------------
+class Acoustic(RotatingHF):
+    """A microphone near a rotating machine (a phone's microphone at 44.1/48 kHz, or any mic). Sound carries the same
+    bearing impacts and shaft orders as vibration, at a rate a phone CAN deliver (its motion sensor is capped at
+    60 Hz in browsers). Analysis at 16 kHz, 8192-sample windows (0.51 s). A microphone is not a calibrated vibration
+    sensor: no ISO velocity zone. Measured on real microphone recordings in bench/acoustic_uottawa.py."""
+
+    def __init__(self, bearing: str = "SKF6205-CWRU", shaft_hz: float | None = None, geometry: dict | None = None,
+                 **params):
+        self._init_rotating("acoustic", "fp-ac1", "Microphone next to a rotating machine (phone mic or any mic)",
+                            "audio (uncalibrated)", 16000.0, 8192, bearing, shaft_hz, geometry, params)
+        self.default_component = params.get("component", "bearing")
+        self.cannot = ["calibrated severity (a microphone is not an ISO vibration sensor)",
+                       "faults on machines louder than the one you listen to (background noise)"]
+
+    def features(self, x, fs, rpm=None):
+        f = super().features(x, fs, rpm)
+        y = _resample(np.asarray(x, dtype=np.float64), fs, self.analysis_fs) if fs != self.analysis_fs else np.asarray(x, dtype=np.float64)
+        freqs, amp = P.spectrum(y, self.analysis_fs)
+        f[23] = _log(np.sqrt((amp[(freqs >= 2000) & (freqs <= 7500)] ** 2).sum()))   # replaces velocity (no calibration)
+        return f
+
+    def measured(self, fault_class):
+        return None
+
+    def diagnose(self, x, fs, rpm=None):
+        out = super().diagnose(x, fs, rpm)
+        out["severity"] = {"zone": None, "text": "no ISO severity zone from a microphone (not a calibrated vibration "
+                                                 "sensor); use the healthy-radius and fault-frequency evidence"}
+        return out
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -326,7 +434,7 @@ class LowRateAccel(Profile):
         out.append(_log(P.velocity_rms_mm_s(sig / P.G, fs, (1.0, 1000.0))))       # 26 indicative velocity
         return np.asarray(out, dtype=np.float64)
 
-    def hint(self, raw_features):
+    def hint(self, raw_features, z=None):
         r = np.asarray(raw_features)
         if not np.any(r[20:25]):
             return {"fault_class": "unknown", "why": "no shaft speed", "measured_accuracy": None}
@@ -338,6 +446,13 @@ class LowRateAccel(Profile):
         note = (f"; {', '.join(blind)} ({', '.join(f'{m * shaft:.0f} Hz' for m in (2, 3) if f'{m}x' in blind)}) above "
                 f"the {nyq:.0f} Hz Nyquist limit: misalignment/looseness NOT assessable at this sampling rate"
                 if blind else "")
+        rel = _grown_orders(z, {"0.5x": 20, "1x": 21, "2x": 22, "3x": 23}, tuple(blind))
+        # the phone's order features are SHARES of the total: imbalance lifts 1x and the total together, so the share
+        # barely moves. If the overall level grew (> GROWN_Z) the current order PATTERN names the fault (below);
+        # if nothing grew at all, the relative verdict ("no shaft order grew") stands.
+        level_grew = z is not None and float(max(z[0], *z[5:8])) > self.GROWN_Z
+        if rel is not None and (rel["fault_class"] != "unknown" or not level_grew):
+            return rel | {"why": rel["why"] + note + " (phone-grade sensor)", "not_assessable": blind}
         if o["0.5x"] > 0.25 * a1 or ("3x" not in blind and o["3x"] > 0.25 * a1):
             cls, why = "looseness", "strong sub-harmonic or higher harmonics"
         elif "2x" not in blind and o["2x"] >= 0.5 * a1:
@@ -364,8 +479,11 @@ class ForceTorque(Profile):
 
     def __init__(self, window: int = 15, **params):
         super().__init__("force-torque", "fp-ft1", "Robot force/torque sensor, 6 channels.", "robot_gripper",
-                         "N, N·m", None, window, ["healthy vs abnormal motion (collision, obstruction, slip)"],
-                         ["failure type (the technician classifies)"], {"window": window, **params})
+                         "N, N·m", None, window, ["healthy vs abnormal motion (collision, obstruction, slip)",
+                                                   "subtle failures once the robot has confirmed examples (learned "
+                                                   "detector, bench/robot_model.py)"],
+                         ["failure type (the technician classifies)"], {"window": window, **params},
+                         learned_detector=True)
 
     def windows(self, x, fs):
         x = np.asarray(x, dtype=np.float64)
@@ -396,7 +514,8 @@ class Events(Profile):
         super().__init__("events", "fp-ev1", "Error / event codes per time bucket (kiosk, vehicle DTCs, app "
                          "crashes).", "kiosk", "codes per bucket", None, window,
                          ["new vs known error patterns", "fix verified when the codes stay away for N buckets"],
-                         ["physical diagnosis (the codes carry the meaning)"], {"window": window, **params})
+                         ["physical diagnosis (the codes carry the meaning)"], {"window": window, **params},
+                         target_false_alarm=0.01)   # 1 % of unseen healthy buckets (bench/events_hdfs.py)
 
     @staticmethod
     def _bucket(code: str) -> tuple[int, float]:
@@ -412,7 +531,7 @@ class Events(Profile):
         total = sum(max(0.0, float(n)) for n in codes.values())
         return np.concatenate([v, [math.log1p(total), math.log1p(len(codes)), float(x.get("severity", 0))]])
 
-    def hint(self, raw_features):
+    def hint(self, raw_features, z=None):
         return {"fault_class": "unknown", "why": "event codes: the technician names the fault", "measured_accuracy": None}
 
 
@@ -456,9 +575,9 @@ class Telemetry(Profile):
 
 
 REGISTRY = {"bearing-12k": BearingCWRU, "rotating-hf": RotatingHF, "lowrate-accel": LowRateAccel,
-            "force-torque": ForceTorque, "events": Events, "telemetry": Telemetry}
+            "force-torque": ForceTorque, "events": Events, "telemetry": Telemetry, "acoustic": Acoustic}
 FP_VERSIONS = {"fp-v2": "bearing-12k", "fp-rh1": "rotating-hf", "fp-lr1": "lowrate-accel", "fp-ft1": "force-torque",
-               "fp-ev1": "events", "fp-tm1": "telemetry"}
+               "fp-ev1": "events", "fp-tm1": "telemetry", "fp-ac1": "acoustic"}
 
 
 def make(name: str = "bearing-12k", **params) -> Profile:

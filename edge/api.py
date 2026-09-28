@@ -5,6 +5,9 @@ notes, so even local reads are authenticated. The token is compared in constant 
 """
 from __future__ import annotations
 
+import base64
+import contextlib
+import binascii
 import hashlib
 import hmac
 import pathlib
@@ -12,18 +15,30 @@ import pathlib
 import numpy as np
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from edge import procedures as procedures_mod
+from edge import machine_card as machine_card_mod
+from edge import manuals as manuals_mod
+from edge import physics as P
 from edge import rag
 from edge.device import Device
 from edge.replay import HEALTHY_BASELINE_FILES, Recordings, ReplayRunner
 from edge.sync_worker import SyncWorker
-from shared.schema import ActionCode, Component, FaultClass, RootCause
+from shared.schema import ActionCode, Component, DamageMode, FaultClass, RootCause
 
 UI = pathlib.Path(__file__).resolve().parent / "ui"
+MAX_BODY = 8 * 1024 * 1024                  # a signal chunk (600k values as JSON) or 5 s of audio fit
+MAX_MANUAL_BODY = 30 * 1024 * 1024          # a 20 MB PDF, base64-encoded
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                               "img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
+                               "frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(self), accelerometer=(self), gyroscope=(self)",
+}
 
 
 class Versioned(BaseModel):
@@ -37,6 +52,7 @@ class NoteBody(Versioned):
 
 class FaultBody(Versioned):
     fault_class: FaultClass
+    damage_mode: DamageMode | None = None       # ISO 15243: what was SEEN on the removed part
 
 
 class ActionBody(Versioned):
@@ -62,6 +78,24 @@ class SignalBody(BaseModel):
     rpm: float | None = Field(default=None, gt=0, le=100_000)
     source: str | None = Field(default=None, max_length=80)
     operating_point: dict[str, float] | None = Field(default=None, max_length=10)   # e.g. {"load_kw": 1.2}
+
+
+MAX_AUDIO_SECONDS = 5
+
+
+class AudioBody(BaseModel):
+    """Microphone audio for the `acoustic` profile: 16-bit little-endian mono PCM, base64 (compact: a phone sends
+    ~1 s chunks at 44.1/48 kHz)."""
+    pcm16_b64: str = Field(min_length=4, max_length=int(96_000 * 2 * MAX_AUDIO_SECONDS * 4 / 3) + 8)
+    fs: float = Field(ge=8000, le=96_000)
+    rpm: float | None = Field(default=None, gt=0, le=100_000)
+    source: str | None = Field(default=None, max_length=80)
+
+
+class ManualBody(BaseModel):
+    title: str = Field(min_length=3, max_length=160)
+    source: str = Field(default="", max_length=300)
+    pdf_b64: str = Field(min_length=8, max_length=manuals_mod.MAX_BYTES * 4 // 3 + 8)
 
 
 class ProcedureBody(BaseModel):
@@ -111,10 +145,11 @@ class TokenBody(BaseModel):
 
 
 def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag.LocalLLM | None = None) -> FastAPI:
-    app = FastAPI(title=f"Machine Memory - {device.cfg.device_id}", docs_url="/docs")
+    app = FastAPI(title=f"Machine Memory - {device.cfg.device_id}", docs_url="/docs", lifespan=_lifespan)
     SITE_SOPS = pathlib.Path(device.cfg.root) / "site_procedures.json"
     def _replay_physics(result: dict, fid: int, i: int) -> None:
-        """Replayed recordings carry cached fingerprints; the physics panel needs the raw window, read on demand."""
+        """Replayed recordings carry cached fingerprints; the physics panel and the fleet hint need raw signal, read
+        on demand (a window for the diagnosis, a 1 s segment for the order features)."""
         if device.profile.name != "bearing-12k" or not result.get("episode_id"):
             return
         ep = device.store.get(result["episode_id"])
@@ -123,6 +158,9 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
         rw = Recordings.raw_window(fid, i)
         if rw is not None:
             device.attach_diagnosis(result["episode_id"], *rw)
+        seg = Recordings.raw_segment(fid, i)
+        if seg is not None:
+            device.attach_order_features(result["episode_id"], device.profile.order_features(*seg))
 
     replay = ReplayRunner(device.ingest_window, on_abnormal=_replay_physics)
     op_hash = hashlib.sha256(operator_token.encode()).hexdigest()
@@ -145,6 +183,21 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
 
     api = Depends(operator)
 
+    @app.middleware("http")
+    async def harden(request: Request, call_next):
+        """Body-size limit (manual PDFs may be large, everything else small) + browser security headers. The device UI
+        may use the microphone and motion sensor of the page's own origin only."""
+        cl = request.headers.get("content-length")
+        cap = MAX_MANUAL_BODY if request.url.path == "/api/manuals" else MAX_BODY
+        if cl and (not cl.isdigit() or int(cl) > cap):
+            return JSONResponse({"detail": "request body too large"}, status_code=413)
+        resp = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            resp.headers.setdefault(k, v)
+        if request.url.path.startswith("/api/"):
+            resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     @app.get("/api/health")
     def health():
         return {"ok": True, "device_id": device.cfg.device_id}
@@ -158,7 +211,7 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     def enums():
         return {"action_codes": [a.value for a in ActionCode], "fault_classes": [f.value for f in FaultClass],
                 "components": [c.value for c in Component],
-                "root_causes": [r.value for r in RootCause]}
+                "root_causes": [r.value for r in RootCause], "damage_modes": [d.value for d in DamageMode]}
 
     @app.post("/api/baseline/fit", dependencies=[api])
     def fit():
@@ -176,9 +229,98 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     def note(eid: str, b: NoteBody):
         return guard(lambda: device.set_note(eid, b.text, b.share_opt_in, b.expected_version))
 
+    @app.get("/api/machine-card", dependencies=[api])
+    def get_machine_card():
+        return {"card": device.card.to_dict() if device.card else None,
+                "bearings": {k: g.name for k, g in P.BEARINGS.items()},
+                "machine_types": list(machine_card_mod.MACHINE_TYPES)}
+
+    @app.put("/api/machine-card", dependencies=[api])
+    def put_machine_card(card: dict):
+        if len(str(card)) > 5000:
+            raise HTTPException(413, "machine card too large")
+        return guard(lambda: device.set_machine_card(card))
+
+    @app.get("/api/manuals", dependencies=[api])
+    def list_manuals():
+        return manuals_mod.listing(device)
+
+    @app.post("/api/manuals", dependencies=[api])
+    def add_manual(b: ManualBody):
+        try:
+            pdf = base64.b64decode(b.pdf_b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "pdf_b64 is not valid base64")
+        return guard(lambda: manuals_mod.add(device, b.title, pdf, b.source))
+
+    @app.delete("/api/manuals/{doc_id}", dependencies=[api])
+    def delete_manual(doc_id: str):
+        if not manuals_mod.remove(device, doc_id):
+            raise HTTPException(404, "no such manual")
+        return {"removed": doc_id}
+
+    @app.get("/api/manuals/search", dependencies=[api])
+    def search_manuals(q: str | None = None, episode_id: str | None = None, limit: int = 5):
+        if episode_id:
+            q = manuals_mod.query_for(guard(lambda: device.episode(episode_id)))
+        if not q or len(q) > 500:
+            raise HTTPException(422, "give q (<= 500 characters) or episode_id")
+        return {"query": q, "hits": manuals_mod.search(device, q, max(1, min(limit, 20)))}
+
+    class TeachFaultBody(SignalBody):
+        fault_class: FaultClass
+        note: str = Field(default="", max_length=2000)
+
+    @app.post("/api/teach/fault", dependencies=[api])
+    def teach_fault(b: TeachFaultBody):
+        """A failure the operator SAW in a cycle the gate called normal (e.g. a robot collision): send that cycle's
+        signal with the fault class; each window becomes a confirmed learning example on this device."""
+        x = np.asarray(b.samples if b.samples is not None else b.axes, dtype=np.float64) if b.events is None else b.events
+        ws = device.profile.windows(x, b.fs) if not isinstance(x, dict) else [x]
+        fs_w = device.profile.analysis_fs or b.fs
+        return {"taught": [guard(lambda w=w: device.teach_fault(device.profile.features(w, fs_w, b.rpm),
+                                                                 b.fault_class.value, b.note)) for w in ws[:50]]}
+
+    @app.post("/api/detector/train", dependencies=[api])
+    def train_detector():
+        if not device.profile.learned_detector:
+            raise HTTPException(409, f"the {device.profile.name} profile does not use a learned detector")
+        return guard(lambda: device.train_local_detector())
+
+    @app.post("/api/followups/check", dependencies=[api])
+    def followups():
+        return {"queued": guard(lambda: device.check_followups())}
+
+    @app.post("/api/ingest/audio", dependencies=[api])
+    def ingest_audio(b: AudioBody):
+        """Phone / any microphone -> the acoustic profile (sound carries the bearing impacts at a rate a phone CAN
+        deliver; its motion sensor is capped at 60 Hz in browsers)."""
+        if device.profile.name != "acoustic":
+            raise HTTPException(409, f"this device watches '{device.profile.name}'; start it with --profile acoustic "
+                                     "to listen with a microphone")
+        try:
+            raw = base64.b64decode(b.pcm16_b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "pcm16_b64 is not valid base64")
+        if len(raw) % 2 or not (0.5 * b.fs * 2 <= len(raw) <= MAX_AUDIO_SECONDS * b.fs * 2):
+            raise HTTPException(422, f"send 0.5-{MAX_AUDIO_SECONDS} s of 16-bit mono PCM")
+        x = np.frombuffer(raw, dtype="<i2").astype(np.float64) / 32768.0
+        if float(np.std(x)) < 1e-5:
+            raise HTTPException(422, "silent audio (microphone muted or blocked?)")
+        if device.gate is None and device.capture_state() is None:
+            raise HTTPException(409, "no baseline yet: POST /api/baseline/capture first (machine known-good)")
+        res = guard(lambda: device.ingest_signal(x, b.fs, b.rpm, b.source or "microphone"))
+        states: dict[str, int] = {}
+        for r in res:
+            states[r["state"]] = states.get(r["state"], 0) + 1
+        return {"windows": len(res), "states": states, "last": res[-1] if res else None,
+                "capture": device.capture_state(), "diagnosis": device.last_diagnosis,
+                "level_dbfs": round(20 * float(np.log10(np.sqrt(np.mean(x ** 2)) + 1e-12)), 1)}
+
     @app.post("/api/episodes/{eid}/fault_class", dependencies=[api])
     def fault(eid: str, b: FaultBody):
-        return guard(lambda: device.set_fault_class(eid, b.fault_class.value, b.expected_version))
+        return guard(lambda: device.set_fault_class(eid, b.fault_class.value, b.expected_version,
+                                                        b.damage_mode.value if b.damage_mode else None))
 
     @app.post("/api/episodes/{eid}/action", dependencies=[api])
     def action(eid: str, b: ActionBody):
@@ -337,9 +479,14 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
             """Phone sensor page: streams the phone's accelerometer to /api/ingest/signal (needs HTTPS on phones)."""
             return FileResponse(UI / "sensor.html")
 
-    @app.on_event("shutdown")
-    def _shutdown():
-        replay.stop()
-        worker.stop()
-
     return app
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """FastAPI lifespan (replaces the deprecated on_event hook): stop background threads on shutdown."""
+    yield
+    for k in ("replay", "worker"):
+        obj = getattr(app.state, k, None)
+        if obj is not None:
+            obj.stop()

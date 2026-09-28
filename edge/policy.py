@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from edge.fingerprint import DIM as FP_DIM, FP_VERSION
+from edge.physics import ORDER_FEATURE_NAMES, ORDER_FEATURES_VERSION
 from shared import ids
 from shared.redact import Redaction
 from shared.schema import ActionCode, FaultClass, ShareEvent
@@ -142,7 +143,13 @@ def decide(ep: dict[str, Any], *, fingerprint: list[float], redaction: Redaction
                 verify_windows_ok=int(v.get("consecutive_ok", 0) if outcome == "worked" else v.get("consecutive_bad", 0)),
                 verify_windows_required=int(n), technician_confirmed=True, fingerprint=[float(x) for x in fingerprint],
                 note_redacted=(redaction.text if share_note and redaction else None),
-                occurred_at=ep.get("action_at") or ep.get("first_seen"), content_hash=rh, fp_version=fp_version)
+                occurred_at=ep.get("action_at") or ep.get("first_seen"), content_hash=rh, fp_version=fp_version,
+                damage_mode=ep.get("damage_mode") or None, bearing=(ep.get("bearing") or None),
+                severity_mm_s=v.get("last_velocity_mm_s") if v.get("limit_mm_s") else None,
+                limit_mm_s=v.get("limit_mm_s") or None)
+    of = ep.get("order_features")
+    if isinstance(of, list) and len(of) == len(ORDER_FEATURE_NAMES):      # physics numbers for fleet learning
+        body |= {"order_features": [float(x) for x in of], "of_version": ORDER_FEATURES_VERSION}
     try:
         d.event = ShareEvent(**body).model_dump(mode="json")
     except ValidationError as e:

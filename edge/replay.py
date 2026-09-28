@@ -59,9 +59,21 @@ class Recordings:
                 x, rpm = load_cwru(path)
                 if not np.isfinite(rpm) or rpm <= 0:
                     rpm = NOMINAL_RPM[CWRU[fid][2]]
-                cls._raw[fid] = (windows(x), rpm)
-        ws, rpm = cls._raw[fid]
+                cls._raw[fid] = (windows(x), rpm, x)
+        ws, rpm, _ = cls._raw[fid]
         return (ws[i], float(FS), float(rpm)) if 0 <= i < len(ws) else None
+
+    @classmethod
+    def raw_segment(cls, fid: int, i: int, seconds: float = 1.0) -> tuple[np.ndarray, float, float] | None:
+        """A longer raw segment starting at window i (defect lines need ~1 s of signal to resolve)."""
+        from edge.fingerprint import FS, HOP
+        if cls.raw_window(fid, 0) is None:
+            return None
+        _, rpm, x = cls._raw[fid]
+        n = int(seconds * FS)
+        start = min(i * HOP, max(0, len(x) - n))
+        seg = x[start:start + n]
+        return (seg, float(FS), float(rpm)) if len(seg) == n else None
 
     @staticmethod
     def catalogue() -> list[dict]:

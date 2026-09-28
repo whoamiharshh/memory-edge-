@@ -32,9 +32,9 @@ function toast(msg, err = false) {
   setTimeout(() => t.remove(), 3500);
 }
 
-async function api(path, body) {
-  const opt = { headers: { "X-Operator-Token": token } };
-  if (body !== undefined) { opt.method = "POST"; opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+async function api(path, body, method = "POST") {
+  const opt = { method: body === undefined && method === "POST" ? "GET" : method, headers: { "X-Operator-Token": token } };
+  if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
   const r = await fetch(path, opt);
   if (r.status === 401) { showLogin(); throw new Error("sign-in required"); }
   const data = await r.json().catch(() => ({}));
@@ -151,7 +151,9 @@ async function refreshDetail() {
   selectedVersion = e.version;
   $("dBadges").replaceChildren(badge("status: " + e.status, cls(e.status)), badge("share: " + e.share_state, cls(e.share_state)),
     e.outbox_status ? badge("outbox: " + e.outbox_status, cls(e.outbox_status)) : "", e.recurrence_of ? badge("recurrence of " + short(e.recurrence_of), "b-violet") : "",
-    badge("v" + e.version, "b-mute"), e.archived ? badge("archived " + (e.archived_at || "").slice(0, 10), "b-mute") : "");
+    badge("v" + e.version, "b-mute"), e.archived ? badge("archived " + (e.archived_at || "").slice(0, 10), "b-mute") : "",
+    e.followup ? badge(e.followup.status === "held" ? `fix held ${e.followup.hold_days} d` : `recurred after ${e.followup.days_after_fix} d`,
+      e.followup.status === "held" ? "b-ok" : "b-bad") : "");
   const uo = e.untaught_operating_point;
   $("dOp").hidden = !uo;
   if (uo) $("dOp").textContent = "⚠ Untaught operating point (" + Object.entries(uo).filter(([k]) => k !== "suggestion")
@@ -161,10 +163,14 @@ async function refreshDetail() {
   const acc = h.measured_accuracy == null ? "n/a" : (h.measured_accuracy * 100).toFixed(0) + "%";
   $("dHint").replaceChildren(el("div", {}, "Physics hint: ", el("b", {}, h.fault_class || "–"), ` — ${h.why || ""}`),
     el("div", {}, `measured accuracy for this class on unseen bearings: ${acc} (overall ${h.measured_overall == null ? "n/a" : (h.measured_overall * 100).toFixed(0) + "%"}) · a hint, not a diagnosis`),
-    el("div", {}, "Confirmed: ", el("b", {}, e.fault_class ? `${e.fault_class} (by technician)` : "not yet")));
+    fleetHintLine(e.fleet_hint),
+    el("div", {}, "Confirmed: ", el("b", {}, e.fault_class ? `${e.fault_class} (by technician)` : "not yet"),
+      e.damage_mode ? ` · seen: ${e.damage_mode.replaceAll("_", " ")} (ISO 15243)` : ""));
   if (document.activeElement !== $("fcSel")) $("fcSel").value = e.fault_class || h.fault_class || "unknown";
+  if (document.activeElement !== $("dmSel")) $("dmSel").value = e.damage_mode || "";
   renderPhysics(e.physics, e.risk_hint);
   refreshProcedures(e).catch(() => {});
+  refreshEpisodeManuals(e).catch(() => {});
   const nt = $("noteTxt");   // reload the note unless the technician has unsaved typing in it
   if (document.activeElement !== nt && (nt.dataset.ep !== e.episode_id || !nt.dataset.dirty)) {
     nt.dataset.dirty = "";
@@ -177,9 +183,11 @@ async function refreshDetail() {
     const pct = v.verdict === "symptom_persists" ? 100 : Math.min(100, (100 * v.consecutive_ok) / v.required);
     $("vBar").style.width = pct + "%";
     $("vBar").style.background = v.verdict === "symptom_persists" ? "var(--bad)" : v.verdict === "symptom_resolved" ? "var(--ok)" : "var(--accent)";
-    $("vTxt").textContent = v.verdict === "symptom_resolved" ? `symptom resolved for ${v.consecutive_ok} consecutive windows (not a root-cause proof)`
+    $("vTxt").textContent = (v.verdict === "symptom_resolved" ? `symptom resolved for ${v.consecutive_ok} consecutive windows (not a root-cause proof)`
       : v.verdict === "symptom_persists" ? `symptom persists: ${v.consecutive_bad} consecutive abnormal windows after the action`
-      : `verifying: ${v.consecutive_ok}/${v.required} consecutive healthy windows (${v.seen} seen)`;
+      : `verifying: ${v.consecutive_ok}/${v.required} consecutive healthy windows (${v.seen} seen)`)
+      + (v.limit_mm_s ? ` · must also stay below ${v.limit_mm_s} mm/s (${v.limit_source || "machine card"})${v.last_velocity_mm_s != null ? `, now ${v.last_velocity_mm_s} mm/s` : ""}` : "")
+      + (v.mode === "replacement" ? ` · new part: a window also counts when it is nearer to healthy than to the fault (${v.new_part_windows || 0} so far)` : "");
   } else { $("vBar").style.width = "0%"; $("vTxt").textContent = "no action recorded yet"; }
   $("vTxt").append(e.technician_confirmed ? el("span", {}, " · technician: ", badge(e.outcome, cls(e.outcome === "failed" ? "failed" : e.outcome))) : "");
   const d = e.decision;
@@ -187,6 +195,75 @@ async function refreshDetail() {
     d && d.action === "SHARE" ? el("span", { class: "muted" }, d.note_shared ? " · redacted note included" : " · note stays local") : "");
   $("gates").replaceChildren(...(d ? d.reasons : []).map((r) =>
     el("li", {}, el("span", { class: "ic " + (r.ok ? "ok" : "no") }, r.ok ? "✓" : "…"), el("span", { class: "g" }, r.gate), el("span", {}, r.detail))));
+}
+
+function fleetHintLine(f) {
+  if (!f) return "";
+  const conf = f.confidence === "confident" ? badge("CONFIDENT: physics + fleet agree", "b-ok") : badge("UNCERTAIN: inspect", "b-warn");
+  const fl = f.fleet;
+  return el("div", {}, conf, " ", fl ? `fleet model: ${fl.fault_class} (p=${fl.probability}; learned from ${fl.cases} confirmed cases on ${fl.devices} devices; `
+    + `${fl.unseen_device_accuracy == null ? "not yet measured" : (fl.unseen_device_accuracy * 100).toFixed(0) + "% right on devices it never saw"})` : f.why);
+}
+
+// ---------------- machine card ----------------
+const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : null; };
+async function refreshCard() {
+  const r = await api("/api/machine-card");
+  if (!$("mcType").options.length) {
+    $("mcType").replaceChildren(...r.machine_types.map((t) => el("option", { value: t }, t.replaceAll("_", " "))));
+    $("mcBear").replaceChildren(el("option", { value: "" }, "bearing (from list)"), ...Object.entries(r.bearings).map(([k, n]) => el("option", { value: k }, n)));
+  }
+  const c = r.card;
+  if (!c) return;
+  const d = c.derived || {};
+  $("mcNow").textContent = `${c.manufacturer || "?"} ${c.model || ""} · ${d.severity_reference} · a fix must get below ${d.acceptable_mm_s} mm/s`
+    + (d.defect_frequencies_hz ? ` · defect frequencies ${Object.entries(d.defect_frequencies_hz).map(([k, v]) => `${k.toUpperCase()} ${v} Hz`).join(", ")}` : "");
+  if ($("mcEdit").open) return;
+  $("mcMan").value = c.manufacturer || ""; $("mcModel").value = c.model || ""; $("mcType").value = c.machine_type; $("mcFound").value = c.foundation;
+  $("mcKw").value = c.power_kw ?? ""; $("mcRpm").value = c.nominal_rpm ?? ""; $("mcMains").value = c.mains_hz ?? ""; $("mcBear").value = c.bearing || "";
+  const g = c.bearing_geometry || {};
+  $("mcN").value = g.n_elements ?? ""; $("mcD").value = g.ball_d ?? ""; $("mcP").value = g.pitch_d ?? ""; $("mcA").value = g.contact_deg ?? "";
+  const l = c.limits_mm_s || {};
+  $("mcAcc").value = l.acceptable ?? ""; $("mcTrip").value = l.trip ?? ""; $("mcSrc").value = c.source || "";
+}
+async function saveCard() {
+  const geo = num("mcN") && num("mcD") && num("mcP") ? { n_elements: num("mcN"), ball_d: num("mcD"), pitch_d: num("mcP"), contact_deg: num("mcA") || 0 } : null;
+  const card = { manufacturer: $("mcMan").value, model: $("mcModel").value, machine_type: $("mcType").value, foundation: $("mcFound").value,
+    power_kw: num("mcKw"), nominal_rpm: num("mcRpm"), mains_hz: num("mcMains"), bearing: geo ? null : ($("mcBear").value || null),
+    bearing_geometry: geo, limits_mm_s: num("mcAcc") ? { acceptable: num("mcAcc"), trip: num("mcTrip") } : null, source: $("mcSrc").value };
+  const data = await api("/api/machine-card", card, "PUT");
+  toast(data.baseline_recapture_recommended ? "machine card saved - bearing changed: re-capture the healthy baseline" : "machine card saved");
+  $("mcEdit").open = false;
+  refreshCard();
+}
+
+// ---------------- manuals ----------------
+async function refreshManuals() {
+  const docs = await api("/api/manuals");
+  $("manList").replaceChildren(...(docs.length ? docs.map((d) => el("div", {}, el("b", {}, d.title), ` · ${d.pages} pages, ${d.passages} passages`,
+    d.source ? el("span", { class: "muted" }, ` · ${d.source}`) : "", " ",
+    el("button", { on: { click: act(async () => { await api("/api/manuals/" + d.doc_id, undefined, "DELETE"); refreshManuals(); }) } }, "remove")))
+    : ["no manuals yet"]));
+}
+let manKey = "";
+async function refreshEpisodeManuals(e) {
+  const key = e.episode_id + (e.fault_class || "");
+  if (key === manKey) return;
+  manKey = key;
+  const r = await api("/api/manuals/search?limit=3&episode_id=" + encodeURIComponent(e.episode_id));
+  $("dMan").replaceChildren(...(r.hits.length ? r.hits.map((h) => el("div", { class: "section" }, el("b", {}, `${h.title}, p. ${h.page}`),
+    el("div", { class: "muted" }, h.text))) : ["no manuals indexed (add one under Machine card)"]));
+}
+async function addManual() {
+  const f = $("manFile").files[0];
+  if (!f) throw new Error("choose a PDF first");
+  const buf = new Uint8Array(await f.arrayBuffer());
+  let s = "";
+  for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  toast("indexing the manual on this device…");
+  const d = await api("/api/manuals", { title: $("manTitle").value || f.name, source: $("manSrc").value, pdf_b64: btoa(s) });
+  toast(`indexed: ${d.pages} pages, ${d.passages} passages`);
+  manKey = ""; refreshManuals();
 }
 
 // ---------------- physics + documented procedures ----------------
@@ -321,7 +398,9 @@ function wire() {
     toast("procedure saved as a site SOP"); ["pTitle", "pConfirm", "pSteps", "pSource"].forEach((id) => { $(id).value = ""; });
     procKey = ""; refreshDetail();
   });
-  $("fcBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/fault_class`, { fault_class: $("fcSel").value, expected_version: v() }); refreshDetail(); });
+  $("fcBtn").onclick = act(async () => { await api(`/api/episodes/${selected}/fault_class`, { fault_class: $("fcSel").value, damage_mode: $("dmSel").value || null, expected_version: v() }); refreshDetail(); });
+  $("mcSave").onclick = act(saveCard);
+  $("manAdd").onclick = act(addManual);
   $("noteBtn").onclick = act(async () => {
     await api(`/api/episodes/${selected}/note`, { text: $("noteTxt").value, share_opt_in: $("noteOpt").checked, expected_version: +$("noteTxt").dataset.ver || v() });
     $("noteTxt").dataset.dirty = ""; $("noteTxt").dataset.ep = ""; toast("note saved"); refreshDetail();
@@ -348,6 +427,9 @@ async function boot() {
   $("fcSel").replaceChildren(...enums.fault_classes.map((f) => el("option", { value: f }, f)));
   $("actSel").replaceChildren(...enums.action_codes.map((a) => el("option", { value: a }, a)));
   $("rcSel").replaceChildren(el("option", { value: "" }, "root cause (optional)"), ...enums.root_causes.map((r) => el("option", { value: r }, r)));
+  $("dmSel").replaceChildren(el("option", { value: "" }, "seen on the part (ISO 15243, optional)"), ...enums.damage_modes.map((d) => el("option", { value: d }, d.replaceAll("_", " "))));
+  refreshCard().catch(() => {});
+  refreshManuals().catch(() => {});
   $("pFault").replaceChildren(...enums.fault_classes.filter((f) => f !== "unknown").map((f) => el("option", { value: f }, f)));
   $("pComp").replaceChildren(...(enums.components || []).map((c) => el("option", { value: c }, c)));
   const cat = await api("/api/replay/catalogue");

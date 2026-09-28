@@ -3,7 +3,26 @@
   "dataset": "UCI Robot Execution Failures, CC BY 4.0 (real)",
   "results": {
     "lp1": {
-      "logistic_regression": {
+      "device_learned_detector": {
+        "false_alarm_rate": 0.0,
+        "false_alarm_range": [
+          0.0,
+          0.0
+        ],
+        "detection_rate": 0.988,
+        "detection_range": [
+          0.985,
+          1.0
+        ],
+        "per_failure_type": {
+          "collision": 1.0,
+          "fr_collision": 0.95,
+          "obstruction": 1.0
+        },
+        "normal_traces": 21,
+        "failure_traces": 67
+      },
+      "previous_logistic_regression": {
         "false_alarm_rate": 0.143,
         "detection_rate": 1.0,
         "per_failure_type": {
@@ -13,7 +32,7 @@
         },
         "traces": 88
       },
-      "gradient_boosting": {
+      "previous_gradient_boosting": {
         "false_alarm_rate": 0.238,
         "detection_rate": 1.0,
         "per_failure_type": {
@@ -25,7 +44,27 @@
       }
     },
     "lp2": {
-      "logistic_regression": {
+      "device_learned_detector": {
+        "false_alarm_rate": 0.1,
+        "false_alarm_range": [
+          0.1,
+          0.1
+        ],
+        "detection_rate": 0.967,
+        "detection_range": [
+          0.889,
+          1.0
+        ],
+        "per_failure_type": {
+          "back_col": 1.0,
+          "front_col": 1.0,
+          "left_col": 0.9,
+          "right_col": 1.0
+        },
+        "normal_traces": 20,
+        "failure_traces": 27
+      },
+      "previous_logistic_regression": {
         "false_alarm_rate": 0.1,
         "detection_rate": 1.0,
         "per_failure_type": {
@@ -36,7 +75,7 @@
         },
         "traces": 47
       },
-      "gradient_boosting": {
+      "previous_gradient_boosting": {
         "false_alarm_rate": 0.0,
         "detection_rate": 0.0,
         "per_failure_type": {
@@ -49,7 +88,26 @@
       }
     },
     "lp3": {
-      "logistic_regression": {
+      "device_learned_detector": {
+        "false_alarm_rate": 0.09,
+        "false_alarm_range": [
+          0.05,
+          0.1
+        ],
+        "detection_rate": 0.956,
+        "detection_range": [
+          0.889,
+          1.0
+        ],
+        "per_failure_type": {
+          "lost": 1.0,
+          "moved": 1.0,
+          "slightly_moved": 0.867
+        },
+        "normal_traces": 20,
+        "failure_traces": 27
+      },
+      "previous_logistic_regression": {
         "false_alarm_rate": 0.15,
         "detection_rate": 1.0,
         "per_failure_type": {
@@ -59,7 +117,7 @@
         },
         "traces": 47
       },
-      "gradient_boosting": {
+      "previous_gradient_boosting": {
         "false_alarm_rate": 0.0,
         "detection_rate": 0.0,
         "per_failure_type": {
@@ -71,7 +129,25 @@
       }
     },
     "lp4": {
-      "logistic_regression": {
+      "device_learned_detector": {
+        "false_alarm_rate": 0.0,
+        "false_alarm_range": [
+          0.0,
+          0.0
+        ],
+        "detection_rate": 0.988,
+        "detection_range": [
+          0.978,
+          0.989
+        ],
+        "per_failure_type": {
+          "collision": 0.985,
+          "obstruction": 1.0
+        },
+        "normal_traces": 24,
+        "failure_traces": 93
+      },
+      "previous_logistic_regression": {
         "false_alarm_rate": 0.125,
         "detection_rate": 0.989,
         "per_failure_type": {
@@ -80,7 +156,7 @@
         },
         "traces": 117
       },
-      "gradient_boosting": {
+      "previous_gradient_boosting": {
         "false_alarm_rate": 0.125,
         "detection_rate": 0.989,
         "per_failure_type": {
@@ -91,7 +167,27 @@
       }
     },
     "lp5": {
-      "logistic_regression": {
+      "device_learned_detector": {
+        "false_alarm_rate": 0.045,
+        "false_alarm_range": [
+          0.045,
+          0.045
+        ],
+        "detection_rate": 0.963,
+        "detection_range": [
+          0.95,
+          0.975
+        ],
+        "per_failure_type": {
+          "bottom_collision": 1.0,
+          "bottom_obstruction": 1.0,
+          "collision_in_part": 0.938,
+          "collision_in_tool": 0.938
+        },
+        "normal_traces": 44,
+        "failure_traces": 120
+      },
+      "previous_logistic_regression": {
         "false_alarm_rate": 0.091,
         "detection_rate": 0.983,
         "per_failure_type": {
@@ -102,7 +198,7 @@
         },
         "traces": 164
       },
-      "gradient_boosting": {
+      "previous_gradient_boosting": {
         "false_alarm_rate": 0.295,
         "detection_rate": 1.0,
         "per_failure_type": {

@@ -30,6 +30,15 @@ import scipy.signal as ss
 G = 9.80665
 _EPS = 1e-12
 ISO10816_G2_RIGID_MM_S = (1.4, 2.8, 4.5)           # A/B, B/C, C/D boundaries (velocity RMS)
+# ISO 10816-3:1998 Annex A, Tables A.1-A.4 (r.m.s. velocity, mm/s), read from the standard's text (28 Sep 2026).
+# The standard itself says these are guidelines, NOT acceptance specifications: those "shall be subject to agreement
+# between the machine manufacturer and customer" - so a machine card can override them with the manufacturer's limits.
+ISO10816_3 = {
+    (1, "rigid"): (2.3, 4.5, 7.1), (1, "flexible"): (3.5, 7.1, 11.0),     # > 300 kW (up to 50 MW)
+    (2, "rigid"): (1.4, 2.8, 4.5), (2, "flexible"): (2.3, 4.5, 7.1),      # 15 - 300 kW
+    (3, "rigid"): (2.3, 4.5, 7.1), (3, "flexible"): (3.5, 7.1, 11.0),     # pumps > 15 kW, separate driver
+    (4, "rigid"): (1.4, 2.8, 4.5), (4, "flexible"): (2.3, 4.5, 7.1),      # pumps > 15 kW, integrated driver
+}
 ZONE_TEXT = {"A": "newly commissioned level", "B": "acceptable for unrestricted long-term operation",
              "C": "unsatisfactory for long-term operation; plan corrective action",
              "D": "severe enough to cause damage"}
@@ -61,7 +70,20 @@ BEARINGS = {
     "6206": BearingGeometry(9, 9.0, (30 + 62) / 2, 0.0, "6206 (HUST)"),
     "6207": BearingGeometry(9, 11.0, (35 + 72) / 2, 0.0, "6207 (HUST)"),
     "6208": BearingGeometry(9, 12.0, (40 + 80) / 2, 0.0, "6208 (HUST)"),
+    # NSK 6203ZZ as published by Sehri, Dumond & Bouchard, Data in Brief 49 (2023): 8 balls, 6.77 mm, pitch 28.50 mm
+    "6203-UO": BearingGeometry(8, 6.77, 28.50, 0.0, "NSK 6203 (University of Ottawa)"),
 }
+
+
+def custom_geometry(spec: dict) -> BearingGeometry:
+    """A bearing geometry from the manufacturer's catalogue / manual (machine card): n rolling elements, element
+    diameter, pitch diameter (same unit), contact angle in degrees. Validated so a typo cannot produce nonsense."""
+    n, d, D = int(spec["n_elements"]), float(spec["ball_d"]), float(spec["pitch_d"])
+    a = float(spec.get("contact_deg", 0.0))
+    if not (3 <= n <= 60 and 0 < d < D < 10_000 and 0 <= a < 60):
+        raise ValueError("bearing geometry out of range (3-60 elements, 0 < ball diameter < pitch diameter, "
+                         "contact angle 0-60 degrees)")
+    return BearingGeometry(n, d, D, a, str(spec.get("name", "custom (machine card)"))[:60])
 
 
 def spectrum(x: np.ndarray, fs: float) -> tuple[np.ndarray, np.ndarray]:
@@ -98,12 +120,14 @@ def velocity_rms_mm_s(acc_g: np.ndarray, fs: float, band: tuple[float, float] = 
     return float(np.sqrt(np.mean(vel ** 2)))
 
 
-def severity_zone(v_rms_mm_s: float, bounds: tuple[float, float, float] = ISO10816_G2_RIGID_MM_S) -> dict:
+def severity_zone(v_rms_mm_s: float, bounds: tuple[float, float, float] = ISO10816_G2_RIGID_MM_S,
+                  reference: str | None = None) -> dict:
     if not math.isfinite(v_rms_mm_s):
         return {"zone": None, "text": "velocity not measurable at this sampling rate"}
     zone = "A" if v_rms_mm_s < bounds[0] else "B" if v_rms_mm_s < bounds[1] else "C" if v_rms_mm_s < bounds[2] else "D"
-    return {"zone": zone, "velocity_mm_s": round(v_rms_mm_s, 3), "text": ZONE_TEXT[zone],
-            "reference": "ISO 10816-3 group 2 rigid boundaries 1.4/2.8/4.5 mm/s (indicative for other machines)"}
+    return {"zone": zone, "velocity_mm_s": round(v_rms_mm_s, 3), "text": ZONE_TEXT[zone], "bounds_mm_s": list(bounds),
+            "reference": reference or "ISO 10816-3 group 2 rigid boundaries 1.4/2.8/4.5 mm/s (indicative for other "
+                                      "machines; add a machine card for this machine's own limits)"}
 
 
 def estimate_shaft_hz(freqs: np.ndarray, amp: np.ndarray, lo: float = 2.0, hi: float | None = None) -> float | None:
@@ -224,3 +248,31 @@ def combine(diag: dict) -> dict:
         s["text"] += ("; early bearing defects show in envelope/acceleration long before overall velocity rises, "
                       "so a low zone does not mean the bearing is healthy")
     return diag
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Order-domain envelope features for the FLEET-LEARNED fault hint (edge/fleet_hint.py). Dimensionless (log ratios at
+# shaft orders), so they compare across speeds and bearing sizes. Measured on real data in bench/fault_hint.py.
+ORDER_FEATURES_VERSION = "of-v1"
+ORDER_FEATURE_NAMES = ([f"{d}_h{h}" for d in ("bpfo", "bpfi", "bsf", "ftf") for h in (1, 2, 3)]
+                       + ["bpfi_sidebands"] + [f"shaft_{k}x" for k in range(1, 6)] + ["log_kurtosis", "log_crest"])
+ORDER_FEATURES_MIN_S = 0.5          # shorter segments cannot resolve defect lines (bins wider than 2 Hz)
+
+
+def order_features(x: np.ndarray, fs: float, shaft_hz: float, geometry: BearingGeometry) -> list[float]:
+    """20 numbers per segment: for BPFO/BPFI/2xBSF/FTF and harmonics 1-3 the log10 envelope level relative to the
+    median envelope level; BPFI +-1x sidebands (inner-race modulation); envelope level at 1x-5x; raw kurtosis and
+    crest factor (log10). Envelope band chosen by the kurtogram."""
+    import scipy.stats as st
+    x = np.asarray(x, dtype=np.float64)
+    f, p = envelope_spectrum(x, fs, kurtogram_band(x, fs))
+    ref = float(np.median(p[(f > 5) & (f < 1000)])) + 1e-30
+    lg = lambda v: math.log10(v / ref + 1e-12)
+    o = geometry.orders()
+    out = [lg(peak_near(f, p, h * o[d] * shaft_hz, 0.015)) for d in ("bpfo", "bpfi", "bsf", "ftf") for h in (1, 2, 3)]
+    bpfi = o["bpfi"] * shaft_hz
+    out.append(lg(peak_near(f, p, bpfi - shaft_hz, 0.015) + peak_near(f, p, bpfi + shaft_hz, 0.015)))
+    out += [lg(peak_near(f, p, k * shaft_hz, 0.015)) for k in range(1, 6)]
+    y = x - x.mean()
+    out += [math.log10(float(st.kurtosis(y, fisher=False)) + 1e-9), math.log10(np.abs(y).max() / (y.std() + 1e-12))]
+    return [float(v) if math.isfinite(v) else 0.0 for v in out]

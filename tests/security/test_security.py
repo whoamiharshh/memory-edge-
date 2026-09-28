@@ -107,7 +107,11 @@ def test_retraction_is_a_tombstone_and_recomputes_tallies(cloud):
     e = event()
     push(c, tok, [e])
     r = c.post(f"/v1/events/{e['event_id']}/retract", json={"reason": "fabricated"}, headers=hdr(cloud["admin"]))
-    assert r.status_code == 200 and r.json()["status"] == "retracted"
+    assert r.status_code == 200 and r.json()["status"] == "active" and r.json()["retraction"].startswith("pending")
+    r = c.post(f"/v1/events/{e['event_id']}/retract", json={"reason": "fabricated"}, headers=hdr(cloud["admin"]))
+    assert r.status_code == 409                                                 # the same admin cannot approve
+    r = c.post(f"/v1/events/{e['event_id']}/retract", json={"reason": "agreed"}, headers=hdr(cloud["admin2"]))
+    assert r.status_code == 200 and r.json()["status"] == "retracted" and r.json()["retracted_by"] == ["admin1", "admin2"]
     case = c.get(f"/v1/cases/{ids.case_id('acme', 'bearing', 'inner_race')}", headers=hdr(cloud["admin"])).json()
     assert case["n_events"] == 0 and case["n_retracted"] == 1 and case["status"] == "retracted"
     assert len(case["events"]) == 1                                             # kept, not deleted

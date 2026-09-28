@@ -39,6 +39,9 @@ class SnapshotError(RuntimeError):
     """Qdrant Server refused or failed a snapshot request."""
 
 
+QDRANT_TIMEOUT_S = 20      # every Qdrant call fails after this instead of hanging (then the device retries)
+
+
 def _cname(kind: str, tenant: str) -> str:
     if not _SAFE.match(tenant):
         raise ValueError("invalid tenant id")
@@ -47,14 +50,38 @@ def _cname(kind: str, tenant: str) -> str:
 
 class CloudStore:
     def __init__(self, url: str | None = None, location: str | None = None):
-        self.client = QdrantClient(url=url, timeout=10) if url else QdrantClient(location=location or ":memory:")
+        # One Qdrant client PER THREAD for a server: FastAPI runs requests on a thread pool, and a shared client broke
+        # under 20 concurrent devices on Windows ("WinError 10038 not a socket", bench/scale_fleet.py). In-memory
+        # Qdrant (tests) lives inside one client object, so that one stays shared.
+        self._local = threading.local()
+        self._shared = None if url else QdrantClient(location=location or ":memory:")
         self.backend = url or location or ":memory:"
         self.url = url.rstrip("/") if url else None
         self.supports_snapshots = self.url is not None
-        self._http = httpx.Client(timeout=120) if self.url else None
-        self._lock = threading.RLock()
+        self._lock = threading.RLock()                      # schema creation and sequence numbers only
+        self._stripes = [threading.Lock() for _ in range(64)]
+        self._snap_cache: dict[str, tuple[int, bytes]] = {}    # tenant -> (mirror seq, gzip full snapshot)
+        self._snap_locks: dict[str, threading.Lock] = {}
         self._ready: set[str] = set()
         self._seq: dict[str, int] = {}
+
+    @property
+    def client(self) -> QdrantClient:
+        if self._shared is not None:
+            return self._shared
+        c = getattr(self._local, "client", None)
+        if c is None:
+            c = self._local.client = QdrantClient(url=self.url, timeout=QDRANT_TIMEOUT_S)
+        return c
+
+    @property
+    def _http(self) -> httpx.Client | None:
+        if self.url is None:
+            return None
+        h = getattr(self._local, "http", None)
+        if h is None:
+            h = self._local.http = httpx.Client(timeout=httpx.Timeout(120, connect=10))
+        return h
 
     # ---- schema -----------------------------------------------------------------------------------------
     def ensure_tenant(self, tenant: str) -> None:
@@ -141,6 +168,21 @@ class CloudStore:
         if not self.supports_snapshots:
             raise SnapshotError("snapshots need a Qdrant Server (this store is in-process)")
         self.ensure_tenant(tenant)
+        if manifest is None:
+            # a FULL snapshot is the same for every device at the same mirror version: build it once, serve it to all
+            # (bench/scale_fleet.py: 20 devices each triggering their own snapshot took ~78 s per device)
+            seq = self._max_seq(tenant, "mirror")
+            with self._snap_locks.setdefault(tenant, threading.Lock()):
+                hit = self._snap_cache.get(tenant)
+                if hit is None or hit[0] != seq:
+                    status, stream = self._open_snapshot_stream(tenant, None)
+                    hit = (seq, b"".join(stream))
+                    self._snap_cache[tenant] = hit
+            data = hit[1]
+            return 200, iter([data[i:i + CHUNK] for i in range(0, len(data), CHUNK)])
+        return self._open_snapshot_stream(tenant, manifest)
+
+    def _open_snapshot_stream(self, tenant: str, manifest: dict | None) -> tuple[int, Iterator[bytes] | None]:
         base = f"{self.url}/collections/{_cname('mirror', tenant)}/shards/0/snapshot"
         req = (self._http.build_request("POST", base + "/partial/create", json=manifest) if manifest is not None
                else self._http.build_request("GET", base))
@@ -175,12 +217,42 @@ class CloudStore:
         """'accepted' or 'duplicate'. insert_only: an existing event is never modified by a replay."""
         self.ensure_tenant(tenant)
         c = _cname("events", tenant)
-        with self._lock:
+        # a lock per event-id STRIPE, not one global lock: the check-then-insert stays atomic for the same event, while
+        # one slow Qdrant call can no longer stall every device's push (bench/scale_fleet.py found that freeze)
+        with self._stripes[hash(event_id) % len(self._stripes)]:
             if self.client.retrieve(c, [event_id], with_payload=False):
                 return "duplicate"
             self.client.upsert(c, [m.PointStruct(id=event_id, vector={"vib": vib}, payload=payload)],
                                update_mode=m.UpdateMode.INSERT_ONLY, wait=True)
             return "accepted"
+
+    def insert_events(self, tenant: str, items: list[tuple[str, dict, list[float]]]) -> dict[str, str]:
+        """Batch form of insert_event: ONE lookup of the ids and ONE insert_only upsert for the new ones (a push of 50
+        events was 100 Qdrant calls; bench/scale_fleet.py). The stripe locks of all ids are taken in a fixed order,
+        so concurrent batches cannot deadlock and the check-then-insert stays atomic per event."""
+        if not items:
+            return {}
+        self.ensure_tenant(tenant)
+        c = _cname("events", tenant)
+        locks = sorted({hash(eid) % len(self._stripes) for eid, _, _ in items})
+        for k in locks:
+            self._stripes[k].acquire()
+        try:
+            ids_ = list(dict.fromkeys(eid for eid, _, _ in items))
+            have = {str(r.id) for r in self.client.retrieve(c, ids_, with_payload=False)}
+            out, new = {}, []
+            for eid, payload, vib in items:
+                if eid in have or eid in out:
+                    out.setdefault(eid, "duplicate")
+                    continue
+                out[eid] = "accepted"
+                new.append(m.PointStruct(id=eid, vector={"vib": vib}, payload=payload))
+            if new:
+                self.client.upsert(c, new, update_mode=m.UpdateMode.INSERT_ONLY, wait=True)
+            return out
+        finally:
+            for k in reversed(locks):
+                self._stripes[k].release()
 
     def get_event(self, tenant: str, event_id: str) -> dict | None:
         self.ensure_tenant(tenant)

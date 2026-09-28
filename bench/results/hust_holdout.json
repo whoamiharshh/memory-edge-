@@ -66,10 +66,10 @@
     "false_alarms": 4,
     "protocol": "technician marks the first 10 windows of the untaught 400 W healthy state as normal operation once; false alarms counted on the remaining windows"
   },
-  "k3_fixed_resolved": "15/42",
+  "k3_fixed_resolved": "42/42",
   "k3_fixed_resolved_after_one_teach": "42/42",
-  "k3_still_faulty_persists": "31/32",
-  "k3_still_faulty_not_evaluable": 7,
+  "k3_still_faulty_persists": "38/39",
+  "k3_still_faulty_not_evaluable": 0,
   "k3_false_promotions": 0,
   "physics_hint": {
     "overall": 0.9762,
@@ -201,7 +201,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -217,7 +217,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -233,7 +233,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -249,7 +249,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -265,7 +265,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -281,7 +281,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -297,7 +297,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -313,7 +313,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -329,7 +329,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "symptom_persists",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -488,7 +488,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -504,7 +504,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -520,7 +520,7 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -536,7 +536,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -552,7 +552,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -568,7 +568,7 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -584,7 +584,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -600,7 +600,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -616,7 +616,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
@@ -632,8 +632,8 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -648,8 +648,8 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -664,8 +664,8 @@
       "true": "inner_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -680,8 +680,8 @@
       "true": "outer_race",
       "device_hint": "inner_race",
       "envelope_rule": "inner_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -696,8 +696,8 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -712,8 +712,8 @@
       "true": "outer_race",
       "device_hint": "outer_race",
       "envelope_rule": "outer_race",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -728,7 +728,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -743,8 +743,8 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
-      "k3_still_faulty_note": "no separate episode opened for the continuing fault",
+      "k3_fixed": "symptom_resolved",
+      "k3_still_faulty": "symptom_persists",
       "k3_fixed_after_teach": "symptom_resolved"
     },
     {
@@ -759,7 +759,7 @@
       "true": "ball",
       "device_hint": "ball",
       "envelope_rule": "ball",
-      "k3_fixed": "verifying",
+      "k3_fixed": "symptom_resolved",
       "k3_fixed_after_teach": "symptom_resolved"
     }
   ],

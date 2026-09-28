@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phone sensor</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/style.css">
 <style>
   body { max-width: 560px; margin: 0 auto; padding: 16px; }
@@ -14,23 +15,31 @@
 </style>
 </head>
 <body>
-  <h2>Phone as a vibration sensor</h2>
-  <p class="muted">Put the phone flat on the running machine (e.g. a desk fan's base or a washing machine top). The
-    phone's accelerometer (~60 Hz) streams to this device over HTTPS. It can see shaft-rate problems such as
-    imbalance; it cannot see bearing defect frequencies.</p>
+  <h2>Phone as a machine sensor</h2>
+  <p class="muted">Put the phone on or right next to the running machine (e.g. 2 cm from a motor's bearing housing, or
+    flat on a desk fan's base). Recommended: the <b>microphone</b> (44.1/48 kHz) - fast enough to hear bearing-defect
+    impacts and shaft orders; measured on 20 real bearings with faults that developed naturally (0 false alarms in 380
+    healthy windows, 96 % of faulty windows flagged). The <b>motion sensor</b> is capped at about 60 Hz by browsers, so
+    it only sees shaft-rate problems such as imbalance. Start the device with <code>--profile acoustic</code> for the
+    microphone, <code>--profile lowrate-accel</code> for the motion sensor.</p>
 
   <div class="step">
     <b>1. Operator token</b>
     <input id="tok" type="password" placeholder="operator token" style="width:100%" autocomplete="current-password">
   </div>
   <div class="step">
-    <b>2. Start the sensor</b> <span class="muted">(the browser asks for motion permission)</span>
+    <b>2. Start the sensor</b> <span class="muted">(the browser asks for permission)</span>
+    <select id="mode" style="width:100%;margin-top:6px">
+      <option value="mic" selected>Microphone (recommended, 44.1/48 kHz)</option>
+      <option value="motion">Motion sensor (about 60 Hz)</option>
+    </select>
+    <input id="rpm" type="number" min="1" placeholder="machine speed in rpm (optional, from the nameplate)" style="width:100%;margin-top:6px">
     <button id="start" class="primary">Start sensor</button>
     <div class="muted" id="rate">not started</div>
   </div>
   <div class="step">
     <b>3. Teach "healthy"</b> <span class="muted">(machine known-good, e.g. before taping a coin to a fan blade)</span>
-    <button id="capture">Capture healthy baseline (40 windows ≈ 1.5 min)</button>
+    <button id="capture">Capture healthy baseline (40 windows: ~20 s microphone, ~1.5 min motion)</button>
     <div class="muted" id="cap"></div>
   </div>
   <div class="step">

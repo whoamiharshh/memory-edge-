@@ -32,6 +32,7 @@
       <span class="badge b-bad">DISPUTED</span> same action reported both worked and failed
       <span class="badge b-bad">COMPETING</span> different root causes claimed
       <span class="badge b-info">ALTERNATIVES</span> several different actions each worked
+      <span class="badge b-bad">RECURRED</span> a verified fix saw the fault come back within its hold period
       <span>· every report was sensor-verified on its own machine before it was allowed to leave the device</span>
     </div>
   </section>
@@ -46,7 +47,12 @@
   <section class="card s12" id="devCard" hidden>
     <h2>Device tokens <span class="hint muted">only token hashes are stored; revocation takes effect on the next request</span></h2>
     <div class="row"><input id="nDev" type="text" placeholder="device id" maxlength="40"><input id="nSite" type="text" placeholder="site id" maxlength="40"><button id="issueBtn">Issue token</button><span id="issued" class="mono"></span></div>
-    <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>device</th><th>site</th><th>role</th><th>state</th><th></th></tr></thead><tbody id="devBody"></tbody></table></div>
+    <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>device</th><th>site</th><th>role</th><th>state</th><th>evidence (counts)</th><th>code</th><th></th></tr></thead><tbody id="devBody"></tbody></table></div>
+  </section>
+  <section class="card s12" id="auditCard" hidden>
+    <h2>Audit log <span class="hint muted">every admin action, hash-chained: editing or deleting a past line breaks the chain</span></h2>
+    <div class="row" id="auditChain"></div>
+    <div class="tablewrap"><table><thead><tr><th>time</th><th>admin</th><th>action</th><th>detail</th></tr></thead><tbody id="auditBody"></tbody></table></div>
   </section>
 </main>
 <script src="/static/app.js"></script>

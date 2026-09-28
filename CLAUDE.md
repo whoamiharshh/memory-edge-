@@ -195,13 +195,28 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   folder); PWA (manifest + service worker, never caches /api); site SOP form; SKF lubrication procedure.
   224 tests pass (358 s, 28 Sep).
   **Training data rule (user):** everything trained uses REAL data only; synthetic signals exist only in tests.
+- [x] (28 Sep, weak-point pass; details docs/DECISIONS.md D29-D40, docs/BENCHMARKS.md §21-29, plan was in the session
+  scratchpad) phone MICROPHONE profile `acoustic` + `/api/ingest/audio` + sensor.js mic mode (UOttawa natural wear:
+  0/380 FA, 95.7 % faulty flagged); replacement-aware verifier (new bearing 19/20; HUST 42/42 without teaching);
+  fleet-learned fault hint (cloud/hint_model.py, edge/fleet_hint.py, physics.order_features, "confident" when physics +
+  fleet agree: HUST 100 %, UOttawa 92 %, CWRU 85 %); machine card (ISO 10816-3 tables from the standard, manufacturer
+  limits in the verifier); manuals (pypdf, offline search with pages); ISO 15243 DamageMode; held/recurred FollowUp +
+  RECURRED flag; relative order rule; robots' own learned detector + teach_fault (96-99 %, 0-10 % FA); events radius
+  at a 1 % FA target (HDFS 99.98 % / 0.39 %); redactor with Wikidata names + name model (unseen 96 % typed);
+  security: CRL + TLS>=1.2 (cloud/tls.py), two-admin retraction, quarantine, plausibility checks, audit chain,
+  code-integrity hash, CSP headers, weak token refused; scale: per-thread Qdrant clients, lock stripes, batched ingest,
+  coalesced recompute, snapshot cache, bytes-based bootstrap (20 devices: 1,000 events in 9.8 s, 0 lost);
+  tools/qdrant_local.py (any OS), tools/backup.py, tools/sensor_bridge.py, .github/workflows/tests.yml (unrun).
+  REJECTED (kept as evidence): physics v2, cross-dataset prior, bearing-growth gating, SCANIA training-split model.
+- [ ] Remaining improvement ideas (after the user's "ready" notice): network-fault proxy + clock-skew tests, 50+ device
+  scale run, an Android capture app, more motor data for imbalance/misalignment naming.
 - [ ] USER: real-world field test + phone tests (docs/FIELD_TEST.md) - remind them (they will do it after the web part)
 - [ ] USER: the invalid `permissions.allow` rule in `C:\Users\Sir\.claude\settings.json` - needs their yes (global config)
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
-- Tests: `.venv\Scripts\python.exe -m pytest` (count and time: see README "Tests"; some tests start
-  `qdrant_server\qdrant.exe` themselves)
+- Tests: `.venv\Scripts\python.exe -m pytest` (289 tests, all passing, ~9 min on 28 Sep; some tests start `qdrant_server\qdrant.exe` themselves;
+  pytest.ini already adds -q: do not add another -q or the summary line disappears)
 - Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →
   `runtime\recording\backup_demo.webm`
 - Laya experiment (venv + model deleted 28 Sep; recreate per docs/SETUP.md step 13 only if re-measuring):

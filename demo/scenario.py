@@ -110,7 +110,17 @@ def main() -> None:
     ok(r["push"].get("accepted") == 1, f"site 3 push: {r['push']}")
     call(A, "POST", f"/api/outbox/{e['event_id']}/resend")
     r = call(A, "POST", "/api/sync/now")
-    ok(r["push"].get("duplicate") == 1, f"resend of the same event -> {r['push']} (counted once)")
+    dup = r["push"].get("duplicate") == 1
+    if not dup:          # the device's background sync may have pushed the resend first: read its logged ack instead
+        for _ in range(20):
+            acts = call(A, "GET", "/api/activity?limit=20")
+            dup = any(a["kind"] == "sync" and "1 duplicate" in a["message"] for a in acts)
+            if dup:
+                break
+            time.sleep(0.5)
+    before = next(x for x in call(CLOUD, "GET", "/v1/cases") if x["fault_class"] == "inner_race")["n_events"]
+    ok(dup and before == 2, f"resend of the same event -> the cloud answered 'duplicate'; case still counts "
+                            f"{before} events (counted once)")
 
     step("Cloud (Qdrant Server): evidence grouped by (component, fault class); the disagreement is KEPT and flagged")
     cases = call(CLOUD, "GET", "/v1/cases")

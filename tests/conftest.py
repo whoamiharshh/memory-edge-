@@ -21,8 +21,11 @@ from edge.sync_worker import SyncWorker
 from shared.embed import HashEmbedder
 
 needs_cwru = pytest.mark.skipif(not CACHE.exists(), reason="CWRU feature cache missing (run data/fetch_data.py)")
-QDRANT_EXE = pathlib.Path(__file__).resolve().parents[1] / "qdrant_server" / "qdrant.exe"
-needs_qdrant_server = pytest.mark.skipif(not QDRANT_EXE.exists(), reason="qdrant_server/qdrant.exe missing (docs/SETUP.md)")
+from tools import qdrant_local
+
+QDRANT_EXE = qdrant_local.binary()          # qdrant.exe on Windows, qdrant elsewhere
+needs_qdrant_server = pytest.mark.skipif(not QDRANT_EXE.exists(),
+                                         reason="Qdrant Server binary missing (python -m tools.qdrant_local download)")
 
 
 def _free_port() -> int:
@@ -34,29 +37,9 @@ def _free_port() -> int:
 @pytest.fixture(scope="session")
 def qdrant_url(tmp_path_factory):
     if not QDRANT_EXE.exists():
-        pytest.skip("qdrant_server/qdrant.exe missing")
-    tmp = tmp_path_factory.mktemp("qdrant")
-    http, grpc = _free_port(), _free_port()
-    env = os.environ | {"QDRANT__STORAGE__STORAGE_PATH": str(tmp / "storage"),
-                        "QDRANT__STORAGE__SNAPSHOTS_PATH": str(tmp / "snapshots"),
-                        "QDRANT__SERVICE__HTTP_PORT": str(http), "QDRANT__SERVICE__GRPC_PORT": str(grpc),
-                        "QDRANT__TELEMETRY_DISABLED": "true"}
-    proc = subprocess.Popen([str(QDRANT_EXE)], cwd=tmp, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    url = f"http://127.0.0.1:{http}"
-    try:
-        for _ in range(120):
-            try:
-                if httpx.get(f"{url}/readyz", timeout=1).status_code == 200:
-                    break
-            except httpx.HTTPError:
-                pass
-            time.sleep(0.25)
-        else:
-            pytest.fail("Qdrant Server did not become ready")
+        pytest.skip("Qdrant Server binary missing (python -m tools.qdrant_local download)")
+    with qdrant_local.server(tmp_path_factory.mktemp("qdrant")) as url:
         yield url
-    finally:
-        proc.kill()
-        proc.wait()
 
 
 @pytest.fixture
@@ -67,7 +50,8 @@ def server_cloud(qdrant_url):
     tenant = "t" + uuid.uuid4().hex[:10]
     client = TestClient(create_app(store, reg, HashEmbedder()))
     return {"store": store, "registry": reg, "client": client, "tenant": tenant,
-            "admin": reg.issue("admin1", "hq", tenant, role="admin")}
+            "admin": reg.issue("admin1", "hq", tenant, role="admin"),
+            "admin2": reg.issue("admin2", "hq", tenant, role="admin")}
 
 
 @pytest.fixture
@@ -95,7 +79,8 @@ def cloud():
     app = create_app(store, reg, HashEmbedder())
     client = TestClient(app)
     admin = reg.issue("admin1", "hq", "acme", role="admin")
-    return {"store": store, "registry": reg, "client": client, "admin": admin}
+    admin2 = reg.issue("admin2", "hq", "acme", role="admin")               # retraction needs two different admins
+    return {"store": store, "registry": reg, "client": client, "admin": admin, "admin2": admin2}
 
 
 @pytest.fixture

@@ -56,6 +56,8 @@ could be credited to the wrong fault); 1.5's error splits one intermittent fault
 This is why the fleet groups by **technician-confirmed fault class** (DECISIONS D3).
 
 ## 4. Text retrieval on real maintenance text (`bench/retrieval_text.py`)
+> See §29 for capped recall (nR@10) and tune/test halves.
+
 Annotated Maintenance Logbook (6,169 records, CC BY 4.0), 500 queries, relevant = same annotated (problem, part).
 | Method (all through Qdrant Edge) | P@3 | MRR@10 | R@10 | query p50 |
 |---|---|---|---|---|
@@ -147,6 +149,10 @@ episode writes, one window every 170.7 ms for 60 s. CPU % = process CPU time / w
 Without the optional LLM, one device fits in ~0.3 GB of RAM and a small fraction of one laptop core.
 
 ## 12. Held-out second machine: HUST bearing (`bench/hust_holdout.py`)
+> **Updated 28 Sep (§22):** with the replacement-aware verifier, fix verified at the untaught 400 W load is
+> **42/42 without any teaching** (was 15/42), still-faulty caught 38/39, 0 false promotions; physics hint unchanged
+> at 97.6 %. The table below is the earlier run, kept for the record.
+
 The data-realism test. **Nothing was tuned on this data**: thresholds as shipped (chosen on CWRU). HUST bearing
 (Hong & Thuan 2023, Mendeley Data, CC BY 4.0, DOI 10.17632/cbv7jyx4p9.3): another lab rig, another sensor
 (PCB 325C33), 51.2 kHz, **five bearing types (6204-6208)**, 0/200/400 W; shaft speed from each file. Profile
@@ -221,6 +227,9 @@ a threshold chosen on CWRU (1.63; `spike/signature_threshold.py`).
 Per recording on HUST the CWRU threshold separates 12/15 healthy (below) and 36/42 faulty (above).
 
 ## 19. Robots: a failure model TRAINED ON REAL DATA (`bench/robot_model.py`)
+> **Superseded by §27:** the threshold below came from overfit training scores (9-15 % false alarms); the
+> shipped device detector alarms at p > 0.5: 96-99 % detection, 0-10 % false alarms.
+
 UCI Robot Execution Failures (real, CC BY 4.0), 5-fold stratified cross-validation per task (each trace scored by a
 model that never saw it); alert threshold fixed on the training folds (≤ 5 % of *training* normals alarm).
 | Task | Unsupervised gate (§13): detected / false alarms | Logistic regression: detected / false alarms |
@@ -299,3 +308,138 @@ shipped temperatures are invalid ("treat confidence ... as uncalibrated").
 action-family task but is **not wired into the device** either: it was trained on aviation action families, which
 do not map onto our motor action codes; a real pre-fill needs labelled notes from the target domain. The probe
 supports the existing privacy design: free-text notes stay local by default, and names must be on the denylist.
+
+## 21. Phone microphone instead of the 60 Hz motion sensor (`bench/acoustic_uottawa.py`)
+Real data: University of Ottawa UODS-VAFDC (CC BY 4.0, DOI 10.17632/y2px5tg92h.1). 20 bearings whose faults
+**developed naturally** (seals removed, degreased), each recorded healthy / developing / faulty by a microphone
+(PCB 130F20, 2 cm from the bearing) and an accelerometer, 42 kHz, 10 s. Never used for tuning before this test;
+shipped thresholds. One device per bearing; baseline = first half of its healthy recording.
+
+| Metric | Microphone (profile `acoustic`, analysed at 16 kHz = what a phone's 44.1/48 kHz audio becomes) | Accelerometer (`rotating-hf`) |
+|---|---|---|
+| False alarms, unseen half of the healthy recording | **0 / 380 windows** | 0 / 620 |
+| Developing-fault windows flagged | **92.7 %** | 95.0 % |
+| Faulty windows flagged | **95.7 %** | 97.0 % |
+| Fix verified: fault -> the same bearing's unseen healthy | **20 / 20** | 20 / 20 |
+| Fix verified: fault -> **a different, new bearing** (replacement, §22) | **19 / 20** | 18 / 20 |
+| Still-faulty caught (fault continues after the action) | **19 / 20** | 19 / 20 |
+
+N = 15 windows for verification (the recordings are only 10 s). Why a microphone: browsers cap motion sensors at
+~60 Hz (W3C Generic Sensor / DeviceMotion), too slow for bearing-defect frequencies; audio arrives at 44.1/48 kHz with
+echo cancellation, noise suppression and auto-gain switched off (`edge/ui/sensor.js`). A microphone is not a
+calibrated vibration sensor, so no ISO velocity zone is given from it.
+
+## 22. Replacement-aware verification (`edge/verifier.py`, spike `spike/replacement_verify.py`)
+A **new** bearing has a different healthy signature than the old baseline: in §21 the old rule verified only
+**3/20** (microphone) and **0/20** (accelerometer) replacements. For `replace_bearing` / `replace_part` a window now
+also counts as healthy when it is **nearer to the machine's healthy state than to the fault episode's own
+fingerprints** (parameter-free). Result: new bearing verified **19/20** and **18/20**; a continuing fault was never
+judged fixed (spike: 20/20; bench still-faulty 19/20). The verified new part's windows are added to the baseline.
+Side effect on HUST (§12): fix verified at an untaught load went from **15/42 to 42/42** without the one-time
+teaching; still-faulty 38/39 caught; **0 false promotions**. CWRU K3 unchanged (36/36, 36/36, 0).
+
+## 23. Fault TYPE: physics, fleet-learned model, and "confident only when both agree" (`bench/fault_hint.py`)
+All real data, ten 1 s segments per recording. The fleet model (`cloud/hint_model.py`: order-domain envelope features
+`physics.order_features`, centred, logistic regression) is always tested on bearings it never saw: UOttawa
+leave-one-bearing-out (20), CWRU leave-one-fault-size-out, HUST leave-one-bearing-type-out.
+
+| Data | Physics rule | Fleet model | Shown as "confident" (both agree) | Correct when confident |
+|---|---|---|---|---|
+| HUST (5 bearing types) | 97.6 % | 95.2 % | 93 % of recordings | **39/39 = 100 %** |
+| UOttawa accelerometer (natural wear) | 35.0 % | **72.5 %** | 33 % | **12/13 = 92 %** |
+| CWRU (seeded) | 69.4 % | 66.7 % | 75 % | 23/27 = 85 % |
+| UOttawa microphone | 32.5 % | 70.0 % | 35 % | 10/14 = 71 % |
+
+Learning curve (UOttawa, accuracy on one unseen bearing vs how many OTHER confirmed bearings the fleet has, 200 random
+draws): accelerometer 2 -> 0.33, 4 -> 0.40, 8 -> 0.51, 12 -> 0.68, 16 -> 0.71, 19 -> **0.72**; microphone 0.32 ->
+**0.76**. The fleet gets better as technicians confirm cases. Standardised features were compared and lost on every
+dataset (small-sample failure shown in `tests/unit/test_fleet_hint.py`). Also tried and **rejected**: a
+collision-aware v2 envelope rule (`spike/physics_v2.py`: HUST dropped to 71 %) and a cross-dataset prior model
+(`spike/cross_dataset.py`: 53-83 %). Where the physics is weak (natural wear), CWRU's own benchmark study found many
+records "not diagnosable with any of the applied methods" (Smith & Randall, MSSP 64-65, 2015) - which is why the
+fleet groups by the TECHNICIAN-CONFIRMED class (ISO 15243 damage mode on the removed part) and the hint says "inspect"
+when unsure.
+
+## 24. Imbalance / misalignment rules on real motors (`bench/motor_rules.py`)
+University of Ottawa motor set UOEMD-VAFCVS (CC BY 4.0), drive-fed motors at 15/30/45/60 Hz, loaded/unloaded.
+The absolute textbook order rules called **every** motor "looseness", healthy ones included (the drive's electrical
+harmonics sit on shaft orders), so the device now uses a **relative** rule (which order grew vs this machine's own
+healthy state, > 3 sigma). Only windows the gate flags get a hint, as in the product.
+
+| | Accelerometer | Microphone |
+|---|---|---|
+| Healthy motor: no alarm / no hint | **8/8** | **8/8** |
+| Unbalanced and misaligned motors detected (flagged abnormal) | **16/16** | **16/16** |
+| ... and NAMED imbalance / misalignment | 0/8, 0/8 | 0/8, 0/8 |
+
+Each fault is a DIFFERENT physical motor here, so motor-to-motor differences are mixed into every comparison; paired
+by condition the unbalanced motor's 1x was higher than the healthy motor's in 7/8 and the misaligned motor's 2x/1x
+in 5/8, but the hint names a bearing class. Naming shaft faults is therefore **not validated on real data**; the
+coin-on-a-fan phone test (docs/FIELD_TEST.md) is the planned check. Nothing was tuned on this confounded set.
+
+## 25. Kiosks / apps: the `events` profile on REAL logs (`bench/events_hdfs.py`)
+Loghub HDFS_v1 (CC BY 4.0, DOI 10.5281/zenodo.8196385; labels from Xu et al., SOSP 2009): each block session = one
+bucket of 29 event-template counts. Baseline 5,000 normal sessions; radius set from HEALTHY data at a 1 % false-alarm
+target (event buckets repeat exactly, so 2 x q99 would be 0 - a real bug this test found and fixed in
+`edge/gate.calibrate`).
+
+| Normal sessions flagged | Failed sessions detected | F1 (50,000 normal : 16,838 failed) |
+|---|---|---|
+| **193 / 50,000 = 0.39 %** | **16,835 / 16,838 = 99.98 %** | **0.994** |
+
+At HDFS's natural ~3 % failure rate, about 89 % of alarms would be real. For scale only (different splits): the Loghub
+benchmark's unsupervised methods reach F1 0.79 (PCA) - 0.91 (Invariant Mining) (He et al., ISSRE 2016). Server logs
+are a proxy for kiosk/app error codes; no public kiosk data set with error codes and applied fixes was found.
+
+## 26. Names in notes the site never listed (`bench/redaction.py`)
+Real logbook notes (1,000 held out; the maintenance vocabulary rebuilt without them) with a real given name inserted
+in 8 templates (SYNTHETIC insertion: no labelled public set exists). 20 % of the 10,562 Wikidata names (CC0) are held
+out of the redactor's list AND of the name model it trains.
+
+| Style | Names on the list | Names NOT on the list | Clean notes kept local by mistake |
+|---|---|---|---|
+| normal typing (sentence case) | **100 %** | **96.2 %** | 0.6 % |
+| ALL CAPS (the logbook's style) | **100 %** | 65.8 % | 2.4 % |
+| all lower case | **100 %** | 63.6 % | 0.6 % |
+
+Before: regex + denylist found 0 of 60 unlisted names (Laya probe, §17). Name-likeness model: character n-grams,
+logistic regression, trained on real names vs real maintenance words, threshold chosen on a validation split (<= 2 %
+word false positives -> 0.9). A flagged note stays on the device, so a false alarm costs sharing, never privacy.
+
+## 27. Robots: the device's own learned detector (`bench/robot_model.py`, `edge/local_detector.py`)
+Exactly what a device stores (27-number fingerprint z-scored against the healthy traces), class-balanced logistic
+regression, alarm at p > 0.5 (no tuning), 10 x stratified 5-fold CV on real UCI traces.
+
+| Task | Failures detected (range) | False alarms (range) | Normal / failure traces |
+|---|---|---|---|
+| lp1 | **98.8 %** (98.5-100) | **0 %** | 21 / 67 |
+| lp2 | **96.7 %** (88.9-100) | 10 % | 20 / 27 |
+| lp3 | **95.6 %** (88.9-100) | 9 % (5-10) | 20 / 27 |
+| lp4 | **98.8 %** (97.8-98.9) | **0 %** | 24 / 93 |
+| lp5 | **96.3 %** (95-97.5) | 4.5 % | 44 / 120 |
+
+The earlier method (threshold from overfit TRAINING scores) had 9-15 % false alarms. With ~20 normal traces per task,
+one false alarm is 5 points. End to end on a device (`tests/integration/test_robot_detector.py`): the technician
+confirms the failures the gate caught and TEACHES those it missed ("teach a failure"), the robot trains its detector
+and then catches failures the gate alone missed.
+
+## 28. Vehicles: more training trucks did NOT help (`bench/vehicle_scania_train.py`) - rejected
+The SCANIA training split (21,637 usable trucks, 67,781 real cut points, labels from repair records; censored cuts
+dropped) gave cross-validated AUC 0.79 inside training, but on the untouched test trucks only **0.60 (LR) / 0.66
+(gradient boosting)** - worse than the shipped model trained on the validation split (**0.75**). The likely reason: my
+cut points do not match how Scania chose each test truck's labelled readout; the validation split is labelled like the
+test split. Kept the shipped model; reported as a negative result. (The download stopped at 1,182,793,728 bytes when
+the server began refusing requests; the first 22,982 of 23,550 trucks are complete.)
+
+## 29. Text retrieval, recall measured properly (`bench/retrieval_text.py`)
+R@10 is capped by large relevant sets (100 relevant records -> at most 0.1), so nR@10 = hits in the top 10 /
+min(10, relevant) is added. Tune half / test half of the 500 queries:
+
+| Method | P@3 (test half) | MRR@10 | nR@10 |
+|---|---|---|---|
+| dense | 0.801 | 0.859 | 0.814 |
+| BM25 | 0.848 | 0.921 | 0.862 |
+| **hybrid RRF (shipped, equal weights)** | **0.885** | **0.930** | **0.883** |
+| hybrid, BM25 x2 / dense x2 | 0.883 / 0.881 | 0.934 / 0.923 | 0.872 / 0.884 |
+
+Hybrid is best or tied on every metric; neither weighting beat equal weights consistently on the tune half.

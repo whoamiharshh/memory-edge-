@@ -10,6 +10,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from edge.fingerprint import DIM as FP_DIM, FP_VERSION
+from edge.physics import ORDER_FEATURE_NAMES
+
+ORDER_DIM = len(ORDER_FEATURE_NAMES)
 
 SCHEMA_VERSION = 1
 MAX_NOTE_CHARS = 600
@@ -102,6 +105,26 @@ class RootCause(str, Enum):
     unknown = "unknown"
 
 
+class DamageMode(str, Enum):
+    """What the technician SAW on the removed bearing, per ISO 15243:2017 (terms as summarised by SKF, 'Bearing
+    damage analysis: ISO 15243 is here to help you'). This is the physical ground truth the fleet learns from."""
+    subsurface_initiated_fatigue = "subsurface_initiated_fatigue"      # 5.1.2
+    surface_initiated_fatigue = "surface_initiated_fatigue"            # 5.1.3
+    abrasive_wear = "abrasive_wear"                                    # 5.2.2
+    adhesive_wear = "adhesive_wear"                                    # 5.2.3
+    moisture_corrosion = "moisture_corrosion"                          # 5.3.2
+    fretting_corrosion = "fretting_corrosion"                          # 5.3.3.2
+    false_brinelling = "false_brinelling"                              # 5.3.3.3
+    excessive_current_erosion = "excessive_current_erosion"            # 5.4.2
+    current_leakage_erosion = "current_leakage_erosion"                # 5.4.3
+    overload_deformation = "overload_deformation"                      # 5.5.2
+    indentation_from_particles = "indentation_from_particles"          # 5.5.3
+    forced_fracture = "forced_fracture"                                # 5.6.2
+    fatigue_fracture = "fatigue_fracture"                              # 5.6.3
+    thermal_cracking = "thermal_cracking"                              # 5.6.4
+    not_inspected = "not_inspected"
+
+
 class Outcome(str, Enum):
     pending = "pending"
     worked = "worked"
@@ -128,10 +151,18 @@ class ShareEvent(BaseModel):
     verify_windows_required: int = Field(ge=1, le=100_000)
     technician_confirmed: bool
     fingerprint: list[float] = Field(min_length=FP_DIM, max_length=FP_DIM)
-    fp_version: Literal["fp-v2", "fp-rh1", "fp-lr1", "fp-ft1", "fp-ev1", "fp-tm1"] = FP_VERSION   # edge/profiles.py
+    fp_version: Literal["fp-v2", "fp-rh1", "fp-lr1", "fp-ft1", "fp-ev1", "fp-tm1", "fp-ac1"] = FP_VERSION  # edge/profiles.py
     note_redacted: str | None = Field(default=None, max_length=MAX_NOTE_CHARS)
     occurred_at: str = Field(min_length=10, max_length=40)
     content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")   # shared.ids.repair_hash
+    damage_mode: DamageMode | None = None
+    # physics numbers the fleet-learned fault hint trains on (edge/physics.order_features): dimensionless log ratios,
+    # not a raw signal. Only with a technician-confirmed fault class.
+    order_features: list[float] | None = Field(default=None, min_length=ORDER_DIM, max_length=ORDER_DIM)
+    of_version: Literal["of-v1"] | None = None
+    bearing: str | None = Field(default=None, max_length=60)
+    severity_mm_s: float | None = Field(default=None, ge=0, le=1000)     # after the fix, vs the machine card limit
+    limit_mm_s: float | None = Field(default=None, gt=0, le=1000)
 
     @field_validator("fingerprint")
     @classmethod
@@ -139,6 +170,28 @@ class ShareEvent(BaseModel):
         if not all(math.isfinite(x) for x in v):
             raise ValueError("fingerprint must be finite")
         return v
+
+    @field_validator("order_features")
+    @classmethod
+    def _bounded(cls, v: list[float] | None) -> list[float] | None:
+        if v is not None and not all(math.isfinite(x) and abs(x) <= 50 for x in v):
+            raise ValueError("order_features must be finite log ratios (|x| <= 50)")
+        return v
+
+
+class FollowUp(BaseModel):
+    """Did a shared fix HOLD? Sent once per shared 'worked' event: 'held' after the hold period with no recurrence of
+    the fault on that machine, or 'recurred' when it came back first. Travels in the same outbox and push batches."""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["followup"] = "followup"
+    event_id: str = Field(min_length=36, max_length=36)        # shared.ids.followup_id(device, refers_to)
+    episode_id: str = Field(min_length=36, max_length=36)      # the episode of the original fix
+    refers_to: str = Field(min_length=36, max_length=36)       # the original ShareEvent id
+    status: Literal["held", "recurred"]
+    days_after_fix: float = Field(ge=0, le=3650)
+    hold_days: float = Field(gt=0, le=3650)
+    occurred_at: str = Field(min_length=10, max_length=40)
 
 
 class PushRequest(BaseModel):

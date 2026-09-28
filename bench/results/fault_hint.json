@@ -1,0 +1,139 @@
+{
+ "method": "Fault-TYPE hint on real data: physics rule vs the fleet-learned model vs both agreeing (what the device shows).",
+ "protocol": "(all real): CWRU (seeded faults, 12 kHz), HUST (5 bearing types, 51.2 kHz), University of Ottawa UODS-VAFDC\n(NATURALLY developed faults, 42 kHz; accelerometer AND microphone). Per recording: up to ten 1 s segments.\n  physics      the shipped envelope rule (kurtogram band), majority vote over the segments\n  fleet model  cloud/hint_model.py on edge/physics.order_features, trained on OTHER bearings only:\n               leave-one-bearing-out (UOttawa: 20 bearings), leave-one-fault-size-out (CWRU: 7/14/21 mil are\n               different physical bearings), leave-one-bearing-type-out (HUST) - the \"fleet of identical machines\"\n               case; the model never saw the bearing it is asked about\n  agree        both name the same class -> shown as \"confident\"; otherwise \"uncertain, inspect\"\nTwo feature scalings are compared (centred only - the shipped choice, the features are already log10 ratios on one\nscale - and standardised). Plus a learning curve on UOttawa: accuracy on an unseen bearing vs how many confirmed\nbearings the fleet has.",
+ "shipped_scaling": "centred",
+ "results": {
+  "uottawa_accelerometer": {
+   "centred": {
+    "recordings": 40,
+    "physics_accuracy": 0.35,
+    "fleet_model_accuracy": 0.725,
+    "fleet_per_class": {
+     "ball": "5/10",
+     "cage": "8/10",
+     "inner_race": "10/10",
+     "outer_race": "6/10"
+    },
+    "confident_share": 0.325,
+    "confident_precision": 0.923,
+    "confident_correct": "12/13"
+   },
+   "standardised": {
+    "recordings": 40,
+    "physics_accuracy": 0.35,
+    "fleet_model_accuracy": 0.675,
+    "fleet_per_class": {
+     "ball": "4/10",
+     "cage": "7/10",
+     "inner_race": "10/10",
+     "outer_race": "6/10"
+    },
+    "confident_share": 0.3,
+    "confident_precision": 0.917,
+    "confident_correct": "11/12"
+   },
+   "learning_curve_centred": {
+    "2": 0.326,
+    "4": 0.404,
+    "8": 0.505,
+    "12": 0.68,
+    "16": 0.708,
+    "19": 0.72
+   }
+  },
+  "uottawa_microphone": {
+   "centred": {
+    "recordings": 40,
+    "physics_accuracy": 0.325,
+    "fleet_model_accuracy": 0.7,
+    "fleet_per_class": {
+     "ball": "6/10",
+     "cage": "6/10",
+     "inner_race": "10/10",
+     "outer_race": "6/10"
+    },
+    "confident_share": 0.35,
+    "confident_precision": 0.714,
+    "confident_correct": "10/14"
+   },
+   "standardised": {
+    "recordings": 40,
+    "physics_accuracy": 0.325,
+    "fleet_model_accuracy": 0.7,
+    "fleet_per_class": {
+     "ball": "6/10",
+     "cage": "6/10",
+     "inner_race": "10/10",
+     "outer_race": "6/10"
+    },
+    "confident_share": 0.375,
+    "confident_precision": 0.667,
+    "confident_correct": "10/15"
+   },
+   "learning_curve_centred": {
+    "2": 0.319,
+    "4": 0.399,
+    "8": 0.51,
+    "12": 0.72,
+    "16": 0.69,
+    "19": 0.76
+   }
+  },
+  "cwru": {
+   "centred": {
+    "recordings": 36,
+    "physics_accuracy": 0.694,
+    "fleet_model_accuracy": 0.667,
+    "fleet_per_class": {
+     "ball": "5/12",
+     "inner_race": "11/12",
+     "outer_race": "8/12"
+    },
+    "confident_share": 0.75,
+    "confident_precision": 0.852,
+    "confident_correct": "23/27"
+   },
+   "standardised": {
+    "recordings": 36,
+    "physics_accuracy": 0.694,
+    "fleet_model_accuracy": 0.611,
+    "fleet_per_class": {
+     "ball": "6/12",
+     "inner_race": "12/12",
+     "outer_race": "4/12"
+    },
+    "confident_share": 0.639,
+    "confident_precision": 0.87,
+    "confident_correct": "20/23"
+   }
+  },
+  "hust": {
+   "centred": {
+    "recordings": 42,
+    "physics_accuracy": 0.976,
+    "fleet_model_accuracy": 0.952,
+    "fleet_per_class": {
+     "ball": "12/12",
+     "inner_race": "13/15",
+     "outer_race": "15/15"
+    },
+    "confident_share": 0.929,
+    "confident_precision": 1.0,
+    "confident_correct": "39/39"
+   },
+   "standardised": {
+    "recordings": 42,
+    "physics_accuracy": 0.976,
+    "fleet_model_accuracy": 0.929,
+    "fleet_per_class": {
+     "ball": "12/12",
+     "inner_race": "12/15",
+     "outer_race": "15/15"
+    },
+    "confident_share": 0.905,
+    "confident_precision": 1.0,
+    "confident_correct": "38/38"
+   }
+  }
+ }
+}

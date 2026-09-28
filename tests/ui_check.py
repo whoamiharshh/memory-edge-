@@ -20,7 +20,8 @@ def main() -> int:
     errors, report = [], {}
     with sync_playwright() as p:
         br = p.chromium.launch(channel="msedge", headless=True)
-        pg = br.new_page(viewport={"width": 1440, "height": 1900})
+        # bypass_csp lets the TEST's own wait expressions run; the pages' CSP still applies to the app's scripts
+        pg = br.new_page(viewport={"width": 1440, "height": 1900}, bypass_csp=True)
         pg.on("console", lambda m: m.type == "error" and errors.append(f"{pg.url}: {m.text}"))
         pg.on("pageerror", lambda e: errors.append(f"{pg.url}: {e}"))
 

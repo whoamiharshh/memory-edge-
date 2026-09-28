@@ -73,7 +73,10 @@ class SyncWorker:
         self.mirror_mode = mirror_mode              # preferred; falls back to scroll if the cloud cannot snapshot
         # https cloud: verify its certificate against our private CA (tools/make_certs.py) or the system store
         # mutual TLS: client_cert = (pem, key) proves THIS device at the TLS layer, in addition to its bearer token
-        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=5.0, verify=_tls_context(ca, client_cert))
+        # 30 s read timeout: a busy cloud answering a 50-event push in ~6 s made a 5 s timeout retry every push
+        # (bench/scale_fleet.py); retries stayed correct (counted once) but wasted work
+        self.http = client or httpx.Client(base_url=self.cloud_url, timeout=httpx.Timeout(30.0, connect=5.0),
+                                           verify=_tls_context(ca, client_cert))
         self.interval = interval
         self.auth_required = False
         self.last: dict[str, Any] = {"push": None, "pull": None, "error": None}
@@ -96,7 +99,9 @@ class SyncWorker:
             self.device.outbox.retry_now()
 
     def _headers(self) -> dict:
-        return {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        from shared.integrity import code_hash      # tamper evidence: the cloud compares it with its release
+        h = {"X-Code-Hash": code_hash()}
+        return h | ({"Authorization": f"Bearer {self.token}"} if self.token else {})
 
     # ---- push -------------------------------------------------------------------------------------------
     def push_once(self) -> dict:
@@ -183,13 +188,47 @@ class SyncWorker:
             if "error" not in out and "auth_required" not in out:
                 self.last["pull"] = self._last_pull = time.time()
                 self.last["error"] = None
+                out["hint_model"] = self._pull_hint_model()
             return out | {"mode": mode}
+
+    def _pull_hint_model(self) -> str:
+        """The fleet-learned fault hint (plain JSON numbers). A failure here never fails the mirror pull."""
+        try:
+            r = self.http.get("/v1/fleet/hint-model", headers=self._headers())
+        except httpx.HTTPError as e:
+            return f"not fetched ({type(e).__name__})"
+        if r.status_code != 200:
+            return f"not fetched (HTTP {r.status_code})"
+        self.bytes_received += r.num_bytes_downloaded
+        from edge import fleet_hint
+        m = (r.json() or {}).get("model")
+        ob = self.device.outbox
+        old = ob.kv_get("fleet_hint_model")
+        if m is None or not fleet_hint.valid(m):
+            return "none yet: " + str((r.json() or {}).get("why", ""))[:200]
+        if old != m:
+            ob.kv_set("fleet_hint_model", m)
+            n = self.device.refresh_fleet_hints()
+            ob.log("sync", f"fleet fault-hint model updated: {m['trained_on']['cases']} confirmed cases from "
+                           f"{m['trained_on']['devices']} devices, {m.get('unseen_device_accuracy')} accuracy on "
+                           f"unseen devices; {n} open episode hint(s) refreshed")
+            return "updated"
+        return "unchanged"
 
     def _pull_auto(self, head: dict) -> dict:
         """Full snapshot to bootstrap/rebuild; otherwise the cheaper of a scroll delta and a full snapshot, by
         bytes estimated from THIS device's last measured costs (defaults from bench/mirror_sync.py)."""
         mirror = self.device.mirror
         if mirror.needs_full:
+            # bootstrap by measured bytes too: a small fleet is cheaper as rows than as a full shard snapshot
+            # (20 cases ~ 52 kB of rows vs ~400 kB snapshot that also unpacks to a pre-allocated shard)
+            rows = int(head.get("cases", 0)) * float(mirror.kv.kv_get("mirror_row_bytes", ROW_BYTES_DEFAULT))
+            fresh = mirror.seq == 0 and mirror.count() == 0 and not mirror.kv.kv_get("mirror_applying", False)
+            if fresh and rows < float(mirror.kv.kv_get("mirror_full_wire_bytes", SNAPSHOT_BYTES_DEFAULT)):
+                out = self._pull_scroll()
+                if "error" not in out and "auth_required" not in out:
+                    mirror.kv.kv_set("mirror_needs_full", False)
+                return out | {"bootstrap": "scroll", "estimate": {"rows_bytes_est": int(rows)}}
             return self._pull_snapshot(head)
         if int(head["seq"]) <= mirror.seq:
             return {"pulled": 0, "cursor": mirror.seq, "up_to_date": True}

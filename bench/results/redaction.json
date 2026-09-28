@@ -1,0 +1,24 @@
+{
+ "method": "How well does the note redactor catch people's names nobody put on the denylist?",
+ "protocol": "REAL maintenance notes (Annotated Maintenance Logbook, CC BY 4.0: PROBLEM + ACTION). 1,000 notes are held\nout (seed 7); the maintenance vocabulary the redactor uses is rebuilt WITHOUT them (data/build_vocab.build(exclude)).\nHalf of the held-out notes get a person's name inserted with one of 8 templates (SYNTHETIC insertion: no public data\nset of maintenance notes with labelled names exists); the other half stay clean (false-alarm test).\nNames: real given names (Wikidata, CC0). 20 % of the name list is held out of the redactor's list, so we measure\n  in-list names       what the shipped redactor sees for common names\n  unseen names        names it has never been given (caught by the capitalisation rule and the name-likeness model,\n                      which the benchmark trains itself on the in-list names only)\nThree writing styles: the logbook's ALL CAPS, sentence case (as people type) and all lower case.\nRecall = inserted-name notes flagged; false alarms = clean notes flagged (a false alarm only keeps a note local).",
+ "names_in_list": 8374,
+ "names_unseen": 2095,
+ "results": {
+  "caps": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.658,
+   "false_alarm_clean_notes": 0.024
+  },
+  "sentence": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.962,
+   "false_alarm_clean_notes": 0.006
+  },
+  "lower": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.636,
+   "false_alarm_clean_notes": 0.006
+  }
+ },
+ "before_this_pass": "regex + denylist only: 0/60 unlisted names found (docs/BENCHMARKS.md, personal-data probe)"
+}

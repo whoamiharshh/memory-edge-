@@ -2,6 +2,8 @@
 
   .venv\\Scripts\\python.exe tools\\make_certs.py [extra-hostname-or-ip ...]      (CA + server certificate)
   .venv\\Scripts\\python.exe tools\\make_certs.py device <device-id>             (a device's client certificate)
+  .venv\\Scripts\\python.exe tools\\make_certs.py revoke <device-id>             (revoke it: runtime/tls/crl.pem)
+  .venv\\Scripts\\python.exe tools\\make_certs.py crl                            (re-sign the revocation list yearly)
 Writes runtime/tls/: ca.pem (share with devices/phones to trust), ca.key (keep private), server.pem, server.key.
 The server certificate covers localhost, 127.0.0.1, this computer's hostname and every IPv4 address it has now
 (so a phone on the same Wi-Fi can open https://<laptop-ip>:8101/sensor). Re-run if the laptop's IP changes.
@@ -102,10 +104,62 @@ def device_cert(device_id: str) -> None:
     (d / f"{device_id}.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
     write_key(key, d / f"{device_id}.key")
     print(f"wrote {d / (device_id + '.pem')} and .key (client certificate for mutual TLS)")
+    if not (OUT / "crl.pem").exists():
+        write_crl()
+
+
+CRL_DAYS = 365      # the list itself expires: a cloud refuses every client once it is past next_update - re-sign yearly
+
+
+def _ca():
+    ca_pem, ca_key_pem = OUT / "ca.pem", OUT / "ca.key"
+    if not ca_pem.exists():
+        raise SystemExit("run tools/make_certs.py first (it creates the CA)")
+    return (x509.load_pem_x509_certificate(ca_pem.read_bytes()),
+            serialization.load_pem_private_key(ca_key_pem.read_bytes(), password=None))
+
+
+def write_crl() -> pathlib.Path:
+    """Sign the certificate revocation list (runtime/tls/revoked.json -> crl.pem) with the CA."""
+    import json
+    ca, ca_key = _ca()
+    revoked = json.loads((OUT / "revoked.json").read_text()) if (OUT / "revoked.json").exists() else []
+    now = dt.datetime.now(dt.timezone.utc)
+    b = (x509.CertificateRevocationListBuilder().issuer_name(ca.subject).last_update(now - dt.timedelta(minutes=5))
+         .next_update(now + dt.timedelta(days=CRL_DAYS)))
+    for r in revoked:
+        b = b.add_revoked_certificate(x509.RevokedCertificateBuilder().serial_number(int(r["serial"]))
+                                      .revocation_date(dt.datetime.fromisoformat(r["at"])).build())
+    crl = b.sign(ca_key, hashes.SHA256())
+    (OUT / "crl.pem").write_bytes(crl.public_bytes(serialization.Encoding.PEM))
+    print(f"wrote {OUT / 'crl.pem'}: {len(revoked)} revoked certificate(s), valid until "
+          f"{(now + dt.timedelta(days=CRL_DAYS)).date()} (restart the cloud to load it)")
+    return OUT / "crl.pem"
+
+
+def revoke(device_id: str) -> None:
+    """Revoke a device's client certificate (lost/stolen device): its serial goes on the CRL."""
+    import json
+    pem = OUT / "devices" / f"{device_id}.pem"
+    if not pem.exists():
+        raise SystemExit(f"no certificate for {device_id} in {OUT / 'devices'}")
+    serial = x509.load_pem_x509_certificate(pem.read_bytes()).serial_number
+    path = OUT / "revoked.json"
+    revoked = json.loads(path.read_text()) if path.exists() else []
+    if not any(int(r["serial"]) == serial for r in revoked):
+        revoked.append({"device_id": device_id, "serial": str(serial),
+                        "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")})
+        path.write_text(json.dumps(revoked, indent=1))
+    write_crl()
+    print(f"revoked {device_id} (serial {serial}); also revoke its token: POST /v1/admin/devices/{device_id}/revoke")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "device":
         device_cert(sys.argv[2])
+    elif len(sys.argv) > 2 and sys.argv[1] == "revoke":
+        revoke(sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] == "crl":
+        write_crl()
     else:
         main(sys.argv[1:])

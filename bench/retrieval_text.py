@@ -6,7 +6,10 @@ Index: every record's PROBLEM text. Query: the PROBLEM text of a sampled record.
 Relevant: other records with the same (TAGEDPROBLEM, PART) annotation, both non-empty.
 Leakage guard: records whose normalised PROBLEM text is identical to the query are removed from the ranking
 and from the relevant set (3,512 distinct problems among 6,169 records - duplicates would make it trivial).
-Metrics: P@3, R@10, MRR@10 over N_QUERIES queries with >= 1 relevant record (fixed seed).
+Metrics: P@3, R@10, MRR@10 over N_QUERIES queries with >= 1 relevant record (fixed seed). R@10 is capped by the size
+of the relevant set (a query with 100 relevant records scores at most 0.1), so nR@10 = hits in the top 10 divided by
+min(10, relevant) is reported too. Weighted fusion variants (BM25 leg x2, dense leg x2) are CHOSEN on the first half
+of the queries and REPORTED on the second half ("tune" / "test").
 Run: .venv\\Scripts\\python.exe -m bench.retrieval_text
 """
 from __future__ import annotations
@@ -24,7 +27,7 @@ import time
 
 import numpy as np
 
-from edge.store_edge import EdgeStore, StorePoint
+from edge.store_edge import NOTE, NOTE_BM25, EdgeStore, StorePoint
 from shared import ids
 from shared.embed import BgeEmbedder
 from shared.redact import normalise
@@ -46,7 +49,8 @@ def metrics(ranked: list[int], relevant: set[int]) -> tuple[float, float, float]
     p3 = sum(r in relevant for r in ranked[:3]) / 3
     r10 = sum(r in relevant for r in ranked[:DEPTH]) / len(relevant)
     mrr = next((1 / (k + 1) for k, r in enumerate(ranked[:DEPTH]) if r in relevant), 0.0)
-    return p3, r10, mrr
+    nr10 = sum(r in relevant for r in ranked[:DEPTH]) / min(DEPTH, len(relevant))
+    return p3, r10, mrr, nr10
 
 
 def main() -> dict:
@@ -74,13 +78,15 @@ def main() -> dict:
         for s in range(0, len(pts), 500):
             store.upsert(pts[s:s + 500])
         store.optimize()
-        res = {m: [] for m in ("dense", "bm25", "hybrid_rrf")}
+        res = {m: [] for m in ("dense", "bm25", "hybrid_rrf", "hybrid_bm25x2", "hybrid_densex2")}
         lat = {m: [] for m in res}
         for q in queries:
             relevant = {j for j in groups[(q["tag"], q["part"])] if by_i[j]["norm"] != q["norm"]}
             qv = emb.embed_query(q["problem"])
             for m, kw in (("dense", {"note": qv}), ("bm25", {"text": q["problem"]}),
-                          ("hybrid_rrf", {"note": qv, "text": q["problem"]})):
+                          ("hybrid_rrf", {"note": qv, "text": q["problem"]}),
+                          ("hybrid_bm25x2", {"note": qv, "text": q["problem"], "weights": {NOTE: 1.0, NOTE_BM25: 2.0}}),
+                          ("hybrid_densex2", {"note": qv, "text": q["problem"], "weights": {NOTE: 2.0, NOTE_BM25: 1.0}})):
                 t = time.perf_counter()
                 hits = store.search(limit=DEPTH + 40, prefetch_limit=100, **kw)
                 lat[m].append((time.perf_counter() - t) * 1000)
@@ -94,6 +100,11 @@ def main() -> dict:
            "embed_model": emb.name, "embed_all_records_s": round(embed_s, 1),
            "results": {m: {"P@3": round(float(np.mean([x[0] for x in v])), 3), "R@10": round(float(np.mean([x[1] for x in v])), 3),
                            "MRR@10": round(float(np.mean([x[2] for x in v])), 3),
+                           "nR@10": round(float(np.mean([x[3] for x in v])), 3),
+                           "tune_half": {k: round(float(np.mean([x[i] for x in v[:N_QUERIES // 2]])), 3)
+                                         for i, k in enumerate(("P@3", "R@10", "MRR@10", "nR@10"))},
+                           "test_half": {k: round(float(np.mean([x[i] for x in v[N_QUERIES // 2:]])), 3)
+                                         for i, k in enumerate(("P@3", "R@10", "MRR@10", "nR@10"))},
                            "query_ms_p50": round(float(np.percentile(lat[m], 50)), 3),
                            "query_ms_p95": round(float(np.percentile(lat[m], 95)), 3)} for m, v in res.items()}}
     OUT.mkdir(exist_ok=True)

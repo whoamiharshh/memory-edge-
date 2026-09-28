@@ -33,6 +33,7 @@ from edge.fingerprint import DIM
 from edge.sync_worker import SyncWorker
 from shared import ids
 from shared.embed import HashEmbedder
+from tools.qdrant_local import binary as qdrant_binary
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "bench" / "results"
@@ -53,7 +54,7 @@ def start_server(tmp: pathlib.Path) -> tuple[subprocess.Popen, str]:
                         "QDRANT__STORAGE__SNAPSHOTS_PATH": str(tmp / "snapshots"),
                         "QDRANT__SERVICE__HTTP_PORT": str(http), "QDRANT__SERVICE__GRPC_PORT": str(grpc),
                         "QDRANT__TELEMETRY_DISABLED": "true"}
-    p = subprocess.Popen([str(ROOT / "qdrant_server" / "qdrant.exe")], cwd=tmp, env=env,
+    p = subprocess.Popen([str(qdrant_binary())], cwd=tmp, env=env,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url = f"http://127.0.0.1:{http}"
     for _ in range(120):

@@ -1,0 +1,39 @@
+# Runs the test suite on Linux, macOS and Windows whenever the repository is pushed to GitHub.
+# STATUS: written 28 Sep 2026 and NOT yet run (the project is not on GitHub yet); the Windows results in README come
+# from local runs. Tests that need downloaded data sets (CWRU, HUST, UOttawa, SCANIA, UCI) skip themselves when the
+# data is absent; the Qdrant Server binary for the runner's OS is downloaded by tools/qdrant_local.py.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Python 3.12 environment
+        run: uv venv .venv --python 3.12
+      - name: Install (without the optional local LLM and the browser-test tool)
+        shell: bash
+        run: |
+          grep -v -E '^(llama-cpp-python|playwright)' requirements.txt > ci-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
+          VIRTUAL_ENV=.venv uv pip install -r ci-requirements.txt
+          echo "PY=$PY" >> "$GITHUB_ENV"
+      - name: Qdrant Server binary for this OS
+        shell: bash
+        run: $PY -m tools.qdrant_local download
+      - name: Certificates for the HTTPS / mutual-TLS tests
+        shell: bash
+        run: $PY tools/make_certs.py
+      - name: Tests
+        shell: bash
+        run: $PY -m pytest

@@ -72,9 +72,11 @@ def test_retraction_reaches_the_mirror(make_server_device, server_cloud):
     b, wb = make_server_device("devB", "site2")
     wb.pull_once()
     ev = a.episodes()[0]["event_id"]
-    r = server_cloud["client"].post(f"/v1/events/{ev}/retract", json={"reason": "wrong bearing logged"},
-                                    headers=hdr(server_cloud["admin"]))
-    assert r.status_code == 200
+    for admin in ("admin", "admin2"):                                           # two-person rule
+        r = server_cloud["client"].post(f"/v1/events/{ev}/retract", json={"reason": "wrong bearing logged"},
+                                        headers=hdr(server_cloud[admin]))
+        assert r.status_code == 200
+    assert r.json()["status"] == "retracted"
     assert wb.pull_once()["snapshot"] == "partial"
     case = b.mirror.scroll()[0].payload
     assert (case["n_events"], case["n_retracted"], case["status"]) == (0, 1, "retracted")   # tombstone, not deleted
@@ -157,9 +159,11 @@ def test_partial_endpoint_validates_manifest(server_cloud):
 def test_auto_mode_bootstraps_by_snapshot_then_picks_the_cheaper_delta(make_server_device):
     share_fix(make_server_device, "devA", "site1")
     b, wb = make_server_device("devB", "site2", mirror_mode="auto")
+    b.mirror.kv.kv_set("mirror_row_bytes", 10_000_000)    # pretend rows are dear: a big fleet bootstraps by SNAPSHOT
     first = wb.pull_once()
     assert (first["mode"], first["snapshot"], first["pulled"]) == ("auto", "full", 1)
     assert b.mirror.kv.kv_get("mirror_full_wire_bytes") == first["wire_bytes"]
+    b.mirror.kv.kv_set("mirror_row_bytes", 2600)
     # one changed case: ~2.6 kB of rows is far cheaper than a ~200 kB snapshot -> scroll delta
     share_fix(make_server_device, "devC", "site3", outcome="failed", fault=106, after=106)
     second = wb.pull_once()
@@ -171,6 +175,16 @@ def test_auto_mode_bootstraps_by_snapshot_then_picks_the_cheaper_delta(make_serv
     share_fix(make_server_device, "devD", "site4")
     third = wb.pull_once()
     assert third["snapshot"] == "full" and third["pulled"] == 1 and b.mirror.count() == 1
+    assert wb.pull_once()["up_to_date"] is True
+
+
+def test_auto_mode_bootstraps_a_small_fleet_from_rows(make_server_device):
+    """One case is ~2.6 kB of rows vs a ~200-400 kB snapshot: a fresh device bootstraps from rows, then stays current."""
+    share_fix(make_server_device, "devA", "site1")
+    b, wb = make_server_device("devB", "site2", mirror_mode="auto")
+    first = wb.pull_once()
+    assert first["bootstrap"] == "scroll" and first["pulled"] == 1 and b.mirror.count() == 1
+    assert not b.mirror.needs_full
     assert wb.pull_once()["up_to_date"] is True
 
 

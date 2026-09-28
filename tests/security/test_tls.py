@@ -40,7 +40,7 @@ def tls_cloud(certs):
     try:
         for _ in range(120):
             try:
-                if httpx.get(url + "/v1/health", verify=str(certs / "ca.pem"), timeout=1).status_code == 200:
+                if httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), None), timeout=1).status_code == 200:
                     break
             except httpx.HTTPError:
                 time.sleep(0.25)
@@ -53,7 +53,7 @@ def tls_cloud(certs):
 
 
 def test_client_trusting_our_ca_connects(tls_cloud, certs):
-    r = httpx.get(tls_cloud + "/v1/health", verify=str(certs / "ca.pem"))
+    r = httpx.get(tls_cloud + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), None))
     assert r.status_code == 200 and r.json()["ok"] is True
 
 
@@ -80,8 +80,8 @@ def test_launchers_refuse_plain_http_on_the_network(module):
 
 @pytest.fixture(scope="module")
 def mtls_cloud(certs):
-    subprocess.run([PY, str(ROOT / "tools" / "make_certs.py"), "device", "devtest"], check=True, cwd=ROOT,
-                   capture_output=True)
+    for args in (["device", "devtest"], ["device", "devstolen"], ["revoke", "devstolen"]):
+        subprocess.run([PY, str(ROOT / "tools" / "make_certs.py"), *args], check=True, cwd=ROOT, capture_output=True)
     port = free_port()
     p = subprocess.Popen([PY, "-m", "cloud.main", "--memory", "--hash-embedder", "--mtls", "--port", str(port)],
                          cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -106,4 +106,22 @@ def test_mtls_accepts_a_device_certificate_and_refuses_without(mtls_cloud, certs
     url, cert = mtls_cloud
     assert httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), cert)).status_code == 200
     with pytest.raises(httpx.HTTPError):                       # right CA, but no client certificate
-        httpx.get(url + "/v1/health", verify=str(certs / "ca.pem"))
+        httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), None))
+
+
+def test_mtls_refuses_a_revoked_device_certificate(mtls_cloud, certs):
+    """tools/make_certs.py revoke puts the certificate on the CRL; the cloud checks it for every client."""
+    url, cert = mtls_cloud
+    stolen = (str(certs / "devices" / "devstolen.pem"), str(certs / "devices" / "devstolen.key"))
+    with pytest.raises(httpx.HTTPError):
+        httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), stolen))
+    assert httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), cert)).status_code == 200
+
+
+def test_server_refuses_tls_below_1_2(tls_cloud, certs):
+    import ssl
+    ctx = ssl.create_default_context(cafile=str(certs / "ca.pem"))
+    ctx.minimum_version = ssl.TLSVersion.TLSv1
+    ctx.maximum_version = ssl.TLSVersion.TLSv1_1
+    with pytest.raises(Exception):
+        httpx.get(tls_cloud + "/v1/health", verify=ctx)

@@ -20,4 +20,5 @@ playwright==1.63.0           # dev only: tests/ui_check.py (uses the system Micr
 psutil==7.2.2                # bench only: bench/resources.py (CPU, RSS)
 cryptography==50.0.1         # tools/make_certs.py: private CA + server certificate for HTTPS
 scikit-learn==1.9.1         # bench/vehicle_scania.py: the vehicle early-warning model (trained on real SCANIA data)
+pypdf==6.19.0                # edge/manuals.py: text of uploaded machine manuals (pure Python)
 pandas==3.0.6                 # bench only: SCANIA CSV loading

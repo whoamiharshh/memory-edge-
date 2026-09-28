@@ -1,0 +1,31 @@
+{
+ "method": "Fleet scale test: N devices pushing and pulling AT THE SAME TIME against the real stack - Qdrant Server 1.19.1",
+ "devices": 20,
+ "events_per_device": 50,
+ "events_total": 1000,
+ "device_setup_s": 52.6,
+ "push": {
+  "wall_s": 9.79,
+  "events_per_s": 102.1,
+  "request_ms_p50": 8780.0,
+  "request_ms_p95": 9696.0,
+  "requests": 20,
+  "transient_errors_retried": 0
+ },
+ "consistency": {
+  "acknowledged": 1000,
+  "counted_in_cases": 1000,
+  "cases": 20,
+  "lost": 0,
+  "double_counted": 0,
+  "mirrors_identical": true
+ },
+ "pull": {
+  "wall_s_all_devices": 35.95,
+  "per_device_ms_p50": 33893.8,
+  "per_device_ms_p95": 35812.9,
+  "bytes_per_device_p50": 110534,
+  "mode": "auto"
+ },
+ "machine": "Intel i5-1335U laptop, all processes on one machine (network = loopback)"
+}

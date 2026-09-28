@@ -93,7 +93,7 @@
           <div class="section">
             <h3>Fault class</h3>
             <div id="dHint" class="muted"></div>
-            <div class="row"><select id="fcSel"></select><button id="fcBtn">Confirm fault class</button></div>
+            <div class="row"><select id="fcSel"></select><select id="dmSel" title="What you SAW on the removed part (ISO 15243)"></select><button id="fcBtn">Confirm fault class</button></div>
           </div>
           <div class="section" id="dPhysBox" hidden>
             <h3>Physics <span class="hint muted">computed from the signal · deterministic</span></h3>
@@ -111,6 +111,10 @@
               <div class="row"><input id="pSource" placeholder="source: the manual / SOP it follows (required)" style="flex:1" maxlength="160">
                 <button id="pSave">Save procedure</button></div>
             </details>
+          </div>
+          <div class="section">
+            <h3>From this machine's manuals <span class="hint muted">the manufacturer's own words, with page numbers</span></h3>
+            <div id="dMan" class="muted">no manuals indexed (add one under Machine card)</div>
           </div>
           <div class="section">
             <h3>Technician note <span class="muted" style="text-transform:none">(raw note never leaves the device)</span></h3>
@@ -171,6 +175,32 @@
   <section class="card s5">
     <h2>Activity</h2>
     <div class="feed" id="feed"></div>
+  </section>
+
+  <section class="card s12" id="cardCard">
+    <h2>Machine card <span class="hint muted">the manufacturer's data from the manual / nameplate / bearing catalogue · makes the physics and the "fixed" check machine-specific</span></h2>
+    <div class="row muted" id="mcNow">no machine card yet: severity uses the generic ISO 10816-3 group 2 table and no limit is applied to "fixed"</div>
+    <details id="mcEdit">
+      <summary>Enter / edit from the manual</summary>
+      <div class="row"><input id="mcMan" placeholder="manufacturer" maxlength="100"><input id="mcModel" placeholder="model" maxlength="100">
+        <select id="mcType"></select><select id="mcFound"><option value="rigid">rigid foundation</option><option value="flexible">flexible foundation</option></select></div>
+      <div class="row"><label class="muted">power kW <input id="mcKw" type="number" step="any" min="0" style="width:90px"></label>
+        <label class="muted">nominal rpm <input id="mcRpm" type="number" step="any" min="0" style="width:90px"></label>
+        <label class="muted">mains Hz <input id="mcMains" type="number" step="any" min="0" style="width:70px"></label></div>
+      <div class="row"><select id="mcBear"></select>
+        <span class="muted">or catalogue geometry:</span>
+        <input id="mcN" type="number" placeholder="balls" style="width:70px"><input id="mcD" type="number" step="any" placeholder="ball Ø" style="width:80px">
+        <input id="mcP" type="number" step="any" placeholder="pitch Ø" style="width:80px"><input id="mcA" type="number" step="any" placeholder="contact °" style="width:80px"></div>
+      <div class="row"><span class="muted">manufacturer limits (velocity RMS):</span>
+        <input id="mcAcc" type="number" step="any" placeholder="acceptable mm/s" style="width:130px"><input id="mcTrip" type="number" step="any" placeholder="trip mm/s" style="width:110px"></div>
+      <div class="row"><input id="mcSrc" placeholder="source: manual title, section, page (shown next to every limit)" style="flex:1" maxlength="300"><button id="mcSave" class="primary">Save machine card</button></div>
+    </details>
+    <div class="section">
+      <h3>Manuals <span class="hint muted">PDF manuals indexed on this device · searched offline next to each episode · never shared</span></h3>
+      <div id="manList" class="muted">no manuals yet</div>
+      <div class="row"><input id="manFile" type="file" accept="application/pdf"><input id="manTitle" placeholder="title, e.g. XYZ motor manual rev 3" maxlength="160" style="flex:1">
+        <input id="manSrc" placeholder="where it came from (optional)" maxlength="300"><button id="manAdd">Index manual</button></div>
+    </div>
   </section>
 
   <section class="card s12">
