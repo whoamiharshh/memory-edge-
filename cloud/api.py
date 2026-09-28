@@ -68,9 +68,11 @@ SECURITY_HEADERS = {
 
 
 def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, audit: AuditLog | None = None,
-               retract_approvals: int = 2, coalesce: bool = False) -> FastAPI:
+               retract_approvals: int = 2, coalesce: bool = False, bind_cert: bool = False) -> FastAPI:
     """coalesce=True (the production launcher): pushes return once events are durable and case tallies are recomputed
-    by one background worker (cloud/recompute.py); every read flushes its tenant's pending cases first."""
+    by one background worker (cloud/recompute.py); every read flushes its tenant's pending cases first.
+    bind_cert=True (mutual TLS): the client certificate's name must equal the token's device id (cloud/tls.py), so a
+    token copied from one device cannot be used through another device's certificate."""
     app = FastAPI(title="Machine Memory - Fleet Cloud", docs_url="/docs")
     audit = audit or AuditLog()
     app.state.store, app.state.registry, app.state.audit = store, registry, audit
@@ -97,6 +99,10 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
         ctx = registry.verify(h[7:] if h.lower().startswith("bearer ") else None)
         if ctx is None:
             raise HTTPException(401, "missing, invalid or revoked token")
+        if bind_cert:
+            cn = request.scope.get("state", {}).get("tls_client_cn")
+            if cn != ctx.device_id:
+                raise HTTPException(403, f"client certificate '{cn}' does not belong to this token's device")
         if not registry.allow(ctx):
             raise HTTPException(429, "rate limit exceeded")
         return ctx

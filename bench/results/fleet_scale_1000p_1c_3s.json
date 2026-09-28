@@ -1,0 +1,56 @@
+{
+ "method": "Fleet scale: 1,000+ devices syncing with one cloud, on one laptop.",
+ "protocol": "cannot hold 1,000 COMPLETE devices (each has two Qdrant Edge shards of ~200 MB pre-allocated), so the fleet\nhas two kinds of member, all talking to the SAME cloud at the same time:\n  protocol devices  (default 1,000) speak the exact device protocol - the wire schema, deterministic event ids, batches\n                    of <= 50, per-event acks, retry with exponential backoff + jitter, a mirror pull by scroll - but\n                    keep their outbox in memory instead of an Edge shard. They load the cloud like real devices.\n  complete devices  (default 50) are the real thing: Qdrant Edge shards, SQLite outbox, the sync worker (auto mirror),\n                    run in COMPLETE_PROCS worker processes (so up to 10 mirror pulls happen at the same moment).\nThe cloud runs as its OWN process (`python -m cloud.main`, coalesced recompute), against Qdrant Server 1.19.1.\nThe protocol devices are simulated by LOAD_PROCS processes (one process alone saturated a CPU core at 1,000 devices).\nDevices wake up at random times within the first WAKE_S seconds (a fleet does not sync in lock-step).\nMeasured: throughput, request latency, retries, rejected/lost/double-counted events, every mirror equal to the cloud,\ncloud and Qdrant memory. The evidence records are GENERATED (a load test; nothing is trained).",
+ "devices": {
+  "protocol": 1000,
+  "complete": 1
+ },
+ "events_per_device": 10,
+ "events_total": 10010,
+ "wake_window_s": 3.0,
+ "wall_s_all_pushes": 23.9,
+ "events_per_s": 419.3,
+ "push_request_ms": {
+  "p50": 3358.1,
+  "p95": 5415.9,
+  "p99": 5702.2,
+  "requests": 1000
+ },
+ "retries": 0,
+ "errors": {},
+ "consistency": {
+  "accepted_or_duplicate_acks": 10000,
+  "rejected": 0,
+  "undelivered": 0,
+  "counted_in_cases": 10010,
+  "lost": 0,
+  "double_counted": 0,
+  "cases": 25,
+  "protocol_mirrors_equal_cloud_after_all_pushes": 1000,
+  "protocol_mirrors_equal_cloud_during_load": 1000,
+  "complete_mirrors_equal_cloud": 1
+ },
+ "complete_devices": {
+  "push_ms_p50": 4746.8,
+  "pull_ms_p50": 1805.6,
+  "pull_ms_p95": 1805.6,
+  "pulls_at_the_same_time": 1,
+  "pull_wall_s": 2.6
+ },
+ "protocol_pull_ms": {
+  "p50": 8595.6,
+  "p95": 9853.9
+ },
+ "cpu_during_pushes": {
+  "machine_percent_mean": 42.1,
+  "machine_percent_max": 65.7,
+  "cloud_cores_mean": 0.81,
+  "qdrant_cores_mean": 0.44,
+  "cores_available": 12
+ },
+ "memory_mb": {
+  "cloud_process": 287,
+  "qdrant_server": 103
+ },
+ "machine": "Intel i5-1335U laptop, 15.7 GB; cloud, Qdrant and every device on the same machine (loopback)"
+}

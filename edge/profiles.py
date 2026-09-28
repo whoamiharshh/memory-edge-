@@ -280,6 +280,17 @@ class RotatingHF(Profile):
         return None if not np.any(r[15:23]) else float(max(r[15:18]))
 
     BEARING_MIN_SCORE = 1.0      # log10 ratio over the median envelope level (10x) to call a bearing defect
+    CLASH_TOL = 0.03             # = the peak window of physics.bearing_defect_scores (not a tuned value)
+
+    def harmonic_clash(self) -> dict[str, tuple[int, float]]:
+        """Defect lines of this bearing that fall within the peak window of a whole shaft harmonic (e.g. the MaFaulDa
+        simulator: BPFO 2.998x, BPFI 5.002x): {defect: (harmonic, order)}."""
+        out = {}
+        for k, o in self.geometry.orders().items():
+            n = round(o)
+            if k in ("bpfo", "bpfi", "bsf") and n >= 1 and abs(o - n) <= self.CLASH_TOL * o:
+                out[k] = (n, o)
+        return out
 
     def hint(self, raw_features, z=None):
         r = np.asarray(raw_features)
@@ -289,6 +300,23 @@ class RotatingHF(Profile):
         best = max(defects, key=defects.get)
         # (tried: also requiring the defect line to have GROWN vs the healthy baseline - it cut the HUST hint from
         # 97.6 % to 78.6 % and only helped on healthy windows, which never open an episode; reverted)
+        clash = self.harmonic_clash().get(best)
+        if defects[best] >= self.BEARING_MIN_SCORE and clash and z is not None:
+            # This bearing's defect line sits on a whole shaft harmonic (inside the +-3 % peak window; the MaFaulDa
+            # simulator: BPFO 2.998x, BPFI 5.002x), so a shaft-rate fault can raise it. If a shaft order GREW versus
+            # this machine's healthy state while the defect line did NOT, name the shaft-rate fault instead
+            # (bench/mafaulda_rules.py). Only on a clash: without one, HUST bearing faults also lift 1x while their
+            # line barely grows, and applying this everywhere cut the HUST hint from 97.6 % to 81 % (DECISIONS D46).
+            rel = _grown_orders(z, {"0.5x": 19, "1x": 20, "2x": 21, "3x": 22})
+            line_z = float(z[15 + ("bpfo", "bpfi", "bsf").index(best)])
+            why = (f"{best.upper()} of this bearing ({clash[1]:.3f}x shaft) coincides with the {clash[0]}x shaft "
+                   f"harmonic and did not grow ({line_z:.1f} sigma), so its envelope peak is not taken as a bearing fault")
+            if rel is not None and rel["fault_class"] != "unknown" and line_z <= self.GROWN_Z:
+                rel["why"] += "; " + why
+                return rel
+            if line_z <= self.GROWN_Z:     # nothing distinguishes a bearing fault from a shaft-rate one: say so
+                return {"fault_class": "unknown", "why": why + "; no single shaft order grew either - inspect",
+                        "measured_accuracy": None}
         if defects[best] >= self.BEARING_MIN_SCORE:
             cls = P.DEFECT_TO_CLASS[best]
             return {"fault_class": cls, "why": f"{best.upper()} ({self.geometry.name}) envelope energy "

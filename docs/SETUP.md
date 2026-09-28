@@ -60,7 +60,9 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
     `knowledge/vehicle_risk_model.json`). `data\fetch_obdex.py` rebuilds `knowledge/vehicle_codes.json` (already
     shipped, CC0). Robots: `python -m bench.robot_model` (trained on real UCI traces, cross-validated).
 15. **Mutual TLS**: `tools\make_certs.py device devA` → `runtime\tls\devices\devA.pem/.key`; start the cloud with
-    `--mtls` and the device with `--client-cert ... --client-key ...`. Tokens expire after 30 days and renew by
+    `--mtls` and the device with `--client-cert ... --client-key ...`. The certificate name must equal the device id
+    of the token it is used with (an admin in the browser needs e.g. `make_certs.py device admin`). A revocation
+    (`make_certs.py revoke devA`) reaches the running cloud within seconds. Tokens expire after 30 days and renew by
     themselves; notes are encrypted at rest automatically (key: `runtime\<device>\note_key.dpapi`, useless on another
     Windows account or PC).
 16. **Phone app**: open the device UI over HTTPS on the phone and use the browser's "Add to Home screen"; it behaves

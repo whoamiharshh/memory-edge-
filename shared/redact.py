@@ -7,6 +7,9 @@ weak-point pass - people's names that nobody listed:
   capitalised_unknown  in normally-cased text, a Capitalised word in mid-sentence that is not maintenance vocabulary
   name_like            any other unknown word that a character n-gram model trained on real names vs real
                        maintenance words scores as a given name (shared/name_model.py; catches ALL CAPS / lower case)
+  name_after_cue       in any letter case, a non-vocabulary word right after "by / with / per / call / ask / told /
+                       informed / from / to / and / tech ..." (where notes name people) that the name model rates
+                       more likely a name than not (a lower bar than name_like, because the context supports it)
 
 Measured on real logbook notes with names inserted (bench/redaction.py). Policy use (docs/RESEARCH.md G.7): a note may
 leave the device only if the technician opted in AND this redactor finds NOTHING; anything found keeps the whole note
@@ -37,6 +40,10 @@ def _lexicon() -> tuple[frozenset, frozenset]:
 
 _WORD = re.compile(r"[A-Za-z]{3,20}")
 _SENT_END = re.compile(r"[.!?:;\n]\s*$")
+# words after which a PERSON is often named in a work note; the next word counts as a name when it is not maintenance
+# vocabulary, in ANY letter case (the capitalised form of this rule is PATTERNS["signed_by"])
+_CUE = re.compile(r"\b(?:by|tech|technician|signed|contact|call|ask|per|with|told|informed|from|to|and)\s*[:\-]?\s+"
+                  r"([A-Za-z]{3,20})\b", re.I)
 
 
 def _name_findings(text: str, lexicon: tuple[frozenset, frozenset] | None = None,
@@ -46,25 +53,33 @@ def _name_findings(text: str, lexicon: tuple[frozenset, frozenset] | None = None
     model = name_model.load() if model is None else (model or None)
     all_caps = text == text.upper()
     out, unknown = [], []
+    cued_pos = {m.start(1) for m in _CUE.finditer(text)}
+    cued = []
     for m in _WORD.finditer(text):
         w, lw = m.group(0), m.group(0).lower()
         if "REDACTED" in w or lw in vocab:
             continue
         if lw in names:
             out.append(("given_name", w))
-        elif not all_caps and w[0].isupper() and w[1:].islower():
+            continue
+        if not all_caps and w[0].isupper() and w[1:].islower():
             before = text[:m.start()]
             if before.strip() and not _SENT_END.search(before):      # mid-sentence capital
                 out.append(("capitalised_unknown", w))
-            else:
-                unknown.append(w)
-        else:
-            unknown.append(w)
+                continue
+        (cued if m.start() in cued_pos else unknown).append(w)
     if model and unknown:
         for w, pr in zip(unknown, name_model.probability(model, [u.lower() for u in unknown])):
             if pr >= model["threshold"]:
                 out.append(("name_like", w))
+    if model and cued:                  # the context makes a name likelier: "more likely a name than not" is enough
+        for w, pr in zip(cued, name_model.probability(model, [c.lower() for c in cued])):
+            if pr >= CUE_THRESHOLD:
+                out.append(("name_after_cue", w))
     return out
+
+
+CUE_THRESHOLD = 0.5      # fixed a priori (not tuned on bench/redaction.py); the model's own threshold is 0.9
 
 PATTERNS: dict[str, re.Pattern] = {
     "email": re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b"),

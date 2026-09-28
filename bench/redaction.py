@@ -27,6 +27,10 @@ OUT = ROOT / "bench" / "results"
 TEMPLATES = ["{note} replaced by {n}", "{n} checked it: {note}", "{note} informed {n} supervisor",
              "{note} per {n}", "{n} and {m} did the job. {note}", "{note} call {n} if it recurs",
              "{note} ({n} night shift)", "done with {n}. {note}"]
+# written AFTER the cue-word rule (shared/redact.py _CUE), so that rule is also measured on phrasings it was not
+# designed around (several use no cue word at all)
+TEMPLATES_HELDOUT = ["{note} - {n} on shift", "{n} says {note}", "{note}, {n} to follow up", "{note} handed over to {n}",
+                     "spoke to {n}. {note}", "{note} witnessed by {n}", "{n} / {m}: {note}", "{note}. {n} will recheck"]
 
 
 def style(text: str, how: str) -> str:
@@ -53,32 +57,45 @@ def main() -> dict:
     lex = (frozenset(listed), vocab)
     from shared import name_model                     # trained here WITHOUT the unseen names and test-note words
     model = name_model.train(listed, sorted(vocab))
+    import shared.redact as R
+    cue_rule = R._CUE
+    R._CUE = re.compile(r"(?!x)x")                    # first WITHOUT the cue-word rule (the state before it), then with
+    without = evaluate(notes, test, listed_ok, unseen, lex, model)
+    R._CUE = cue_rule
+    res = evaluate(notes, test, listed_ok, unseen, lex, model)
+    out = {"method": __doc__.strip().splitlines()[0], "protocol": __doc__.split("Notes:")[1].split("Run:")[0].strip(),
+           "names_in_list": len(listed_ok), "names_unseen": len(unseen), "results": res,
+           "results_without_cue_rule": without,
+           "before_this_pass": "regex + denylist only: 0/60 unlisted names found (docs/BENCHMARKS.md, personal-data probe)"}
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "redaction.json").write_text(json.dumps(out, indent=1))
+    return out
+
+
+def evaluate(notes, test, listed_ok, unseen, lex, model) -> dict:
+    rng = random.Random(11)                           # the same names in both runs
     res = {}
     for how in ("caps", "sentence", "lower"):
         row = {}
-        for pool_name, pool in (("in_list", listed_ok), ("unseen", unseen)):
-            hit = 0
-            for k, i in enumerate(test[:500]):
-                base = " ".join(notes[i].split()).rstrip(".").lower()
-                n, m = rng.choice(pool), rng.choice(pool)
-                # the template and note take the writing style; the name is written as a person would in that style
-                case = {"caps": str.upper, "lower": str.lower, "sentence": str.capitalize}[how]
-                t = style(TEMPLATES[k % len(TEMPLATES)].format(note=base, n="QQNAMEQQ", m="QQMATEQQ"), how)
-                t = re.sub("qqnameqq", case(n), t, flags=re.I)
-                t = re.sub("qqmateqq", case(m), t, flags=re.I)
-                hit += not redact(t, lexicon=lex, model=model).clean
-            row[f"recall_{pool_name}"] = round(hit / 500, 3)
+        for tset, templates in (("", TEMPLATES), ("_heldout_templates", TEMPLATES_HELDOUT)):
+            for pool_name, pool in (("in_list", listed_ok), ("unseen", unseen)):
+                hit = 0
+                for k, i in enumerate(test[:500]):
+                    base = " ".join(notes[i].split()).rstrip(".").lower()
+                    n, m = rng.choice(pool), rng.choice(pool)
+                    # the template and note take the writing style; the name is written as a person would in that style
+                    case = {"caps": str.upper, "lower": str.lower, "sentence": str.capitalize}[how]
+                    t = style(templates[k % len(templates)].format(note=base, n="QQNAMEQQ", m="QQMATEQQ"), how)
+                    t = re.sub("qqnameqq", case(n), t, flags=re.I)
+                    t = re.sub("qqmateqq", case(m), t, flags=re.I)
+                    hit += not redact(t, lexicon=lex, model=model).clean
+                row[f"recall_{pool_name}{tset}"] = round(hit / 500, 3)
         fa = sum(not redact(style(" ".join(notes[i].split()).lower(), how), lexicon=lex, model=model).clean
                  for i in test[500:])
         row["false_alarm_clean_notes"] = round(fa / 500, 3)
         res[how] = row
         print(how, row, flush=True)
-    out = {"method": __doc__.strip().splitlines()[0], "protocol": __doc__.split("Notes:")[1].split("Run:")[0].strip(),
-           "names_in_list": len(listed_ok), "names_unseen": len(unseen), "results": res,
-           "before_this_pass": "regex + denylist only: 0/60 unlisted names found (docs/BENCHMARKS.md, personal-data probe)"}
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "redaction.json").write_text(json.dumps(out, indent=1))
-    return out
+    return res
 
 
 if __name__ == "__main__":

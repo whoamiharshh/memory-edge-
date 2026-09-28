@@ -78,13 +78,22 @@ def test_launchers_refuse_plain_http_on_the_network(module):
     assert r.returncode != 0 and "refusing to serve plain HTTP" in r.stderr
 
 
+MTLS_TOKENS: dict[str, str] = {}
+
+
 @pytest.fixture(scope="module")
-def mtls_cloud(certs):
-    for args in (["device", "devtest"], ["device", "devstolen"], ["revoke", "devstolen"]):
+def mtls_cloud(certs, tmp_path_factory):
+    for args in (["device", "devtest"], ["device", "devstolen"], ["revoke", "devstolen"], ["device", "devother"],
+                 ["device", "devlate"]):
         subprocess.run([PY, str(ROOT / "tools" / "make_certs.py"), *args], check=True, cwd=ROOT, capture_output=True)
+    rt = tmp_path_factory.mktemp("mtls_cloud")
+    from cloud.auth import TokenRegistry
+    reg = TokenRegistry(rt / "tokens.json")
+    for d in ("devtest", "devother", "devlate"):
+        MTLS_TOKENS[d] = reg.issue(d, "s1", "acme")
     port = free_port()
-    p = subprocess.Popen([PY, "-m", "cloud.main", "--memory", "--hash-embedder", "--mtls", "--port", str(port)],
-                         cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.Popen([PY, "-m", "cloud.main", "--memory", "--hash-embedder", "--mtls", "--port", str(port),
+                          "--runtime-dir", str(rt)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url = f"https://127.0.0.1:{port}"
     cert = (str(certs / "devices" / "devtest.pem"), str(certs / "devices" / "devtest.key"))
     try:
@@ -116,6 +125,42 @@ def test_mtls_refuses_a_revoked_device_certificate(mtls_cloud, certs):
     with pytest.raises(httpx.HTTPError):
         httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), stolen))
     assert httpx.get(url + "/v1/health", verify=_tls_context(str(certs / "ca.pem"), cert)).status_code == 200
+
+
+def _dev_cert(certs, name):
+    return str(certs / "devices" / f"{name}.pem"), str(certs / "devices" / f"{name}.key")
+
+
+def test_mtls_token_must_match_the_certificate(mtls_cloud, certs):
+    """A token copied from devtest is refused when presented through devother's (valid) certificate."""
+    url, _ = mtls_cloud
+    ca = str(certs / "ca.pem")
+    hdr = {"authorization": f"Bearer {MTLS_TOKENS['devtest']}"}
+    ok = httpx.get(url + "/v1/cases", headers=hdr, verify=_tls_context(ca, _dev_cert(certs, "devtest")))
+    assert ok.status_code == 200
+    bad = httpx.get(url + "/v1/cases", headers=hdr, verify=_tls_context(ca, _dev_cert(certs, "devother")))
+    assert bad.status_code == 403 and "does not belong" in bad.json()["detail"]
+
+
+def test_mtls_revocation_takes_effect_without_restart(mtls_cloud, certs):
+    """tools/make_certs.py revoke rewrites crl.pem; the running cloud reloads it (cloud/tls.py CrlReloader)."""
+    url, _ = mtls_cloud
+    ca, late = str(certs / "ca.pem"), _dev_cert(certs, "devlate")
+    assert httpx.get(url + "/v1/health", verify=_tls_context(ca, late)).status_code == 200
+    subprocess.run([PY, str(ROOT / "tools" / "make_certs.py"), "revoke", "devlate"], check=True, cwd=ROOT,
+                   capture_output=True)
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < 15:
+        try:
+            httpx.get(url + "/v1/health", verify=_tls_context(ca, late), timeout=3)
+        except httpx.HTTPError:
+            break                                            # refused: the new list is in force
+        time.sleep(0.5)
+    else:
+        pytest.fail("revoked certificate still accepted 15 s after revocation")
+    assert time.monotonic() - t0 < 10
+    good = _dev_cert(certs, "devtest")                       # other devices are unaffected
+    assert httpx.get(url + "/v1/health", verify=_tls_context(ca, good)).status_code == 200
 
 
 def test_server_refuses_tls_below_1_2(tls_cloud, certs):

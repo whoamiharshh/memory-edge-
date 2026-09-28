@@ -26,6 +26,21 @@ def test_technical_notes_stay_clean(text):
     assert redact(text).clean
 
 
+def test_a_name_after_a_cue_word_needs_only_a_lower_score():
+    """'by / with / call ...' makes a name likelier: a word the model rates between 0.5 and its 0.9 threshold is
+    caught after a cue, not elsewhere; a machine word after a cue (laser) stays clean."""
+    from shared.redact import _lexicon
+    m = name_model.load()
+    lex = (frozenset(), _lexicon()[1])                       # no name list: only the model and the cue rule
+    word = "okafor"
+    assert 0.5 <= name_model.probability(m, [word])[0] < m["threshold"]
+    cued = redact(f"REPLACED INSERT, CHECKED BY {word.upper()}", lexicon=lex, model=m)
+    assert ("name_after_cue", word.upper()) in cued.findings
+    uncued = redact(f"{word.upper()} REPLACED INSERT", lexicon=lex, model=m)
+    assert all(k != "name_after_cue" for k, _ in uncued.findings)
+    assert redact("ALIGNED WITH LASER, CHECKED WITH DIAL GAUGE", lexicon=lex, model=m).clean
+
+
 def test_name_model_is_plain_numbers_with_a_validated_threshold():
     m = name_model.load()
     assert m and len(m["coef"]) == name_model.N_FEATURES and 0.5 <= m["threshold"] <= 0.95

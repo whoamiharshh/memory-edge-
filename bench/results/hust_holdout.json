@@ -72,9 +72,9 @@
   "k3_still_faulty_not_evaluable": 0,
   "k3_false_promotions": 0,
   "physics_hint": {
-    "overall": 0.9762,
+    "overall": 0.9524,
     "per_class": {
-      "ball": 1.0,
+      "ball": 0.9167,
       "inner_race": 1.0,
       "outer_race": 0.9333
     },
@@ -470,7 +470,7 @@
       "detected": 1.0,
       "episodes_first_20": 1,
       "true": "ball",
-      "device_hint": "ball",
+      "device_hint": "imbalance",
       "envelope_rule": "ball",
       "k3_fixed": "symptom_resolved",
       "k3_still_faulty": "symptom_persists",

@@ -20,7 +20,8 @@ from edge.device import Device, DeviceConfig
 from edge.sync_worker import SyncWorker
 from shared.embed import HashEmbedder
 
-needs_cwru = pytest.mark.skipif(not CACHE.exists(), reason="CWRU feature cache missing (run data/fetch_data.py)")
+needs_cwru = pytest.mark.skipif(not CACHE.exists(), reason="CWRU feature cache missing (run data/fetch_data.py, then "
+                                "python -c \"from data.splits import build_dataset; build_dataset()\")")
 from tools import qdrant_local
 
 QDRANT_EXE = qdrant_local.binary()          # qdrant.exe on Windows, qdrant elsewhere

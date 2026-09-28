@@ -152,6 +152,8 @@ Without the optional LLM, one device fits in ~0.3 GB of RAM and a small fraction
 > **Updated 28 Sep (§22):** with the replacement-aware verifier, fix verified at the untaught 400 W load is
 > **42/42 without any teaching** (was 15/42), still-faulty caught 38/39, 0 false promotions; physics hint unchanged
 > at 97.6 %. The table below is the earlier run, kept for the record.
+> **Updated 28 Sep (§32, D46):** device hint **95.2 % (40/42)**: B604 now says "imbalance" because bearing 6206's BSF
+> (4.915x) sits within 3 % of the 5x shaft harmonic, where the device no longer trusts a line that did not grow.
 
 The data-realism test. **Nothing was tuned on this data**: thresholds as shipped (chosen on CWRU). HUST bearing
 (Hong & Thuan 2023, Mendeley Data, CC BY 4.0, DOI 10.17632/cbv7jyx4p9.3): another lab rig, another sensor
@@ -396,15 +398,19 @@ Real logbook notes (1,000 held out; the maintenance vocabulary rebuilt without t
 in 8 templates (SYNTHETIC insertion: no labelled public set exists). 20 % of the 10,562 Wikidata names (CC0) are held
 out of the redactor's list AND of the name model it trains.
 
-| Style | Names on the list | Names NOT on the list | Clean notes kept local by mistake |
+| Style | Names on the list | Names NOT on the list: 8 templates / 8 held-out templates | Clean notes kept local by mistake |
 |---|---|---|---|
-| normal typing (sentence case) | **100 %** | **96.2 %** | 0.6 % |
-| ALL CAPS (the logbook's style) | **100 %** | 65.8 % | 2.4 % |
-| all lower case | **100 %** | 63.6 % | 0.6 % |
+| normal typing (sentence case) | **100 %** | **95.0 %** / 88.4 % | 0.8 % |
+| ALL CAPS (the logbook's style) | **100 %** | **86.8 %** / 74.6 % | 2.6 % |
+| all lower case | **100 %** | **85.0 %** / 75.6 % | 0.8 % |
 
-Before: regex + denylist found 0 of 60 unlisted names (Laya probe, §17). Name-likeness model: character n-grams,
-logistic regression, trained on real names vs real maintenance words, threshold chosen on a validation split (<= 2 %
-word false positives -> 0.9). A flagged note stays on the device, so a false alarm costs sharing, never privacy.
+Without the cue-word rule (D44; same run, same names): ALL CAPS 66.6 % / 61.0 %, lower case 66.6 % / 61.6 %, sentence
+95.0 % / 88.4 %; clean notes kept local 2.4 % / 0.6 %. The 8 held-out templates were written after the rule (some have
+no cue word at all), so the rule is not only graded on phrasings it was designed around. Before this redactor:
+regex + denylist found 0 of 60 unlisted names (Laya probe, §17). Name-likeness model: character n-grams, logistic
+regression, trained on real names vs real maintenance words, threshold chosen on a validation split (<= 2 % word
+false positives -> 0.9); after a cue word 0.5 (fixed a priori). A flagged note stays on the device, so a false alarm
+costs sharing, never privacy.
 
 ## 27. Robots: the device's own learned detector (`bench/robot_model.py`, `edge/local_detector.py`)
 Exactly what a device stores (27-number fingerprint z-scored against the healthy traces), class-balanced logistic
@@ -464,3 +470,33 @@ Now every push carries the device time; the cloud measures the offset (it saw ex
 shifts that device's timestamps onto its own clock (the device's original is kept). Worst error of a corrected time
 across all scenarios: **1.0 s**. Devices more than 2 min off show a warning ("set the clock (NTP)"); the fleet UI shows
 each device's offset. A push WITHOUT a device time and with a future date is still refused.
+
+## 31. 1,000 and 5,000 devices on one cloud (`bench/fleet_scale.py`)
+One laptop runs everything: Qdrant Server 1.19.1, the cloud as its own process (`python -m cloud.main`), **protocol
+devices** (the exact device wire protocol - schema, deterministic ids, batches <= 50, per-event acks, retry with backoff +
+jitter, mirror pull by scroll - with the outbox in memory; 6 load processes) and **50 complete devices** (Qdrant Edge
+shards, SQLite outbox, the real sync worker, auto mirror; 10 worker processes, so 10 mirror pulls at the same moment).
+Devices wake at random within the wake window. Evidence records are generated (a load test; nothing is trained).
+
+| Fleet | Wake window | Events | All pushes done | Push p50 / p95 | Lost | Counted twice | Mirrors = cloud | Complete device mirror pull p50 / p95 |
+|---|---|---|---|---|---|---|---|---|
+| 1,000 + 50 complete | 20 s | 10,500 | **34.7 s** | 2.1 / 4.9 s | **0** | **0** | 1,050 / 1,050 | 3.9 / 7.0 s |
+| 5,000 + 50 complete | 20 s | 10,100 | **91.3 s** | 2.8 / 4.4 s | **0** | **0** | 5,050 / 5,050 | 4.0 / 8.1 s |
+| 1,000 at once (burst) + 1 | 3 s | 10,010 | **23.9 s (419 events/s)** | 3.4 / 5.4 s | **0** | **0** | 1,001 / 1,001 | 1.8 s |
+
+At 5,000 devices 52 connection attempts were refused during the rush (listen queue) and 12 mirror pulls had to retry;
+every device retried and delivered - nothing lost. Cloud memory 287-392 MB, Qdrant 103-114 MB.
+
+**Where the limit is (measured, not guessed):** CPU sampled every second during the pushes: in the burst the laptop was
+42 % busy, Qdrant used 0.44 cores and the cloud 0.81 cores - the cloud is ONE Python process, and ~0.8 cores is what
+one process gets (the GIL). A py-spy profile of the cloud under load: about a third of its samples wait on Qdrant calls
+(mirror page scrolls, the recompute reading a case's events), JSON encode/decode is next. Beyond one core needs several
+cloud processes behind a load balancer; that needs a shared token registry and sequence counter (not built).
+
+**Before this pass** (same bench, older code, saved results replaced): 1,000 + 50 devices took 108 s with a push p50 of
+7.8 s. Changes, each found with the profiler or the bench: token lookup by hash instead of a loop over every token (O(1));
+group commit of event inserts (one writer thread, one Qdrant write per ~1,000 events: a write has ~9 ms fixed cost);
+a small pool of keep-alive Qdrant clients (p95 of a call 23.9 -> 4.2 ms); each mirror page encoded once per mirror
+version; mirror reads no longer force a recompute (the background worker keeps them within ~2 s); the fleet hint
+model retrained at most every 30 s. The complete devices' mirror pull looked like **87-160 s**: an artifact - 50
+devices ran as threads of ONE bench process and took turns; in their own processes it is 3.9 s.

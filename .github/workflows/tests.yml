@@ -1,7 +1,8 @@
 # Runs the test suite on Linux, macOS and Windows whenever the repository is pushed to GitHub.
-# STATUS: written 28 Sep 2026 and NOT yet run (the project is not on GitHub yet); the Windows results in README come
-# from local runs. Tests that need downloaded data sets (CWRU, HUST, UOttawa, SCANIA, UCI) skip themselves when the
-# data is absent; the Qdrant Server binary for the runner's OS is downloaded by tools/qdrant_local.py.
+# STATUS: written 28 Sep 2026 and NOT yet run on GitHub (the project is not on GitHub yet). Simulated locally the same
+# day on a clean copy of the tracked files (no data, no models, no runtime): 239 passed, 0 failed, 58 skipped - most
+# skips were the CWRU tests, hence the CWRU step below. Tests that need other data sets (SCANIA, UCI) or the optional
+# LLM skip themselves; the Qdrant Server binary for the runner's OS is downloaded by tools/qdrant_local.py.
 name: tests
 
 on:
@@ -34,6 +35,17 @@ jobs:
       - name: Certificates for the HTTPS / mutual-TLS tests
         shell: bash
         run: $PY tools/make_certs.py
+      - name: Cache the public CWRU recordings (downloaded, never committed)
+        uses: actions/cache@v4
+        with:
+          path: data/raw/cwru
+          key: cwru-12k-de-40-files-v1
+      - name: Real CWRU data + feature cache (most integration tests need it; they skip if this step fails)
+        continue-on-error: true
+        shell: bash
+        run: |
+          $PY -c "from data.fetch_data import CWRU, CWRU_BASE, ROOT, fetch; [fetch(CWRU_BASE.format(f), ROOT / 'cwru' / f'{f}.mat') for f in CWRU]"
+          $PY -c "from data.splits import build_dataset; build_dataset()"
       - name: Tests
         shell: bash
         run: $PY -m pytest

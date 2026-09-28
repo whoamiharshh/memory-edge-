@@ -5,6 +5,46 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D46 · A bearing line that sits on a shaft harmonic is not taken as a bearing fault unless it grew (28 Sep 2026)
+MaFaulDa (one real machine, imbalance and misalignment on the same rig; BENCHMARKS §32) showed the device naming
+imbalance "outer/inner race" (underhang radial: 0/333 right, 301/333 wrong). Cause, measured: this simulator's bearing
+has BPFO 2.998x and BPFI 5.002x shaft speed, i.e. its defect lines sit ON shaft harmonics, and its healthy bearings
+already show them strongly, so the absolute envelope rule fires on every window; meanwhile 1x had grown +9.8 sigma.
+Three versions were measured, nothing tuned on the data:
+1. "shaft order grew and the defect line did not -> shaft fault", everywhere: MaFaulDa 0 -> 264/333, but HUST fell
+   97.6 % -> 81 % (real HUST bearing faults also lift 1x while their line grows little). Rejected.
+2. The same, only when the line coincides with a whole shaft harmonic (within the rule's own +-3 % peak window, not a
+   new parameter): MaFaulDa 258/333; HUST 95.2 % (40/42): B604 flips because bearing 6206's BSF (4.915x) is within
+   3 % of 5x - the rule working as written, not a tuning target, so the tolerance was NOT narrowed to rescue it.
+3. Kept: (2) plus, on a clash where the line did not grow and no single order grew, say "unknown - inspect" instead of
+   a bearing name: misalignment wrong names 164 -> 28 / 197; HUST unchanged at 40/42.
+Misalignment is still rarely NAMED (no single order grows > 3 sigma on this rig); it is detected, then "inspect".
+
+### D45 · Fleet scale: measure the limit before optimising further (28 Sep 2026)
+`bench/fleet_scale.py` (1,000 / 5,000 devices + 50 complete Edge devices) with a py-spy profile and per-second CPU
+sampling. Speed-ups that the profile justified: O(1) token lookup, group-commit event writer, pooled keep-alive Qdrant
+clients, page cache per mirror version, mirror reads not forcing a recompute (eventually consistent within ~2 s, like
+the device mirror already was), hint model retrained at most every 30 s, recompute throttled per case. 1,000 + 50
+devices: 108 s -> 34.7 s; 0 lost / 0 double in every run (BENCHMARKS §31). The bench itself was wrong once: 50
+complete devices as threads of one process serialised their mirror restores (87-160 s); now in worker processes
+(3.9 s). Stopped here on purpose: the cloud is one Python process at ~0.8 cores; going further means several cloud
+processes (shared token registry + sequence counter), recorded as the next step, not built.
+
+### D44 · Names after "by / with / call ..." need only a "more likely a name than not" score (28 Sep 2026)
+Unlisted names in ALL CAPS / lower-case notes were caught only ~65 % of the time (BENCHMARKS §26): the name model
+needs 0.9 to flag a word anywhere. After a cue word where notes name people, a non-vocabulary word is now flagged at
+0.5 (fixed a priori, not tuned). A first version flagged ANY unknown word after a cue; the unit test "ALIGNED WITH
+LASER" caught it, so the model gate was added. To avoid grading the rule on phrasings it was written around, the
+benchmark gained 8 held-out templates written after the rule. Cost: a few more clean notes stay local (safe direction).
+
+### D43 · mTLS: certificate bound to the token's device; CRL reloaded while running (28 Sep 2026)
+Two items of THREATS.md "Not built / residual": (1) with `--mtls` any valid device certificate could carry any token;
+now uvicorn's protocol exposes the verified certificate's name per connection (`cloud/tls.py` CertBoundH11) and the
+cloud refuses a token whose device id differs (403). (2) A revoked certificate needed a cloud restart; the CRL is now
+re-read when the file changes (OpenSSL uses the newest list of the issuer). Tests: `test_mtls_token_must_match_the_
+certificate`, `test_mtls_revocation_takes_effect_without_restart` (refused within the 2 s reload interval). Cost: an
+admin in a browser needs a certificate named after the admin id; an already open keep-alive connection is not cut.
+
 ### D42 · Device clocks are measured and corrected by the cloud (28 Sep 2026)
 A device clock more than a day fast would have had its evidence REJECTED as "future" (found by bench/network_faults.py
 design review). Every push now carries the device time; the cloud computes the offset and shifts that batch's times

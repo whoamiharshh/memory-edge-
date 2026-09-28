@@ -1,0 +1,434 @@
+{
+ "method": "Naming imbalance and misalignment on ONE real machine (MaFaulDa, UFRJ): the check the University of Ottawa motor set",
+ "protocol": "(nothing tuned here; shipped profiles and thresholds): the NORMAL recordings are split by speed - every other\nspeed is taught as healthy, the rest are held out. For each recording, its baseline = the taught normal recordings at\nthe two nearest speeds (a device watches its machine at its operating speed; vibration grows strongly with speed).\n  detection    share of windows the gate flags (fault recordings), false alarms on the held-out normal speeds\n  naming       majority hint over the flagged windows vs the truth: imbalance -> \"imbalance\", horizontal / vertical\n               misalignment -> \"misalignment\" (relative order rule, shipped); the absolute textbook rule for contrast\nChannels: overhang radial (next to the rotor disk), underhang radial, axial (underhang), microphone.",
+ "files": {
+  "imbalance": 333,
+  "horizontal-misalignment": 197,
+  "normal_taught": 25,
+  "normal_held_out": 24
+ },
+ "channels": {
+  "overhang_radial": {
+   "false_alarm_window_share_on_held_out_normal": 0.042,
+   "per_fault": {
+    "imbalance": {
+     "recordings": 333,
+     "detected_window_share": 0.192,
+     "named_correctly_relative_rule": "20/333",
+     "named_WRONG_relative_rule": "18/333",
+     "named_correctly_absolute_rule": "2/333",
+     "relative_rule_names": {
+      "unknown": 295,
+      "imbalance": 20,
+      "ball": 7,
+      "looseness": 8,
+      "misalignment": 3
+     },
+     "by_severity": {
+      "10g": {
+       "n": 48,
+       "detected": 0.111,
+       "named_ok": "2/48",
+       "named_wrong": "2/48"
+      },
+      "15g": {
+       "n": 48,
+       "detected": 0.05,
+       "named_ok": "0/48",
+       "named_wrong": "0/48"
+      },
+      "20g": {
+       "n": 49,
+       "detected": 0.076,
+       "named_ok": "1/49",
+       "named_wrong": "2/49"
+      },
+      "25g": {
+       "n": 47,
+       "detected": 0.057,
+       "named_ok": "0/47",
+       "named_wrong": "1/47"
+      },
+      "30g": {
+       "n": 47,
+       "detected": 0.455,
+       "named_ok": "4/47",
+       "named_wrong": "4/47"
+      },
+      "35g": {
+       "n": 45,
+       "detected": 0.565,
+       "named_ok": "12/45",
+       "named_wrong": "8/45"
+      },
+      "6g": {
+       "n": 49,
+       "detected": 0.062,
+       "named_ok": "1/49",
+       "named_wrong": "1/49"
+      }
+     }
+    },
+    "horizontal-misalignment": {
+     "recordings": 197,
+     "detected_window_share": 0.32,
+     "named_correctly_relative_rule": "2/197",
+     "named_WRONG_relative_rule": "26/197",
+     "named_correctly_absolute_rule": "0/197",
+     "relative_rule_names": {
+      "looseness": 10,
+      "unknown": 169,
+      "imbalance": 12,
+      "ball": 4,
+      "misalignment": 2
+     },
+     "by_severity": {
+      "0.5mm": {
+       "n": 50,
+       "detected": 0.195,
+       "named_ok": "1/50",
+       "named_wrong": "3/50"
+      },
+      "1.0mm": {
+       "n": 49,
+       "detected": 0.597,
+       "named_ok": "1/49",
+       "named_wrong": "13/49"
+      },
+      "1.5mm": {
+       "n": 49,
+       "detected": 0.003,
+       "named_ok": "0/49",
+       "named_wrong": "0/49"
+      },
+      "2.0mm": {
+       "n": 49,
+       "detected": 0.488,
+       "named_ok": "0/49",
+       "named_wrong": "10/49"
+      }
+     }
+    }
+   }
+  },
+  "underhang_radial": {
+   "false_alarm_window_share_on_held_out_normal": 0.0,
+   "per_fault": {
+    "imbalance": {
+     "recordings": 333,
+     "detected_window_share": 0.869,
+     "named_correctly_relative_rule": "258/333",
+     "named_WRONG_relative_rule": "34/333",
+     "named_correctly_absolute_rule": "0/333",
+     "relative_rule_names": {
+      "unknown": 41,
+      "imbalance": 258,
+      "misalignment": 19,
+      "ball": 6,
+      "outer_race": 5,
+      "looseness": 3,
+      "inner_race": 1
+     },
+     "by_severity": {
+      "10g": {
+       "n": 48,
+       "detected": 0.844,
+       "named_ok": "36/48",
+       "named_wrong": "5/48"
+      },
+      "15g": {
+       "n": 48,
+       "detected": 0.892,
+       "named_ok": "40/48",
+       "named_wrong": "4/48"
+      },
+      "20g": {
+       "n": 49,
+       "detected": 0.898,
+       "named_ok": "42/49",
+       "named_wrong": "3/49"
+      },
+      "25g": {
+       "n": 47,
+       "detected": 0.899,
+       "named_ok": "39/47",
+       "named_wrong": "4/47"
+      },
+      "30g": {
+       "n": 47,
+       "detected": 0.896,
+       "named_ok": "38/47",
+       "named_wrong": "5/47"
+      },
+      "35g": {
+       "n": 45,
+       "detected": 0.951,
+       "named_ok": "35/45",
+       "named_wrong": "8/45"
+      },
+      "6g": {
+       "n": 49,
+       "detected": 0.712,
+       "named_ok": "28/49",
+       "named_wrong": "5/49"
+      }
+     }
+    },
+    "horizontal-misalignment": {
+     "recordings": 197,
+     "detected_window_share": 0.658,
+     "named_correctly_relative_rule": "15/197",
+     "named_WRONG_relative_rule": "28/197",
+     "named_correctly_absolute_rule": "0/197",
+     "relative_rule_names": {
+      "looseness": 9,
+      "unknown": 154,
+      "inner_race": 4,
+      "ball": 10,
+      "outer_race": 3,
+      "imbalance": 2,
+      "misalignment": 15
+     },
+     "by_severity": {
+      "0.5mm": {
+       "n": 50,
+       "detected": 0.295,
+       "named_ok": "0/50",
+       "named_wrong": "12/50"
+      },
+      "1.0mm": {
+       "n": 49,
+       "detected": 0.398,
+       "named_ok": "0/49",
+       "named_wrong": "5/49"
+      },
+      "1.5mm": {
+       "n": 49,
+       "detected": 0.952,
+       "named_ok": "0/49",
+       "named_wrong": "6/49"
+      },
+      "2.0mm": {
+       "n": 49,
+       "detected": 0.993,
+       "named_ok": "15/49",
+       "named_wrong": "5/49"
+      }
+     }
+    }
+   }
+  },
+  "underhang_axial": {
+   "false_alarm_window_share_on_held_out_normal": 0.004,
+   "per_fault": {
+    "imbalance": {
+     "recordings": 333,
+     "detected_window_share": 0.703,
+     "named_correctly_relative_rule": "197/333",
+     "named_WRONG_relative_rule": "37/333",
+     "named_correctly_absolute_rule": "0/333",
+     "relative_rule_names": {
+      "unknown": 99,
+      "ball": 23,
+      "inner_race": 8,
+      "imbalance": 197,
+      "looseness": 5,
+      "misalignment": 1
+     },
+     "by_severity": {
+      "10g": {
+       "n": 48,
+       "detected": 0.433,
+       "named_ok": "23/48",
+       "named_wrong": "4/48"
+      },
+      "15g": {
+       "n": 48,
+       "detected": 0.718,
+       "named_ok": "32/48",
+       "named_wrong": "3/48"
+      },
+      "20g": {
+       "n": 49,
+       "detected": 0.766,
+       "named_ok": "32/49",
+       "named_wrong": "6/49"
+      },
+      "25g": {
+       "n": 47,
+       "detected": 0.895,
+       "named_ok": "32/47",
+       "named_wrong": "6/47"
+      },
+      "30g": {
+       "n": 47,
+       "detected": 0.954,
+       "named_ok": "33/47",
+       "named_wrong": "6/47"
+      },
+      "35g": {
+       "n": 45,
+       "detected": 0.961,
+       "named_ok": "32/45",
+       "named_wrong": "8/45"
+      },
+      "6g": {
+       "n": 49,
+       "detected": 0.227,
+       "named_ok": "13/49",
+       "named_wrong": "4/49"
+      }
+     }
+    },
+    "horizontal-misalignment": {
+     "recordings": 197,
+     "detected_window_share": 0.393,
+     "named_correctly_relative_rule": "4/197",
+     "named_WRONG_relative_rule": "42/197",
+     "named_correctly_absolute_rule": "0/197",
+     "relative_rule_names": {
+      "looseness": 6,
+      "unknown": 151,
+      "ball": 9,
+      "inner_race": 7,
+      "misalignment": 4,
+      "imbalance": 2,
+      "outer_race": 18
+     },
+     "by_severity": {
+      "0.5mm": {
+       "n": 50,
+       "detected": 0.309,
+       "named_ok": "0/50",
+       "named_wrong": "5/50"
+      },
+      "1.0mm": {
+       "n": 49,
+       "detected": 0.418,
+       "named_ok": "0/49",
+       "named_wrong": "7/49"
+      },
+      "1.5mm": {
+       "n": 49,
+       "detected": 0.307,
+       "named_ok": "3/49",
+       "named_wrong": "6/49"
+      },
+      "2.0mm": {
+       "n": 49,
+       "detected": 0.541,
+       "named_ok": "1/49",
+       "named_wrong": "24/49"
+      }
+     }
+    }
+   }
+  },
+  "microphone": {
+   "false_alarm_window_share_on_held_out_normal": 0.028,
+   "per_fault": {
+    "imbalance": {
+     "recordings": 333,
+     "detected_window_share": 0.331,
+     "named_correctly_relative_rule": "11/333",
+     "named_WRONG_relative_rule": "97/333",
+     "named_correctly_absolute_rule": "0/333",
+     "relative_rule_names": {
+      "unknown": 225,
+      "outer_race": 16,
+      "looseness": 9,
+      "misalignment": 68,
+      "imbalance": 11,
+      "inner_race": 3,
+      "ball": 1
+     },
+     "by_severity": {
+      "10g": {
+       "n": 48,
+       "detected": 0.014,
+       "named_ok": "0/48",
+       "named_wrong": "1/48"
+      },
+      "15g": {
+       "n": 48,
+       "detected": 0.046,
+       "named_ok": "2/48",
+       "named_wrong": "7/48"
+      },
+      "20g": {
+       "n": 49,
+       "detected": 0.212,
+       "named_ok": "4/49",
+       "named_wrong": "7/49"
+      },
+      "25g": {
+       "n": 47,
+       "detected": 0.379,
+       "named_ok": "2/47",
+       "named_wrong": "11/47"
+      },
+      "30g": {
+       "n": 47,
+       "detected": 0.849,
+       "named_ok": "1/47",
+       "named_wrong": "34/47"
+      },
+      "35g": {
+       "n": 45,
+       "detected": 0.853,
+       "named_ok": "1/45",
+       "named_wrong": "36/45"
+      },
+      "6g": {
+       "n": 49,
+       "detected": 0.019,
+       "named_ok": "1/49",
+       "named_wrong": "1/49"
+      }
+     }
+    },
+    "horizontal-misalignment": {
+     "recordings": 197,
+     "detected_window_share": 0.529,
+     "named_correctly_relative_rule": "25/197",
+     "named_WRONG_relative_rule": "71/197",
+     "named_correctly_absolute_rule": "0/197",
+     "relative_rule_names": {
+      "misalignment": 25,
+      "looseness": 6,
+      "unknown": 101,
+      "imbalance": 19,
+      "outer_race": 42,
+      "inner_race": 4
+     },
+     "by_severity": {
+      "0.5mm": {
+       "n": 50,
+       "detected": 0.236,
+       "named_ok": "3/50",
+       "named_wrong": "12/50"
+      },
+      "1.0mm": {
+       "n": 49,
+       "detected": 0.249,
+       "named_ok": "2/49",
+       "named_wrong": "8/49"
+      },
+      "1.5mm": {
+       "n": 49,
+       "detected": 0.738,
+       "named_ok": "8/49",
+       "named_wrong": "21/49"
+      },
+      "2.0mm": {
+       "n": 49,
+       "detected": 0.899,
+       "named_ok": "12/49",
+       "named_wrong": "30/49"
+      }
+     }
+    }
+   }
+  }
+ }
+}

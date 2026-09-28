@@ -7,7 +7,8 @@
 - Per-token rate limit (sliding window) against sync floods.
 - Tokens EXPIRE (TOKEN_TTL_S, default 30 days). A device renews its own token before expiry (POST /v1/token/renew);
   the old token keeps working for RENEW_GRACE_S so a sync in flight never breaks. Expired = refused.
-Prototype limits (documented): no mTLS; the localhost demo is plain HTTP (the launchers enforce HTTPS off-localhost).
+Prototype limits (documented): mTLS is optional (--mtls, cloud/tls.py; it binds the certificate to the token's device);
+the localhost demo is plain HTTP (the launchers enforce HTTPS off-localhost).
 """
 from __future__ import annotations
 

@@ -16,7 +16,7 @@ import uvicorn
 from cloud.api import create_app
 from cloud.audit import AuditLog
 from cloud.auth import TokenRegistry
-from cloud.tls import server_context
+from cloud.tls import cert_bound_protocol, server_context
 from cloud.store_server import CloudStore
 from shared.embed import HashEmbedder, load_embedder
 
@@ -74,12 +74,14 @@ def main() -> None:
     print(f"[cloud] fleet UI: {scheme}://{a.host}:{a.port}/   Qdrant: {store.backend}", flush=True)
     tls = ROOT / "runtime" / "tls"
     app = create_app(store, reg, embedder, AuditLog(runtime / "audit.log"), 1 if a.single_admin_retract else 2,
-                     coalesce=True)
+                     coalesce=True, bind_cert=a.mtls)
     # our own TLS context (uvicorn's ssl_context_factory hook): TLS >= 1.2; with mTLS, client certificates + CRL
+    # (reloaded when it changes) and the certificate's name handed to the app (it must match the token's device)
     factory = (lambda _cfg, _default: server_context(tls / "server.pem", tls / "server.key",
                                                      tls / "ca.pem" if a.mtls else None,
                                                      tls / "crl.pem" if a.mtls else None)) if a.tls else None
-    uvicorn.run(app, host=a.host, port=a.port, log_level="warning", ssl_context_factory=factory)
+    uvicorn.run(app, host=a.host, port=a.port, log_level="warning", ssl_context_factory=factory,
+                **({"http": cert_bound_protocol()} if a.mtls else {}))
 
 if __name__ == "__main__":
     main()

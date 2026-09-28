@@ -6,17 +6,46 @@
  "results": {
   "caps": {
    "recall_in_list": 1.0,
-   "recall_unseen": 0.658,
+   "recall_unseen": 0.868,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.746,
+   "false_alarm_clean_notes": 0.026
+  },
+  "sentence": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.95,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.884,
+   "false_alarm_clean_notes": 0.008
+  },
+  "lower": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.85,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.756,
+   "false_alarm_clean_notes": 0.008
+  }
+ },
+ "results_without_cue_rule": {
+  "caps": {
+   "recall_in_list": 1.0,
+   "recall_unseen": 0.666,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.61,
    "false_alarm_clean_notes": 0.024
   },
   "sentence": {
    "recall_in_list": 1.0,
-   "recall_unseen": 0.962,
+   "recall_unseen": 0.95,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.884,
    "false_alarm_clean_notes": 0.006
   },
   "lower": {
    "recall_in_list": 1.0,
-   "recall_unseen": 0.636,
+   "recall_unseen": 0.666,
+   "recall_in_list_heldout_templates": 1.0,
+   "recall_unseen_heldout_templates": 0.616,
    "false_alarm_clean_notes": 0.006
   }
  },

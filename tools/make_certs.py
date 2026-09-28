@@ -133,7 +133,7 @@ def write_crl() -> pathlib.Path:
     crl = b.sign(ca_key, hashes.SHA256())
     (OUT / "crl.pem").write_bytes(crl.public_bytes(serialization.Encoding.PEM))
     print(f"wrote {OUT / 'crl.pem'}: {len(revoked)} revoked certificate(s), valid until "
-          f"{(now + dt.timedelta(days=CRL_DAYS)).date()} (restart the cloud to load it)")
+          f"{(now + dt.timedelta(days=CRL_DAYS)).date()} (a running cloud reloads it within seconds)")
     return OUT / "crl.pem"
 
 

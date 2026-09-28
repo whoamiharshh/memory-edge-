@@ -33,6 +33,9 @@ OUT = ROOT / "bench" / "results"
 FS = 50000.0
 CHANNELS = {"overhang_radial": (5, "rotating-hf"), "underhang_radial": (2, "rotating-hf"),
             "underhang_axial": (1, "rotating-hf"), "microphone": (7, "acoustic")}
+# The simulator's bearings, from the MaFaulDa page (checked 28 Sep 2026): 8 balls, ball diameter 0.7145 cm, cage
+# diameter 2.8519 cm; the page's factors BPFO 2.9980 / BPFI 5.0020 / FTF 0.3750 follow exactly from these numbers.
+GEOMETRY = {"n_elements": 8, "ball_d": 0.7145, "pitch_d": 2.8519, "name": "MaFaulDa simulator bearing"}
 TRUTH = {"imbalance": "imbalance", "horizontal-misalignment": "misalignment", "vertical-misalignment": "misalignment"}
 
 
@@ -41,7 +44,7 @@ def speed(p: pathlib.Path) -> float:
 
 
 _cache: dict = {}
-FEAT_DIR = RAW / "_features"
+FEAT_DIR = RAW / "_features_geo"        # features with the simulator's own bearing geometry
 
 
 def _feat_file(p: pathlib.Path) -> pathlib.Path:
@@ -58,7 +61,7 @@ def compute(p: pathlib.Path) -> str:
     hz = speed(p)
     arrays = {}
     for c, prof_name in CHANNELS.values():
-        prof = profiles.make(prof_name, shaft_hz=hz)
+        prof = profiles.make(prof_name, shaft_hz=hz, geometry=GEOMETRY)
         arrays[f"{c}_{prof_name}"] = np.stack([prof.features(w, prof.analysis_fs, hz * 60)
                                               for w in prof.windows(data[:, c], FS)])
     FEAT_DIR.mkdir(exist_ok=True)
@@ -111,7 +114,7 @@ def main(max_per: int | None = None) -> dict:
            "files": {k: len(v) for k, v in recs.items()} | {"normal_taught": len(taught), "normal_held_out": len(held)},
            "channels": {}}
     for ch, (col, profile) in CHANNELS.items():
-        prof = profiles.make(profile)
+        prof = profiles.make(profile, geometry=GEOMETRY)
 
         def judge(f: pathlib.Path) -> tuple[float, str, str]:
             near = sorted(taught, key=lambda n: abs(speed(n) - speed(f)))[:2]
@@ -122,7 +125,7 @@ def main(max_per: int | None = None) -> dict:
             W = feats(f, col, profile)
             z = bl.z(W)
             flagged = _nn(z, zb) > tau
-            pr = profiles.make(profile, shaft_hz=speed(f))
+            pr = profiles.make(profile, shaft_hz=speed(f), geometry=GEOMETRY)
             if not flagged.any():
                 return 0.0, "unknown", "unknown"
             rel = collections.Counter(pr.hint(w, zz)["fault_class"] for w, zz, fl in zip(W, z, flagged) if fl)
@@ -132,7 +135,7 @@ def main(max_per: int | None = None) -> dict:
         fa = [judge(f)[0] for f in held]
         out = {"false_alarm_window_share_on_held_out_normal": round(float(np.mean(fa)), 3), "per_fault": {}}
         for kind, rows in recs.items():
-            per_sev = collections.defaultdict(lambda: {"n": 0, "detected": [], "rel_ok": 0, "abs_ok": 0,
+            per_sev = collections.defaultdict(lambda: {"n": 0, "detected": [], "rel_ok": 0, "rel_wrong": 0, "abs_ok": 0,
                                                        "rel_names": collections.Counter()})
             for sev, f in rows:
                 share, rel, ab = judge(f)
@@ -140,6 +143,7 @@ def main(max_per: int | None = None) -> dict:
                 s["n"] += 1
                 s["detected"].append(share)
                 s["rel_ok"] += rel == TRUTH[kind]
+                s["rel_wrong"] += rel not in (TRUTH[kind], "unknown")
                 s["abs_ok"] += ab == TRUTH[kind]
                 s["rel_names"][rel] += 1
             n = sum(s["n"] for s in per_sev.values())
@@ -147,10 +151,12 @@ def main(max_per: int | None = None) -> dict:
                 "recordings": n,
                 "detected_window_share": round(float(np.mean(sum((s["detected"] for s in per_sev.values()), []))), 3),
                 "named_correctly_relative_rule": f"{sum(s['rel_ok'] for s in per_sev.values())}/{n}",
+                "named_WRONG_relative_rule": f"{sum(s['rel_wrong'] for s in per_sev.values())}/{n}",
                 "named_correctly_absolute_rule": f"{sum(s['abs_ok'] for s in per_sev.values())}/{n}",
                 "relative_rule_names": dict(sum((s["rel_names"] for s in per_sev.values()), collections.Counter())),
                 "by_severity": {sev: {"n": s["n"], "detected": round(float(np.mean(s["detected"])), 3),
-                                      "named_ok": f"{s['rel_ok']}/{s['n']}"} for sev, s in sorted(per_sev.items())}}
+                                      "named_ok": f"{s['rel_ok']}/{s['n']}",
+                                      "named_wrong": f"{s['rel_wrong']}/{s['n']}"} for sev, s in sorted(per_sev.items())}}
         res["channels"][ch] = out
         print(ch, json.dumps({k: (v if k != "per_fault" else {kk: {x: vv[x] for x in vv if x != "by_severity"}
                                                                for kk, vv in v.items()}) for k, v in out.items()}),

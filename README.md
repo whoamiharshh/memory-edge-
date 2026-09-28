@@ -44,7 +44,7 @@ cloud are shared ([`edge/profiles.py`](edge/profiles.py)).
 | Profile | Device / sensor | Measured on real data |
 |---|---|---|
 | `bearing-12k` | industrial motor, 12 kHz accelerometer | CWRU: fixes verified 36/36, still-faulty caught 36/36, 0 false promotions |
-| `rotating-hf` | any rotating machine, accelerometer >= 2 kHz, **any bearing geometry** | HUST (5 bearing types, held out): fault-type hint **97.6 %**, fixes verified **42/42**; UOttawa natural wear: **0/620** false alarms, 97 % of faulty windows flagged |
+| `rotating-hf` | any rotating machine, accelerometer >= 2 kHz, **any bearing geometry** | HUST (5 bearing types, held out): fault-type hint **95.2 %**, fixes verified **42/42**; UOttawa natural wear: **0/620** false alarms, 97 % of faulty windows flagged |
 | `acoustic` | **phone microphone** (44.1/48 kHz) or any mic next to a machine | UOttawa (natural wear, 20 bearings): **0/380 false alarms**, **95.7 %** of faulty windows flagged, new bearing verified **19/20** |
 | `lowrate-accel` | phone motion sensor / IMU / telematics, ~60 Hz | shaft-rate faults only, says when a fault is beyond its Nyquist limit |
 | `force-torque` | **robot** wrist sensor | UCI: gate + the robot's own learned detector: **96-99 %** of failures, **0-10 %** false alarms |
@@ -116,7 +116,7 @@ flowchart LR
 | Fleet fault-type hint (logistic regression, order features) | technician-confirmed cases of the fleet | HUST 95 %, UOttawa 70-73 %; confident: 100 / 92 / 85 % | no - the technician confirms |
 | Robot learned detector (logistic regression) | the robot's own healthy data + confirmed failures | UCI: 96-99 % detection, 0-10 % false alarms | adds alarms only |
 | Vehicle risk hint (logistic regression) | SCANIA validation trucks | 5,045 test trucks: AUC 0.75 | no - shown as a hint |
-| Name-likeness (character n-grams) | Wikidata given names vs logbook words | unseen names: 64-96 % | makes sharing stricter only |
+| Name-likeness (character n-grams) | Wikidata given names vs logbook words | unseen names: 85-95 % | makes sharing stricter only |
 | bge-small, Qwen2.5 | pre-trained by their makers | retrieval P@3 0.885 | no |
 
 Made-up data appears **only inside tests** (e.g. a sine wave whose answer is known).
@@ -150,10 +150,17 @@ flagged (HUST 92/305 windows) until "normal operation" is confirmed once (then 4
 The fleet model improves as technicians confirm cases: 2 -> 19 confirmed bearings: 33 % -> 72-76 %. When the hint is
 not confident the UI says "inspect"; the fleet always groups by the technician-confirmed class.
 
-### Fleet of devices at once (`bench/scale_fleet.py`, real Qdrant Server over HTTP)
-20 devices pushing 1,000 events simultaneously: **9.8 s (102 events/s), 0 lost, 0 double-counted**, all 20 mirrors
-identical; all 20 pulling at once: 36 s. Under partitions, dropped requests, lost acks and restarts
-(`bench/sync_partition.py`): 1,000 events, **0 lost, 0 duplicates, 0 tally errors**. Every device function with all
+### Fleet of devices at once (`bench/fleet_scale.py`, real Qdrant Server over HTTP, all on one laptop)
+| Fleet | All pushes done | Lost / counted twice | Every mirror equal to the cloud |
+|---|---|---|---|
+| 1,000 devices + 50 complete Edge devices (10,500 events) | **34.7 s** | **0 / 0** | yes (1,050) |
+| 5,000 devices + 50 complete (10,100 events) | **91.3 s** | **0 / 0** | yes (5,050) |
+| 1,000 devices waking within 3 s (burst) | **23.9 s, 419 events/s** | **0 / 0** | yes |
+
+A complete device pulls the fleet mirror in 3.9 s (p50) while 10 others do the same. The limit is the single cloud
+process (~0.8 CPU cores, measured), not Qdrant (0.4 cores). Bad networks (`bench/network_faults.py`: slow, 40 % cut,
+stalls, flapping, all at once) and wrong device clocks (+3 days, -2 days): **0 lost, 0 counted twice**, clocks corrected
+to 1 s. Partitions and restarts (`bench/sync_partition.py`): **0 lost, 0 duplicates**. Every device function with all
 network access blocked (`bench/offline_check.py`): **15/15, 0 connection attempts**.
 
 ### Other real-data results
@@ -161,7 +168,7 @@ network access blocked (`bench/offline_check.py`): **15/15, 0 connection attempt
 |---|---|---|
 | Hybrid search on real maintenance text (6,169 records) | P@3 **0.885**, MRR 0.93, capped recall 0.88 - best of dense / BM25 / hybrid on every metric | §29 |
 | Fingerprint similarity across machines (why the fleet groups by confirmed class) | leaky split 0.997 vs honest bearing-level **0.429** | §3 (K2) |
-| Names in notes that nobody listed | 96 % found in normal typing (was 0/60); clean notes kept local 0.6 % | §26 |
+| Names in notes that nobody listed | 95 % found in normal typing, 85-87 % in ALL CAPS / lower case (was 0/60); clean notes kept local 0.8-2.6 % | §26 |
 | Real drive-fed motors: healthy / faulty | no alarm **8/8**; faulty detected **16/16**; naming imbalance vs misalignment **not validated** | §24 |
 | Robots, subtle failures | gate alone 36-55 % -> with the robot's learned detector **96-99 %** | §27 |
 | Real trucks, early warning | AUC 0.75; top 10 % alerts catch 32 % of repairs (3.4x base rate). A bigger training set was tried: worse, rejected | §20, §28 |
@@ -230,8 +237,8 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
   fault); detection of the faulty motors is (16/16).
 - **Microphone:** background noise from louder machines was not tested; no calibrated severity from sound.
 - **Vehicles:** the risk hint is modest (AUC 0.75); variables are anonymised, so it cannot explain why.
-- **Names:** names not on the 10,562-name list are missed 34-36 % of the time in ALL CAPS / lower-case notes; such notes
-  are shared only if nothing is flagged, and notes stay local by default.
+- **Names:** names not on the 10,562-name list are missed 13-15 % of the time in ALL CAPS / lower-case notes (25 % on
+  phrasings written after the rules); such notes are shared only if nothing is flagged, and notes stay local by default.
 - **Security is prototype-grade but complete in its basics** (tokens with expiry, HTTPS, mutual TLS with revocation,
   notes encrypted at rest, two-admin retraction, quarantine, audit chain). Not built: hardware attestation (the code
   check is tamper evidence), encryption of searchable structured fields (use disk encryption).
