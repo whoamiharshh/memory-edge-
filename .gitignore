@@ -11,6 +11,8 @@ runtime/
 .env
 qdrant_server/
 models_cache/
+# runtime qdrant/edge storage data
+storage/
 
 .claude/settings.local.json
 .dist/
