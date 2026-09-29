@@ -22,3 +22,5 @@ cryptography==50.0.1         # tools/make_certs.py: private CA + server certific
 scikit-learn==1.9.1         # bench/vehicle_scania.py: the vehicle early-warning model (trained on real SCANIA data)
 pypdf==6.19.0                # edge/manuals.py: text of uploaded machine manuals (pure Python)
 pandas==3.0.6                 # bench only: SCANIA CSV loading
+vosk==0.3.45                 # shared/speech.py: dictation recognised ON the device (the browser API uploads audio)
+soundfile==0.14.0            # audio file IO alongside vosk

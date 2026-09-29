@@ -15,6 +15,7 @@ import collections
 import datetime as dt
 import json
 import pathlib
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -65,7 +66,8 @@ class _NoteVault:
         return p | {"note_text": self._c.decrypt(p["note_text"])} if p.get("note_text") else p
 
     def upsert(self, points, **kw):
-        return self._s.upsert([StorePoint(p.id, self._enc(p.payload), p.vib, p.note, p.bm25_text) for p in points], **kw)
+        return self._s.upsert([StorePoint(p.id, self._enc(p.payload), p.vib, p.note, p.bm25_text, p.image)
+                               for p in points], **kw)
 
     def modify(self, pid, fn):
         out = self._s.modify(pid, lambda cur: self._enc(dict(fn(self._dec(cur)))))
@@ -113,6 +115,110 @@ class VersionConflict(RuntimeError):
         super().__init__(f"CONFLICT: episode {eid[:8]} is at version {current}, you edited version {expected}; "
                          "reload it and re-apply your change")
         self.current = current
+
+
+_STOPWORDS = frozenset("""
+about after again all also and any are because been before being between both but can cant come could did
+does doing done down each even every for from get gets got had has have having here how into its just like
+make many may more most much must not now off once only other our out over own same she should since some
+such than that the their them then there these they thing things this those through too under until use
+used using very was way were what when where which while who why will with would you your yours
+""".split())
+
+
+def _content_words(s: str) -> set[str]:
+    """Words that carry meaning, for deciding whether a question actually matches anything in memory."""
+    return {w for w in re.findall(r"[a-z0-9]+", (s or "").lower())
+            if len(w) > 2 and w not in _STOPWORDS}
+
+
+CHAT_CONTEXT_TURNS = 3
+
+# words that point at something already said instead of naming it. Question words ("how", "why", "what")
+# are deliberately NOT here: "how big is plot 91" is a complete question, and treating it as a follow-up
+# made it inherit the previous question's subject and answer about plot 44.
+_REFERRING = frozenset("""
+it its that this these those they them their he she him her there
+""".split())
+
+
+def _is_follow_up(q: str) -> bool:
+    """Does this question lean on the conversation instead of standing on its own?
+
+    Two signals, either is enough: it uses a referring word ("how does *it* work"), or it names no subject
+    at all ("why?", "and then?").
+
+    One content word is NOT enough on its own. "what is harsh" names a subject — a new one — and treating
+    it as a follow-up made it inherit the previous topic and answer a question about a person with a
+    catalytic-converter entry. Getting this wrong in the cautious direction is cheap: a fresh question
+    simply keeps its own words and, if nothing matches, the device says so.
+    """
+    words = re.findall(r"[a-z']+", (q or "").lower())
+    if not words:
+        return False
+    return bool(_REFERRING.intersection(words)) or not _content_words(q)
+
+
+def _carry_context(history: list[dict]) -> tuple[str, set[str], set[str]]:
+    """Subject of the recent conversation: the text to widen the search with, plus its words and
+    identifiers for the relevance check. Only the questions are carried, never the answers — an answer
+    would feed the device's own wording back into what counts as a match."""
+    asked = []
+    for turn in history[-CHAT_CONTEXT_TURNS:]:
+        m = re.match(r"^Q:\s*(.+?)(?:\nA:|$)", turn.get("note_text", ""), re.S)
+        if m:
+            asked.append(m.group(1).strip())
+    text = " ".join(asked)
+    return text, _content_words(text), _identifiers(text)
+
+
+def _attach_lone_citation(raw: str, key: str) -> str:
+    """When there is exactly one piece of evidence, mark each sentence with it.
+
+    The model tends to cite once at the end rather than per sentence, and the grounding check works
+    sentence by sentence — so a correct answer was being thrown away over where the marker sat. With a
+    single source the attribution is not in doubt, and every other check still applies: a sentence with
+    a number that is not in the evidence, or that tells the reader what to do, is still dropped. This is
+    deliberately not done when several sources are in play, because there "which sentence came from
+    which source" is a real question and guessing it would be inventing attribution.
+    """
+    out = []
+    for s in re.split(r"(?<=[.!?])\s+|\n+", raw or ""):
+        s = s.strip()
+        if not s:
+            continue
+        bare = re.sub(r"\[E\d+\]", "", s).strip()
+        if not bare:                       # a fragment that is only a citation carries no claim
+            continue
+        if f"[{key}]" in s:
+            out.append(s)
+            continue
+        # the marker goes INSIDE the sentence, before its final punctuation. Appended after the full
+        # stop it is split off as the start of the next sentence, which shifts every citation by one
+        # and leaves the first sentence looking uncited.
+        m = re.match(r"^(.*?)([.!?]+)$", bare, re.S)
+        out.append(f"{m.group(1).rstrip()} [{key}]{m.group(2)}" if m else f"{bare} [{key}]")
+    return " ".join(out)
+
+
+def _names_it(text: str, matched: list[str]) -> int:
+    """Is this record *about* one of the matched identifiers, rather than just mentioning it?
+
+    Reference entries lead with what they describe ("P0301: Cylinder 1 Misfire Detected."), so an
+    identifier in the opening words means the record is that thing.
+    """
+    head = (text or "")[:60].lower()
+    return 1 if any(t in head for t in matched) else 0
+
+
+def _identifiers(s: str) -> set[str]:
+    """Tokens that pick out one specific thing: plot 91, error P0301, bearing 6205, the year 2026.
+
+    These decide relevance on their own. "plot 91" and "plot 44" share every ordinary word, so word
+    overlap alone happily answers a question about one with the record for the other — which is worse
+    than saying nothing, because it looks like an answer.
+    """
+    return {t for t in re.findall(r"[a-z]*\d[a-z0-9]*", (s or "").lower()) if t not in _STOPWORDS}
 
 
 @dataclass
@@ -207,7 +313,10 @@ class Device:
             c = getattr(self, "_cipher", None)
             pts = [StorePoint(**p) for p in body["points"]]
             if c:
-                pts = [StorePoint(p.id, p.payload, p.vib, p.note, c.decrypt(p.bm25_text)) for p in pts]
+                # rebuilt by keyword: a positional rebuild silently drops any field added later, which is
+                # exactly what happened to the picture vector the first time
+                pts = [StorePoint(p.id, p.payload, p.vib, p.note, c.decrypt(p.bm25_text), p.image)
+                       for p in pts]
             self.store.upsert(pts)
         elif kind == "set_payload":
             self.store.modify(body["id"], lambda _p: body["fields"])
@@ -247,9 +356,11 @@ class Device:
         c = getattr(self, "_cipher", None)
         # the BM25 text contains the note, so it is journaled encrypted too; _apply decrypts it in memory only
         points = [StorePoint(p.id, self._seal(p.payload), p.vib, p.note,
-                             c.encrypt(p.bm25_text) if c and p.bm25_text else p.bm25_text) for p in points]
+                             c.encrypt(p.bm25_text) if c and p.bm25_text else p.bm25_text, p.image)
+                  for p in points]
         self._write({"kind": "upsert", "points": [p.__dict__ | {"vib": list(p.vib) if p.vib is not None else None,
-                                                                 "note": list(p.note) if p.note is not None else None}
+                                                                 "note": list(p.note) if p.note is not None else None,
+                                                                 "image": list(p.image) if p.image is not None else None}
                                                   for p in points]})
 
     def _set(self, pid: str, **fields) -> None:
@@ -954,6 +1065,450 @@ class Device:
         return ep | {"outbox_status": self.outbox.status_of(ep["event_id"]) if ep.get("event_id") else None}
 
     # ---- retrieval (offline: local shard + fleet mirror shard) ------------------------------------------
+    # ---- free-text memory: anything the user tells this device, plus its own conversation ----------------
+    MEMORY_MAX_CHARS = 4000
+
+    def remember(self, text: str, kind: str = "fact", meta: dict | None = None) -> dict:
+        """Store an arbitrary piece of text as searchable memory on this device.
+
+        kind='fact'  something the user taught it, in any domain
+        kind='chat'  one turn of the conversation, so follow-up questions have context
+
+        The text goes in `note_text`, which means it inherits the same encryption at rest and the same
+        never-leaves-the-device rule as a technician note. It is never synced.
+        """
+        text = (text or "").strip()
+        if not 1 <= len(text) <= self.MEMORY_MAX_CHARS:
+            raise ValueError(f"memory text must be 1..{self.MEMORY_MAX_CHARS} characters")
+        if kind not in ("fact", "chat"):
+            raise ValueError("kind must be 'fact' or 'chat'")
+        ts = self._now_iso()
+        mid = ids.make_id("memory", self.cfg.device_id, kind, text, ts)
+        payload = {"type": "memory", "kind": kind, "note_text": text, "created_at": ts,
+                   "device_id": self.cfg.device_id, "machine_id": self.cfg.machine_id,
+                   "share_state": "local"} | (meta or {})
+        if kind == "chat":
+            payload["session"] = self.current_session()
+        with self._lock:
+            self._upsert([StorePoint(mid, payload,
+                                     note=self.embedder.embed_documents([text])[0], bm25_text=text)])
+        if kind == "fact":
+            self.outbox.log("memory", f"remembered: {text[:70]}")
+        return {"id": mid, "kind": kind, "text": text, "created_at": ts}
+
+    def recall(self, text: str, limit: int = 5, kind: str | None = None) -> list[dict]:
+        """Semantic search over this device's free-text memory only (facts + past conversation)."""
+        flt: dict = {"type": "memory", "device_id": self.cfg.device_id}
+        if kind:
+            flt["kind"] = kind
+        hits = self.store.search(note=self.embedder.embed_query(text), text=text, limit=limit, filter=flt)
+        return [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload) for h in hits]
+
+    def store_shared_knowledge(self, items: list[dict]) -> int:
+        """Store records pulled from the cloud so they stay searchable with the network off.
+
+        These are `type='shared'`, kept apart from `type='memory'` (what this device's own user typed) so the
+        answer can say where a fact came from. Withdrawn records are deleted rather than kept and hidden: a
+        device that goes offline for a month should not still be answering from something retracted, and the
+        copy it already has is the only copy it can act on.
+        """
+        keep, drop = [], []
+        for it in items or []:
+            rid, text = it.get("id"), (it.get("text") or "").strip()
+            if not rid:
+                continue
+            # status first: a withdrawn record arrives with its text blanked, so an empty-text check
+            # placed above this one would swallow the tombstone and the copy would never be deleted
+            if it.get("status") != "active":
+                drop.append(rid)
+                continue
+            if not text:
+                continue
+            keep.append(StorePoint(rid, {
+                "type": "shared", "record_id": rid, "note_text": text, "topic": it.get("topic", "general"),
+                "audience": it.get("audience", "everyone"), "author_device": it.get("author_device"),
+                "created_at": it.get("updated_at"), "seq": it.get("seq"),
+                "device_id": self.cfg.device_id, "share_state": "received",
+            }, note=self.embedder.embed_documents([text])[0], bm25_text=text))
+        with self._lock:
+            if keep:
+                self._upsert(keep)
+            for rid in drop:
+                # delete_where filters on the payload, so the record id has to be a payload field too
+                self.store.delete_where({"type": "shared", "record_id": rid})
+        if keep:
+            self.outbox.log("knowledge", f"received {len(keep)} shared record(s) from the fleet")
+        return len(keep)
+
+    def shared_knowledge(self, limit: int = 100) -> list[dict]:
+        rows = [self._plain(r.payload) | {"id": r.id}
+                for r in self.store.scroll(filter={"type": "shared", "device_id": self.cfg.device_id})]
+        rows.sort(key=lambda r: r.get("seq") or 0, reverse=True)
+        return rows[:limit]
+
+    def list_memories(self, kind: str | None = None, limit: int = 50) -> list[dict]:
+        """Every free-text memory, newest first. Listing is a scroll, not a search: an empty query has
+        nothing to rank by, and a blank-string search would return an arbitrary order."""
+        flt: dict = {"type": "memory", "device_id": self.cfg.device_id}
+        if kind:
+            flt["kind"] = kind
+        rows = [self._plain(r.payload) | {"id": r.id} for r in self.store.scroll(filter=flt)]
+        rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+        return rows[:limit]
+
+    # ---- pictures as memory (shared/image_embed.py) -----------------------------------------------------
+    @property
+    def image_embedder(self):
+        """Built on first use so a device that never stores a picture never loads the CLIP models."""
+        if getattr(self, "_img_embedder", None) is None:
+            from shared.image_embed import ImageEmbedder
+            self._img_embedder = ImageEmbedder()
+        return self._img_embedder
+
+    def remember_image(self, path: str, note: str = "", episode_id: str | None = None) -> dict:
+        """Store one picture so it can be found again later.
+
+        The picture itself never leaves the device. What is stored is its CLIP vector plus whatever the
+        person typed alongside it — and the typed note is what carries meaning, because nothing here
+        claims to know what the picture shows.
+        """
+        p = pathlib.Path(path)
+        if not p.exists():
+            raise ValueError(f"no such image: {path}")
+        vec = self.image_embedder.embed_images([str(p)])
+        if not vec:
+            raise RuntimeError("could not read that image")
+        ts = self._now_iso()
+        pid = ids.make_id("picture", self.cfg.device_id, p.name, ts)
+        text = (note or "").strip()
+        payload = {"type": "picture", "note_text": text, "file": str(p), "filename": p.name,
+                   "created_at": ts, "device_id": self.cfg.device_id, "machine_id": self.cfg.machine_id,
+                   "episode_id": episode_id, "share_state": "local"}
+        with self._lock:
+            self._upsert([StorePoint(pid, payload,
+                                     note=self.embedder.embed_documents([text])[0] if text else None,
+                                     bm25_text=text or None, image=vec[0])])
+        self.outbox.log("picture", f"stored a picture{': ' + text[:50] if text else ''}")
+        return {"id": pid, "file": str(p), "note": text, "created_at": ts}
+
+    def recall_images(self, text: str | None = None, like_image: str | None = None,
+                      limit: int = 5) -> list[dict]:
+        """Find stored pictures, by typed words or by another picture.
+
+        The CLIP text half places words in the picture space, so "cracked housing" can match a photograph
+        nobody ever labelled with those words. The result is a list of pictures this device already holds;
+        it is not a statement about what any of them shows.
+        """
+        img_vec = None
+        if like_image:
+            got = self.image_embedder.embed_images([like_image])
+            img_vec = got[0] if got else None
+        elif text:
+            img_vec = self.image_embedder.embed_query(text)
+        if img_vec is None and not text:
+            raise ValueError("give text or an image to search with")
+        hits = self.store.search(image=img_vec, text=text if img_vec is None else None, limit=limit,
+                                 filter={"type": "picture", "device_id": self.cfg.device_id})
+        return [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload) for h in hits]
+
+    def pictures(self, limit: int = 100) -> list[dict]:
+        rows = [self._plain(r.payload) | {"id": r.id}
+                for r in self.store.scroll(filter={"type": "picture", "device_id": self.cfg.device_id})]
+        rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+        return rows[:limit]
+
+    def reference_by_id(self, ref_ids: list[str]) -> list[dict]:
+        """Exact lookup by reference id, e.g. `dtc:P0420`."""
+        out = []
+        for rid in ref_ids[:5]:
+            hits = self.store.scroll(filter={"type": "reference", "ref_id": rid,
+                                             "device_id": self.cfg.device_id})
+            out += [self._plain(h.payload) | {"id": h.id, "score": 1.0} for h in hits]
+        return out
+
+    def recall_reference(self, text: str, limit: int = 5) -> list[dict]:
+        """Search the reference packs loaded at first boot (edge/seed.py).
+
+        A code named in the question is looked up exactly first. Among ~9.5k near-identical entries the
+        dense leg is close to noise and fusion buries the one exact match, so asking about P0420 came
+        back with P0422 — which mentions P0420 in its description. Semantic search still runs, for the
+        questions that describe a symptom instead of naming a code.
+        """
+        exact = self.reference_by_id([f"dtc:{t.upper()}" for t in _identifiers(text)])
+        seen = {e["id"] for e in exact}
+        hits = self.store.search(note=self.embedder.embed_query(text), text=text, limit=limit,
+                                 filter={"type": "reference", "device_id": self.cfg.device_id})
+        fuzzy = [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload)
+                 for h in hits if h.id not in seen]
+        return (exact + fuzzy)[:max(limit, len(exact))]
+
+    def recall_shared(self, text: str, limit: int = 5) -> list[dict]:
+        """Search knowledge published by other devices that this one was allowed to receive."""
+        hits = self.store.search(note=self.embedder.embed_query(text), text=text, limit=limit,
+                                 filter={"type": "shared", "device_id": self.cfg.device_id})
+        return [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload) for h in hits]
+
+    def recent_chat(self, limit: int = 8) -> list[dict]:
+        """The last few conversation turns, newest last — used to resolve follow-up questions."""
+        rows = [self._plain(r.payload) | {"id": r.id}
+                for r in self.store.scroll(filter={"type": "memory", "kind": "chat",
+                                                   "session": self.current_session(),
+                                                   "device_id": self.cfg.device_id})]
+        rows.sort(key=lambda r: r.get("created_at", ""))
+        return rows[-limit:]
+
+    def current_session(self) -> str:
+        """The conversation a new turn belongs to. A session ends when the person clears the chat, so
+        turns stay grouped the way they were actually had rather than by an arbitrary time window."""
+        sid = self.outbox.kv_get("chat_session", None)
+        if not sid:
+            sid = ids.make_id("session", self.cfg.device_id, self._now_iso())
+            self.outbox.kv_set("chat_session", sid)
+        return sid
+
+    def conversations(self, limit: int = 30) -> list[dict]:
+        """Past conversations, newest first, each with its first question as a title."""
+        turns = [self._plain(r.payload) for r in
+                 self.store.scroll(filter={"type": "memory", "kind": "chat",
+                                           "device_id": self.cfg.device_id})]
+        groups: dict[str, list[dict]] = {}
+        for t in turns:
+            groups.setdefault(t.get("session") or "older", []).append(t)
+        out = []
+        for sid, rows in groups.items():
+            rows.sort(key=lambda r: r.get("created_at", ""))
+            first = re.match(r"^Q:\s*(.+?)(?:\nA:|$)", rows[0].get("note_text", ""), re.S)
+            out.append({"session": sid, "turns": len(rows),
+                        "title": (first.group(1).strip() if first else "Conversation")[:70],
+                        "started_at": rows[0].get("created_at"),
+                        "last_at": rows[-1].get("created_at")})
+        out.sort(key=lambda c: c.get("last_at") or "", reverse=True)
+        return out[:limit]
+
+    def conversation(self, session: str) -> list[dict]:
+        """Every turn of one conversation, oldest first, so it can be reopened."""
+        rows = [self._plain(r.payload) | {"id": r.id} for r in
+                self.store.scroll(filter={"type": "memory", "kind": "chat",
+                                          "session": session, "device_id": self.cfg.device_id})]
+        rows.sort(key=lambda r: r.get("created_at", ""))
+        return rows
+
+    def forget_chat(self, delete: bool = False) -> int:
+        """End the current conversation.
+
+        By default this starts a new one and keeps the old turns, because "clear" on a chat screen means
+        "give me a blank page", not "destroy what I said" — and the history is the thing that makes
+        follow-up questions work. Passing delete=True really does erase every turn.
+        """
+        if delete:
+            n = self.store.count({"type": "memory", "kind": "chat", "device_id": self.cfg.device_id})
+            with self._lock:
+                self.store.delete_where({"type": "memory", "kind": "chat",
+                                         "device_id": self.cfg.device_id})
+            self.outbox.kv_set("chat_session", None)
+            self.outbox.log("memory", f"conversation history deleted ({n} turn(s))")
+            return n
+        n = self.store.count({"type": "memory", "kind": "chat", "session": self.current_session(),
+                              "device_id": self.cfg.device_id})
+        self.outbox.kv_set("chat_session", None)
+        self.outbox.log("memory", f"started a new conversation (kept {n} turn(s))")
+        return n
+
+    def ask(self, text: str, llm=None, use_fleet: bool = True, limit: int = 5) -> dict:
+        """One conversational turn over everything this device remembers.
+
+        Retrieval covers three sources: free text the user taught it, its own sensor records, and the
+        fleet mirror. A question whose words match nothing in memory is answered with "I do not know"
+        rather than with the closest record — retrieval always returns *something*, so relevance has to
+        be decided separately or the device appears to answer questions it has no evidence for.
+        """
+        from edge import rag                       # local import: rag pulls in the optional LLM stack
+        q = (text or "").strip()
+        if not q:
+            raise ValueError("ask needs a question")
+        t0 = time.perf_counter()
+        history = self.recent_chat(CHAT_CONTEXT_TURNS)
+        follow_up = _is_follow_up(q)
+        # "how does it work?" carries almost no words of its own. Searching for it alone finds nothing, so a
+        # follow-up inherits the subject of the recent conversation; a fresh question never does, or every
+        # later question would drag the previous topic along with it.
+        carried = _carry_context(history) if follow_up else ({}, set(), set())
+        ctx_text, ctx_words, ctx_ids = carried
+        query = f"{q} {ctx_text}".strip() if follow_up else q
+        qw = _content_words(q) | (ctx_words if follow_up else set())
+
+        cands: list[dict] = []
+        # only facts the user taught are evidence; past turns are conversational context, and quoting
+        # them back would let the device cite its own earlier answer as if it were a source
+        for m in self.recall(query, limit, kind="fact"):
+            cands.append({"source": "memory", "id": m["id"], "kind": "fact",
+                          "text": m.get("note_text", "")})
+        for s in self.recall_shared(query, limit):
+            cands.append({"source": "shared", "id": s["id"], "kind": "shared",
+                          "text": s.get("note_text", ""), "from": s.get("author_device")})
+        for rf in self.recall_reference(query, limit):
+            cands.append({"source": "reference", "id": rf["id"], "kind": "reference",
+                          "text": rf.get("note_text", ""), "title": rf.get("title"),
+                          "sources": rf.get("sources") or []})
+        try:
+            res = self.search(text=query, use_fleet=use_fleet, limit=limit)
+        except Exception:                          # memory-only questions must work with no baseline yet
+            res = {"local": [], "fleet": [], "latency_ms": 0}
+        for r in res.get("local", []):
+            cands.append({"source": "record", "id": r["id"], "kind": "record",
+                          "text": rag._local_item(r["episode"])})
+        for r in res.get("fleet", []):
+            cands.append({"source": "fleet", "id": r["id"], "kind": "fleet",
+                          "text": rag._fleet_item(r["case"])})
+
+        # relevance by word overlap: cheap, explainable, and it does not depend on a score threshold
+        # (RRF scores are rank-based and not comparable across queries, so they cannot be thresholded)
+        # a question that names its own thing keeps to it: "plot 91" must never inherit "plot 44"
+        own_ids = _identifiers(q)
+        q_ids = own_ids or (ctx_ids if follow_up else set())
+        for c in cands:
+            c["overlap"] = sorted(qw & _content_words(c["text"]))
+            c["ids"] = sorted(q_ids & _identifiers(c["text"]))
+        # when the question names a specific thing, only records naming the same thing count
+        used = [c for c in cands if (c["ids"] if q_ids else c["overlap"])]
+        # A record that IS the thing asked about must outrank one that merely mentions it: the entry for
+        # P0305 says "same family as P0301", so asking about P0301 otherwise answers with P0305.
+        used.sort(key=lambda c: (-_names_it(c["text"], c["ids"]), -len(c["ids"]), -len(c["overlap"])))
+        used = used[:6]
+        for i, c in enumerate(used, 1):
+            c["key"] = f"E{i}"
+
+        if not used:
+            # Say which of the two it is. "Nothing matched" and "this device could never know that" feel
+            # identical from the outside but need different things from the person: one is a search that
+            # missed, the other needs teaching or a source this device does not have.
+            # retrieval always returns candidates, so "did it return anything" says nothing. The signal
+            # is whether a single stored record shares even one word with the question: none at all means
+            # the subject is outside this device's world, rather than a search that just missed.
+            searched_anything = any(c["overlap"] for c in cands)
+            answer = (
+                "I found nothing close enough to answer that. This device does hold records that touch on "
+                "some of those words, but none of them answer the question. Try naming the part, code or "
+                "symptom directly, or teach it."
+                if searched_anything else
+                "Nothing on this device relates to that at all. Everything here is searched offline, so a "
+                "question about the wider world would need an internet connection — or you can teach it "
+                "with “Teach it something” and it will remember.")
+            out = {"answer": answer, "grounded": False, "mode": "no_evidence", "used": [],
+                   "model": None, "llm_ms": 0, "needs_internet": not searched_anything}
+        else:
+            texts = {c["key"]: c["text"] for c in used}
+            # quoting the source verbatim is a fine answer, not a failure: the reference packs are already
+            # written as prose and cite where they came from, so this says so plainly instead of apologising
+            template = ("From what this device holds:\n\n"
+                        + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used))
+            if llm is not None and getattr(llm, "available", False):
+                # the recent turns go in as conversation, never as citable evidence, so a pronoun can be
+                # resolved without the model being able to cite its own earlier answer back as a source
+                convo = ""
+                if follow_up and history:
+                    convo = "Earlier in this conversation:\n" + "\n".join(
+                        h.get("note_text", "") for h in history[-CHAT_CONTEXT_TURNS:]) + "\n\n"
+                # "Evidence:" exactly matches rag.EXAMPLE_USER: the one-shot example is what teaches the
+                # model to append [E1], and heading the block differently was enough to lose the citations,
+                # which then cost every sentence at the grounding check
+                prompt = (convo + "Evidence:\n" + "\n".join(f"[{k}] {v}" for k, v in texts.items())
+                          + f"\nQuestion: {q}"
+                          + "\nAnswer using only the evidence above. End EVERY sentence with its evidence "
+                            "id, like [E1].")
+                lt = time.perf_counter()
+                try:
+                    raw = llm.complete(prompt)
+                    if len(texts) == 1:
+                        raw = _attach_lone_citation(raw, next(iter(texts)))
+                    kept, _ = rag.check_output(raw, set(texts), texts)
+                    # a sentence that is nothing but its citation makes no claim, and on its own it
+                    # rendered as a bubble containing the single word "E1"
+                    kept = [k for k in kept if re.sub(r"\[E\d+\]", "", k).strip(" .")]
+                    ms = round((time.perf_counter() - lt) * 1000)
+                    out = ({"answer": " ".join(kept), "grounded": True, "mode": "llm",
+                            "model": rag.MODEL_NAME, "llm_ms": ms} if kept else
+                           {"answer": template, "grounded": True, "mode": "quoted",
+                            "model": rag.MODEL_NAME, "llm_ms": ms})
+                except Exception:                  # the optional model must never break the answer
+                    out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
+            else:
+                out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
+            out["used"] = [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
+                            "title": c.get("title"), "sources": c.get("sources") or [],
+                            "matched": c["overlap"]} for c in used]
+
+        # Pictures ride alongside the answer, never inside it. A photograph supports no sentence — nothing
+        # here reads one — so it is offered as "you also hold these" and a person decides what it shows.
+        pics = []
+        try:
+            if self.store.count({"type": "picture", "device_id": self.cfg.device_id}):
+                # nearest-neighbour always returns something, so the top hits include pictures with nothing
+                # to do with the question. Only those whose note actually shares words with it are shown:
+                # the answer presents these as matching, and a photograph offered under a question it has
+                # no bearing on is worse than showing none. Searching pictures directly still uses the
+                # full CLIP ranking, because there the person is deliberately browsing images.
+                pics = [{"id": p["id"], "note": p.get("note_text", ""), "filename": p.get("filename"),
+                         "score": p.get("score")}
+                        for p in self.recall_images(text=q, limit=4)
+                        if qw & _content_words(p.get("note_text", ""))][:3]
+        except Exception:
+            pics = []                              # a missing CLIP model must never break a text answer
+
+        self.remember(f"Q: {q}\nA: {out['answer']}", kind="chat")
+        return {"question": q, **out, "pictures": pics,
+                "retrieval": self._retrieval_report(cands, used, res, follow_up, query),
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 2)}
+
+    # what Qdrant was actually asked, for the Qdrant screen. Reporting only — it recomputes nothing.
+    _SOURCE_LABELS = {
+        "memory":    ("Things you taught it", {"type": "memory", "kind": "fact"}),
+        "shared":    ("Shared with this device", {"type": "shared"}),
+        "reference": ("Built-in reference", {"type": "reference"}),
+        "record":    ("What the sensor noticed", {"type": "episode"}),
+        "fleet":     ("Fleet mirror (from the cloud)", None),
+    }
+
+    def _retrieval_report(self, cands: list[dict], used: list[dict], res: dict,
+                          follow_up: bool, query: str) -> dict:
+        by_source: dict[str, int] = {}
+        for c in cands:
+            by_source[c["source"]] = by_source.get(c["source"], 0) + 1
+        kept = {c["source"] for c in used}
+
+        searched = []
+        for src, (label, flt) in self._SOURCE_LABELS.items():
+            try:
+                held = (self.mirror.count() if src == "fleet"
+                        else self.store.count(dict(flt, device_id=self.cfg.device_id)
+                                              if "device_id" not in (flt or {}) else flt))
+            except Exception:
+                held = None
+            searched.append({"source": src, "label": label, "stored": held,
+                             "returned": by_source.get(src, 0),
+                             "kept": sum(1 for c in used if c["source"] == src)})
+
+        return {
+            "query_sent": query,
+            "follow_up": follow_up,
+            "where": "Qdrant Edge, on this device" + (" + fleet mirror" if res.get("fleet") else ""),
+            "searched": searched,
+            "vectors": [
+                {"name": "note", "kind": "dense text", "dim": self.store.meta.get("note_dim"),
+                 "model": self.embedder.name, "used": True},
+                {"name": "note_bm25", "kind": "sparse keyword (BM25)", "dim": None,
+                 "model": "built into Qdrant Edge", "used": True},
+                {"name": "vib", "kind": "vibration fingerprint", "dim": self.store.meta.get("vib_dim"),
+                 "model": self.profile.fp_version, "used": bool(res.get("local"))},
+                {"name": "image", "kind": "picture (CLIP)", "dim": self.store.meta.get("image_dim"),
+                 "model": "Qdrant/clip-ViT-B-32", "used": bool(self.store.meta.get("image_vector"))},
+            ],
+            "fusion": "reciprocal rank fusion of every leg, in one Qdrant Edge request",
+            "kept_sources": sorted(kept),
+            "total_points": sum(s["stored"] or 0 for s in searched),
+            "search_ms": round(res.get("latency_ms", 0), 2),
+        }
+
     def search(self, text: str | None = None, episode_id: str | None = None, use_fleet: bool = True,
                limit: int = 5) -> dict:
         """Hybrid search. Local: this machine's episodes by fingerprint + note (dense) + note (BM25), fused with RRF.

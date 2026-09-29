@@ -46,6 +46,8 @@ from qdrant_edge import (Bm25, Bm25Config, CountRequest, Distance, EdgeConfig, E
 from edge.fingerprint import DIM as FP_DIM, FP_VERSION
 
 VIB, NOTE, NOTE_BM25 = "vib", "note", "note_bm25"
+IMAGE = "image"                                  # Qdrant/clip-ViT-B-32, added lazily (see ensure_image_vector)
+IMAGE_DIM = 512
 NOTE_DIM = 384                                   # BAAI/bge-small-en-v1.5
 TEXT_MODEL = "BAAI/bge-small-en-v1.5"
 BM25_AVG_LEN = 6.86                              # MEASURED mean tokens per problem text on the maintenance logbook
@@ -106,6 +108,7 @@ class StorePoint:
     vib: Sequence[float] | None = None
     note: Sequence[float] | None = None
     bm25_text: str | None = None
+    image: Sequence[float] | None = None
 
 
 @dataclass
@@ -344,6 +347,9 @@ class EdgeStore:
             vec[self.note_name] = v
         if p.bm25_text:
             vec[NOTE_BM25] = self._bm25.embed_document(p.bm25_text)
+        if (v := _check_vector(IMAGE, p.image, IMAGE_DIM)) is not None:
+            self.ensure_image_vector()                 # the first picture on this device creates the vector
+            vec[IMAGE] = v
         if not vec:
             raise ValueError(f"point {p.id} has no vectors")
         return Point(canonical_id(p.id), vec, dict(p.payload))
@@ -435,7 +441,7 @@ class EdgeStore:
             res = self._shard.query(QueryRequest(limit=limit, query=q, filter=build_filter(filter), with_payload=True))
         return [Hit(canonical_id(r.id), float(r.score), dict(r.payload)) for r in res]
 
-    def _legs(self, vib, note, text) -> dict[str, Any]:
+    def _legs(self, vib, note, text, image=None) -> dict[str, Any]:
         legs: dict[str, Any] = {}
         if vib is not None:
             legs[VIB] = Query.Nearest(_check_vector(VIB, vib, self.meta["vib_dim"]), using=VIB)
@@ -443,18 +449,40 @@ class EdgeStore:
             legs[NOTE] = Query.Nearest(_check_vector(NOTE, note, self.meta["note_dim"]), using=self.note_name)
         if text:
             legs[NOTE_BM25] = Query.Nearest(self._bm25.embed_query(text), using=NOTE_BM25)
+        if image is not None and self.meta.get("image_vector"):
+            legs[IMAGE] = Query.Nearest(_check_vector(IMAGE, image, IMAGE_DIM), using=IMAGE)
         return legs
 
+    def ensure_image_vector(self) -> bool:
+        """Add the CLIP image vector to this shard, once, the first time a picture is stored.
+
+        Created on demand rather than in the shard layout so a device that never stores a picture pays
+        nothing for it, and so existing shards keep working untouched. Same mechanism the text-model
+        migration uses."""
+        if self.meta.get("image_vector"):
+            return False
+        with self._lock:
+            try:
+                self._shard.update(UpdateOperation.create_dense_vector(IMAGE, IMAGE_DIM, Distance.Cosine))
+            except Exception as e:                     # re-run after a crash: the vector is already there
+                if "exist" not in str(e).lower():
+                    raise
+            _flush(self._shard)
+            self.meta = {**self.meta, "image_vector": IMAGE, "image_dim": IMAGE_DIM}
+            self._write_meta()
+        return True
+
     def search(self, *, vib: Sequence[float] | None = None, note: Sequence[float] | None = None,
-               text: str | None = None, filter: Mapping[str, Any] | None = None, limit: int = 10,
+               text: str | None = None, image: Sequence[float] | None = None,
+               filter: Mapping[str, Any] | None = None, limit: int = 10,
                prefetch_limit: int = 50, weights: Mapping[str, float] | None = None,
                explain: bool = False) -> list[Hit]:
         """Hybrid search in ONE Edge request: a prefetch per supplied leg, fused with reciprocal rank fusion.
         score = RRF score (rank-based; not comparable across queries, so never threshold it).
         explain=True additionally runs each leg alone and reports each hit's rank in that leg."""
-        legs = self._legs(vib, note, text)
+        legs = self._legs(vib, note, text, image)
         if not legs:
-            raise ValueError("search needs at least one of vib, note, text")
+            raise ValueError("search needs at least one of vib, note, text, image")
         flt = build_filter(filter)
         w = [float(weights.get(k, 1.0)) for k in legs] if weights else None
         req = QueryRequest(limit=limit, with_payload=True, filter=flt, query=Fusion.Rrf(RRF_K, w),

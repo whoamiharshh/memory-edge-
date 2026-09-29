@@ -30,7 +30,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from cloud import hint_model, ingest
+from cloud import hint_model, ingest, knowledge
 from cloud.audit import AuditLog
 from cloud.recompute import Recomputer
 from shared.integrity import code_hash
@@ -58,11 +58,22 @@ class QuarantineBody(BaseModel):
     reason: str = Field(min_length=3, max_length=200)
 
 
+class KnowledgeBody(BaseModel):
+    """Text a person deliberately publishes for other devices. Carries no sensor claim."""
+    text: str = Field(min_length=1, max_length=knowledge.MAX_TEXT)
+    topic: str = Field(default="general", max_length=80)
+    audience: str = Field(default="everyone", pattern=r"^(everyone|device|site)$")
+    recipients: list[str] = Field(default_factory=list, max_length=knowledge.MAX_RECIPIENTS)
+    record_id: str | None = Field(default=None, min_length=36, max_length=36)
+
+
+_FRAME_ANCESTORS = "http://127.0.0.1:9000 http://127.0.0.1:8000"
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                               "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+                               "img-src 'self' data:; connect-src 'self'; "
+                               f"frame-ancestors 'self' {_FRAME_ANCESTORS}; base-uri 'none'; "
                                "form-action 'self'",
-    "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), geolocation=(), microphone=(), accelerometer=()",
 }
 
@@ -283,6 +294,34 @@ def create_app(store: CloudStore, registry: TokenRegistry, embedder: Embedder, a
     @app.get("/v1/whoami")
     def whoami(ctx: AuthContext = Depends(auth)):
         return ctx.__dict__
+
+    # ---- shared free-text knowledge (cloud/knowledge.py): a second channel, kept out of the case groups ----
+    @app.post("/v1/knowledge")
+    def publish_knowledge(b: KnowledgeBody, ctx: AuthContext = Depends(auth)):
+        try:
+            return knowledge.publish(store, embedder, ctx.tenant_id, ctx.device_id, text=b.text,
+                                     topic=b.topic, audience=b.audience, recipients=b.recipients,
+                                     record_id=b.record_id)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
+    @app.get("/v1/knowledge")
+    def pull_knowledge(since: int = 0, limit: int = 200, ctx: AuthContext = Depends(auth)):
+        """Only what this token may read: the audience filter runs in the query, so a device is never
+        handed a record addressed to somebody else."""
+        return knowledge.fetch(store, ctx.tenant_id, ctx.device_id, ctx.site_id, since, limit)
+
+    @app.get("/v1/knowledge/mine")
+    def my_knowledge(ctx: AuthContext = Depends(auth)):
+        return knowledge.mine(store, ctx.tenant_id, ctx.device_id)
+
+    @app.post("/v1/knowledge/{record_id}/withdraw")
+    def withdraw_knowledge(record_id: str, ctx: AuthContext = Depends(auth)):
+        if not knowledge.withdraw(store, ctx.tenant_id, record_id, ctx.device_id):
+            raise HTTPException(404, "no such record published by this device")
+        audit.append(ctx.device_id, ctx.tenant_id, "knowledge_withdrawn", record_id=record_id)
+        return {"withdrawn": record_id,
+                "note": "devices that already pulled it keep their copy"}
 
     if UI.exists():
         app.mount("/static", StaticFiles(directory=UI), name="static")

@@ -70,6 +70,35 @@ For every episode the device shows (deterministic or measured, never generated):
 The technician acts; the sensor verifies. "Not a fault: normal operation" teaches a new healthy state; "teach a
 failure" records one the sensor missed (robots learn from it).
 
+## Asking it things
+
+The same Qdrant Edge shard that holds fault episodes also holds free text, so the device can be asked
+questions in plain language - offline, with citations, and with an honest answer when it has nothing.
+
+- **It ships knowing things.** An empty device can only ever say "I do not know", so first boot loads the
+  reference material this repository already carries: **9,533 standard OBD fault codes** with causes and
+  repair times, plus cited maintenance procedures. Ask `P0420` and it answers; describe a symptom and it
+  finds the code. A named code is looked up exactly - among ~9.5k near-identical entries the dense leg is
+  close to noise, and asking for P0420 used to return P0422 because that entry *mentions* P0420.
+- **Teach it anything.** Free text becomes a searchable memory, in any domain. It never syncs.
+- **Follow-up questions work.** "How long does *it* run" inherits the subject of the previous question -
+  the question only, never the previous answer, so the device cannot cite itself as a source. A question
+  that names its own subject keeps to it.
+- **It distinguishes two failures.** Nothing sharing a single word with the question means the subject is
+  outside what this device holds, and it says so - that needs teaching or a connection. A near miss says so
+  instead, and asks you to name the part or code.
+- **Speech, on the device.** Vosk (40 MB, Apache-2.0, CPU). The browser's own speech API would have been one
+  line of JavaScript, but on most platforms it uploads the audio; that would break the offline claim.
+- **Photographs are retrieved, never described.** Qdrant's CLIP pair puts pictures and words in one 512-d
+  space, so typing "cracked housing" finds the photo. Nothing reads the image and states what is wrong with
+  it: a vision-language model would confidently misread a spalled race, and a nearest-neighbour hit makes no
+  claim at all. The note a person wrote beside the photo carries the meaning.
+- **Broadcast.** Text addressed to every device, a whole site, or named devices. The audience filter runs in
+  the cloud's query, so a device is never handed a record meant for somebody else and merely told to hide it.
+  Withdrawing leaves a tombstone so recipients delete their copy; a record already read cannot be recalled.
+- **The Qdrant tab shows the work.** Vectors searched, which kinds of memory were queried, which legs were
+  compared and at what size, and the timing - reported from the search that ran, not recomputed for display.
+
 ## Architecture
 
 ```mermaid
@@ -205,14 +234,28 @@ $env:VIRTUAL_ENV=".venv"; uv pip install -r requirements.txt --extra-index-url h
 .venv\Scripts\python.exe data\fetch_data.py            # CWRU + logbook (not redistributed)
 .venv\Scripts\python.exe -m bench.retrieval_vib        # builds the fingerprint cache
 .venv\Scripts\python.exe -m tools.qdrant_local download  # Qdrant Server 1.19.1 for this OS into qdrant_server\
-powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset
-.venv\Scripts\python.exe -m demo.scenario              # scripted A -> cloud -> B run, asserts every step
+powershell -ExecutionPolicy Bypass -File start.ps1     # everything, then opens the app
 ```
 
-| Service | URL | Sign-in |
-|---|---|---|
-| Device A / B / C | http://127.0.0.1:8101 / 8102 / 8103 | operator token `operator-devA` / `-devB` / `-devC` (demo only) |
-| Fleet cloud | http://127.0.0.1:8100 | admin tokens (two, for two-admin retraction) in `runtime\cloud\bootstrap.json` |
+Then **http://127.0.0.1:9000** - one page, no sign-in. The gateway (`app/unified.py`) holds the tokens and
+proxies to the device and the cloud, so nobody has to paste one. `stop.ps1` stops everything.
+
+| Tab | What it is for |
+|---|---|
+| **Ask** | type, dictate or attach a photo; answers cite what they came from, and say plainly when nothing matches |
+| **Memory** | what you added, what was shared with you, photos, past conversations, what the sensor noticed |
+| **Broadcast** | send text to every device, a whole site, or named devices - the audience filter runs on the server |
+| **Devices** | the device kinds this one engine covers |
+| **Qdrant** | the last search exactly as it ran: vectors searched, where it looked, which legs compared, timing |
+| **Sync** | what stays local, what is queued, roughly how many kB before you send it |
+
+The scripted three-device proof still exists:
+`powershell -ExecutionPolicy Bypass -File demo\run_demo.ps1 -Reset` then `.venv\Scripts\python.exe -m demo.scenario`
+(devices on 8101/8102/8103, cloud on 8100, tokens in `runtime\cloud\bootstrap.json`).
+
+**First run takes a few minutes and blocks:** the device embeds ~9.5k reference records so it can answer
+something before anyone has taught it anything. Voice and photo search fetch their models on first use
+(Vosk 40 MB, Qdrant CLIP 590 MB) and are offline afterwards; both are optional and the app runs without them.
 
 For a phone, a second computer or production (HTTPS, mutual TLS, certificate revocation, strong tokens, backups):
 [docs/SETUP.md](docs/SETUP.md). Real-world test plan: [docs/FIELD_TEST.md](docs/FIELD_TEST.md).
@@ -247,6 +290,13 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
   notes encrypted at rest, two-admin retraction, quarantine, audit chain). Not built: hardware attestation (the code
   check is tamper evidence), encryption of searchable structured fields (use disk encryption).
 - **Disk:** each Qdrant Edge shard pre-allocates ~200 MB (Windows NTFS compression measured 267 MB -> 1.9 MB).
+- **Asking it things is newer than the rest and less measured.** Known gaps: a single shared word is treated as a
+  match, so an off-topic question can return a record that merely contains the word ("what is harsh" returns a
+  transmission code); first boot blocks for minutes while the reference pack is embedded; the device kind is fixed
+  at launch, so the Devices tab lists seven but you cannot switch between them from the UI; video is not wired
+  (the frame sampler exists, unused) and there is no OCR, so a nameplate or dashboard code in a photo is not read.
+  Retrieval, follow-ups, pictures and sharing have tests; the speech, broadcast and Qdrant screens were checked
+  by hand only.
 - **The optional LLM is small** (1.5B); its sentences must cite evidence and never advise; a reading aid only.
 - **Licence:** Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). Data sets are not redistributed; derived word and
   name lists in `knowledge/` credit their sources.

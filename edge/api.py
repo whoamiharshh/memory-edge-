@@ -11,6 +11,8 @@ import binascii
 import hashlib
 import hmac
 import pathlib
+import re
+import time
 
 import numpy as np
 
@@ -24,6 +26,8 @@ from edge import machine_card as machine_card_mod
 from edge import manuals as manuals_mod
 from edge import physics as P
 from edge import rag
+from edge import seed
+from shared import speech
 from edge.device import Device
 from edge.replay import HEALTHY_BASELINE_FILES, Recordings, ReplayRunner
 from edge.sync_worker import SyncWorker
@@ -32,11 +36,12 @@ from shared.schema import ActionCode, Component, DamageMode, FaultClass, RootCau
 UI = pathlib.Path(__file__).resolve().parent / "ui"
 MAX_BODY = 8 * 1024 * 1024                  # a signal chunk (600k values as JSON) or 5 s of audio fit
 MAX_MANUAL_BODY = 30 * 1024 * 1024          # a 20 MB PDF, base64-encoded
+_FRAME_ANCESTORS = "http://127.0.0.1:9000 http://127.0.0.1:8000"
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
                                "img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
-                               "frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-    "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+                               f"frame-ancestors 'self' {_FRAME_ANCESTORS}; base-uri 'none'; form-action 'self'",
+    "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), geolocation=(), microphone=(self), accelerometer=(self), gyroscope=(self)",
 }
 
@@ -121,6 +126,49 @@ class FeedbackBody(BaseModel):
 class SearchBody(BaseModel):
     text: str | None = Field(default=None, max_length=500)
     episode_id: str | None = None
+    use_fleet: bool = True
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class MemoryBody(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    kind: str = Field(default="fact", pattern=r"^(fact|chat)$")
+
+
+class ImageBody(BaseModel):
+    """A picture, base64-encoded, plus whatever the person typed about it. The note carries the meaning:
+    nothing here claims to know what the picture shows."""
+    image_b64: str = Field(min_length=16, max_length=12_000_000)
+    filename: str = Field(default="photo.jpg", max_length=120)
+    note: str = Field(default="", max_length=2000)
+    episode_id: str | None = None
+
+
+class ImageSearchBody(BaseModel):
+    text: str | None = Field(default=None, max_length=300)
+    image_b64: str | None = Field(default=None, max_length=12_000_000)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class SpeechBody(BaseModel):
+    """A short recording to turn into text. Recognised on this device; the audio is never uploaded."""
+    audio_b64: str = Field(min_length=64, max_length=30_000_000)
+
+
+class SeedBody(BaseModel):
+    packs: list[str] = Field(default_factory=list, max_length=8)
+
+
+class PublishBody(BaseModel):
+    """Text this device shares with others. A deliberate act: it leaves the device as typed."""
+    text: str = Field(min_length=1, max_length=4000)
+    topic: str = Field(default="general", max_length=80)
+    audience: str = Field(default="everyone", pattern=r"^(everyone|device|site)$")
+    recipients: list[str] = Field(default_factory=list, max_length=200)
+
+
+class AskBody(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
     use_fleet: bool = True
     limit: int = Field(default=5, ge=1, le=20)
 
@@ -335,6 +383,148 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     def search(b: SearchBody):
         return guard(lambda: device.search(b.text, b.episode_id, b.use_fleet, b.limit))
 
+    @app.post("/api/memory", dependencies=[api])
+    def remember(b: MemoryBody):
+        """Teach this device something, in any domain. Stored locally, never synced."""
+        return guard(lambda: device.remember(b.text, b.kind))
+
+    @app.get("/api/memory", dependencies=[api])
+    def recall(q: str | None = None, limit: int = 5, kind: str | None = None):
+        """With q: semantic search. With kind and no q: list that kind, newest first.
+        With neither: the recent conversation, oldest first (what the chat UI replays on load)."""
+        n = max(1, min(limit, 50))
+        if q and q.strip():
+            return guard(lambda: device.recall(q.strip(), min(n, 20), kind))
+        if kind:
+            return guard(lambda: device.list_memories(kind, n))
+        return guard(lambda: device.recent_chat(n))
+
+    @app.delete("/api/memory/chat", dependencies=[api])
+    def forget_chat(delete: bool = False):
+        """Start a new conversation. ?delete=true really erases the old turns."""
+        return {"cleared": guard(lambda: device.forget_chat(delete))}
+
+    @app.get("/api/conversations", dependencies=[api])
+    def conversations(limit: int = 30):
+        return guard(lambda: device.conversations(max(1, min(limit, 100))))
+
+    @app.get("/api/conversations/{session}", dependencies=[api])
+    def conversation(session: str):
+        return guard(lambda: device.conversation(session))
+
+    PICTURES = pathlib.Path(device.cfg.root) / "pictures"
+
+    def _save_image(b64: str, filename: str) -> pathlib.Path:
+        try:
+            raw = base64.b64decode(b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "image_b64 is not valid base64")
+        if not 16 <= len(raw) <= MAX_MANUAL_BODY:
+            raise HTTPException(422, "image is empty or too large")
+        PICTURES.mkdir(parents=True, exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", filename)[-80:] or "photo.jpg"
+        out = PICTURES / f"{int(time.time() * 1000)}_{safe}"
+        out.write_bytes(raw)
+        return out
+
+    @app.post("/api/pictures", dependencies=[api])
+    def add_picture(b: ImageBody):
+        """Store a picture on the device. The file stays here; only its vector and note are searchable."""
+        path = _save_image(b.image_b64, b.filename)
+        try:
+            return guard(lambda: device.remember_image(str(path), b.note, b.episode_id))
+        except Exception:
+            path.unlink(missing_ok=True)          # never leave a file behind that nothing points at
+            raise
+
+    @app.get("/api/pictures", dependencies=[api])
+    def list_pictures(limit: int = 100):
+        return guard(lambda: device.pictures(max(1, min(limit, 500))))
+
+    @app.get("/api/pictures/{pid}/file", dependencies=[api])
+    def picture_file(pid: str):
+        for r in device.pictures(500):
+            if r["id"] == pid:
+                f = pathlib.Path(r["file"])
+                if f.exists() and f.resolve().is_relative_to(PICTURES.resolve()):
+                    return FileResponse(f)
+                raise HTTPException(404, "the file is no longer on this device")
+        raise HTTPException(404, "no such picture")
+
+    @app.post("/api/pictures/search", dependencies=[api])
+    def search_pictures(b: ImageSearchBody):
+        """Find stored pictures by typed words or by another picture. Returns what this device holds;
+        it never states what any picture shows."""
+        tmp = _save_image(b.image_b64, "query.jpg") if b.image_b64 else None
+        try:
+            return guard(lambda: device.recall_images(b.text, str(tmp) if tmp else None, b.limit))
+        finally:
+            if tmp:
+                tmp.unlink(missing_ok=True)
+
+    recogniser = speech.Recogniser()
+
+    @app.get("/api/speech", dependencies=[api])
+    def speech_status():
+        """Whether dictation is usable, and if not, exactly what is missing."""
+        return recogniser.status()
+
+    @app.post("/api/speech", dependencies=[api])
+    def transcribe(b: SpeechBody):
+        try:
+            raw = base64.b64decode(b.audio_b64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "audio_b64 is not valid base64")
+        try:
+            return recogniser.transcribe_wav(raw)
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+        except Exception as e:
+            raise HTTPException(422, f"could not read that recording: {type(e).__name__}")
+
+    @app.get("/api/reference", dependencies=[api])
+    def reference_status():
+        """Which reference packs this device already holds, and how big each one is."""
+        return {"available": seed.available(), "loaded": seed.seeded(device)}
+
+    @app.post("/api/reference/load", dependencies=[api])
+    def load_reference(b: SeedBody):
+        return guard(lambda: seed.seed_if_empty(device, b.packs or None))
+
+    @app.post("/api/knowledge/publish", dependencies=[api])
+    def publish_knowledge(b: PublishBody):
+        """Share text with other devices. `everyone` reaches the whole tenant; `device` reaches only the
+        device ids listed, enforced by the cloud when they pull."""
+        return guard(lambda: worker.publish_knowledge(b.text, b.topic, b.audience, b.recipients))
+
+    @app.post("/api/knowledge/pull", dependencies=[api])
+    def pull_knowledge():
+        return guard(lambda: worker.pull_knowledge())
+
+    @app.get("/api/knowledge/mine", dependencies=[api])
+    def my_knowledge():
+        """What this device published, asked with its own token (the gateway's admin token would
+        report nothing, because ownership is decided from the caller's identity)."""
+        return guard(lambda: worker.my_knowledge())
+
+    @app.post("/api/knowledge/{record_id}/withdraw", dependencies=[api])
+    def withdraw_knowledge(record_id: str):
+        return guard(lambda: worker.withdraw_knowledge(record_id))
+
+    @app.get("/api/knowledge", dependencies=[api])
+    def list_shared(limit: int = 100):
+        return guard(lambda: device.shared_knowledge(max(1, min(limit, 500))))
+
+    @app.post("/api/ask", dependencies=[api])
+    def ask(b: AskBody):
+        """One conversational turn.
+
+        Retrieves from BOTH the device's sensor records and the free-text memory the user has taught it,
+        plus the recent conversation for follow-ups. If nothing relevant is found it says so instead of
+        answering from records that do not match the question.
+        """
+        return guard(lambda: device.ask(b.text, llm, b.use_fleet, b.limit))
+
     @app.get("/api/procedures", dependencies=[api])
     def procedures(fault_class: str | None = None, episode_id: str | None = None):
         """Documented reference procedures for a fault class (or for an episode's confirmed class / physics hint)."""
@@ -414,6 +604,11 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
     @app.get("/api/mirror", dependencies=[api])
     def mirror():
         return [r.payload for r in device.mirror.scroll()]
+
+    @app.get("/api/sync/pending", dependencies=[api])
+    def sync_pending():
+        """What is queued and roughly how big, so a person can decide whether to sync now."""
+        return guard(lambda: worker.pending())
 
     @app.get("/api/sync/status", dependencies=[api])
     def sync_status():

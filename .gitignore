@@ -16,3 +16,8 @@ models_cache/
 .dist/
 package-lock.json
 .venv-laya/
+
+# local editor config (carries personal keys and machine paths)
+.vscode/
+# runtime marker written by the launcher
+.qdrant-initialized

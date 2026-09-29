@@ -87,7 +87,7 @@ def test_devices_send_their_code_hash(make_device, cloud):
 
 def test_security_headers_on_both_apps(cloud, make_device):
     r = cloud["client"].get("/v1/health")
-    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert "frame-ancestors 'self'" in r.headers["content-security-policy"]
     assert r.headers["x-content-type-options"] == "nosniff" and r.headers["cache-control"] == "no-store"
     d, _ = make_device("devA", "site1")
     dc = TestClient(create_device_app(d, SyncWorker(d, None, None), "op-1234567"))

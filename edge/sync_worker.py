@@ -412,6 +412,90 @@ class SyncWorker:
         self.auth_required = False
         self.device.outbox.log("sync", "device token updated")
 
+    # ---- shared free-text knowledge (cloud/knowledge.py) -------------------------------------------------
+    def publish_knowledge(self, text: str, topic: str = "general", audience: str = "everyone",
+                          recipients: list[str] | None = None) -> dict:
+        """Send one text record to the cloud for other devices to pull. Unlike evidence this is not queued
+        in the outbox: publishing is a deliberate act a person takes while looking at the screen, so it
+        either succeeds now or reports why it did not."""
+        if not self.online:
+            raise RuntimeError("offline: reconnect to publish (what you typed is already saved on the device)")
+        r = self.http.post("/v1/knowledge", headers=self._headers(),
+                           json={"text": text, "topic": topic, "audience": audience,
+                                 "recipients": recipients or []})
+        if r.status_code >= 400:
+            raise RuntimeError(f"cloud refused it ({r.status_code}): {r.text[:200]}")
+        self.bytes_sent += len(r.request.content or b"")
+        out = r.json()
+        self.device.outbox.log("knowledge", f"published to {audience}: {text[:60]}")
+        return out
+
+    def my_knowledge(self) -> list[dict]:
+        """What this device has published, asked with this device's own token.
+
+        It has to be the device's token: the cloud decides ownership from the caller's identity, so asking
+        as anyone else — the gateway's admin token, for instance — truthfully reports that the caller has
+        published nothing, and the screen looks broken.
+        """
+        if not self.online:
+            return []
+        try:
+            r = self.http.get("/v1/knowledge/mine", headers=self._headers())
+            return r.json() if r.status_code == 200 else []
+        except Exception:
+            return []
+
+    def withdraw_knowledge(self, record_id: str) -> dict:
+        """Stop handing a published record to anyone who has not pulled it yet. Devices that already
+        have a copy delete it on their next check; a record already read cannot be recalled."""
+        if not self.online:
+            raise RuntimeError("offline: reconnect to withdraw")
+        r = self.http.post(f"/v1/knowledge/{record_id}/withdraw", headers=self._headers())
+        if r.status_code >= 400:
+            raise RuntimeError(f"cloud refused it ({r.status_code})")
+        self.device.outbox.log("knowledge", f"withdrew {record_id[:8]}")
+        return r.json()
+
+    def pull_knowledge(self) -> dict:
+        """Fetch records addressed to this device and store them locally so they stay searchable offline.
+        The cloud decides what this device may see; the device never filters other people's records itself."""
+        if not self.online:
+            return {"skipped": "offline"}
+        since = int(self.device.outbox.kv_get("knowledge_seq", 0) or 0)
+        try:
+            r = self.http.get("/v1/knowledge", headers=self._headers(), params={"since": since, "limit": 200})
+            if r.status_code >= 400:
+                return {"error": f"HTTP {r.status_code}"}
+            self.bytes_received += len(r.content)
+            body = r.json()
+        except Exception as e:
+            return {"error": type(e).__name__}
+        n = self.device.store_shared_knowledge(body.get("items", []))
+        if int(body.get("seq", since)) > since:
+            self.device.outbox.kv_set("knowledge_seq", int(body["seq"]))
+        return {"received": n, "seq": body.get("seq", since), "more": body.get("more", False)}
+
+    def pending(self) -> dict:
+        """What is waiting to leave this device, and what it would cost to send.
+
+        Reported before anything is sent rather than after: on a metered or intermittent link, the person
+        deciding whether to sync now wants the size first. Nothing here sends anything.
+        """
+        rows = [r for r in self.device.outbox.rows(500) if r.get("status") in ("queued", "failed")]
+        # a rough per-event size — the real payload is the redacted note plus the fingerprint, and the
+        # fingerprint dominates, so this is close enough to inform a decision without building the batch
+        approx = sum(len(str(r.get("payload") or "")) or 900 for r in rows)
+        by_state: dict[str, int] = {}
+        for r in rows:
+            key = r.get("last_error") or "ready"
+            by_state[key] = by_state.get(key, 0) + 1
+        return {"online": self.online, "count": len(rows), "approx_bytes": approx,
+                "retrying": sum(1 for r in rows if r.get("status") == "failed"),
+                "by_state": by_state,
+                "advice": ("nothing waiting" if not rows else
+                           "offline — these go automatically when the network returns" if not self.online
+                           else f"{len(rows)} item(s) ready, about {max(1, approx // 1024)} kB")}
+
     def status(self) -> dict:
         return {"online": self.online, "auth_required": self.auth_required, "cloud_url": self.cloud_url or None,
                 "last_push": self.last["push"], "last_pull": self.last["pull"], "last_error": self.last["error"],
