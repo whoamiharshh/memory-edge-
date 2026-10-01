@@ -46,7 +46,7 @@ async function api(path, body, method) {
 const THEMES = ["light", "dark", "system"];
 function currentTheme() {
   const t = localStorage.getItem("mm_theme");
-  return THEMES.includes(t) ? t : "dark";       // dark monochrome is the product's default
+  return THEMES.includes(t) ? t : "light";      // the reference this is built from is the light screen
 }
 function applyTheme(t) {
   if (t === "system") document.documentElement.removeAttribute("data-theme");
@@ -65,15 +65,58 @@ applyTheme(currentTheme());
 const LOADERS = { memory: loadMemory, broadcast: loadBroadcast, devices: loadDevices, system: loadSystem,
                   settings: loadSettings };
 function showPage(page) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.page === page));
+  document.querySelectorAll(".nav-item").forEach(t => t.classList.toggle("active", t.dataset.page === page));
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
   $("settingsBtn").classList.toggle("active", page === "settings" || page === "system");
   closeDrawer();
   LOADERS[page]?.();
   document.body.classList.toggle("no-history", page !== "ask");
 }
-document.querySelectorAll(".tab").forEach(btn =>
+document.querySelectorAll(".nav-item").forEach(btn =>
   btn.addEventListener("click", () => showPage(btn.dataset.page)));
+showPage("ask");
+
+/* "/" jumps to the sidebar search, as the kbd hint beside it promises */
+document.addEventListener("keydown", (e) => {
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");
+  if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey) { e.preventDefault(); $("histSearch").focus(); }
+});
+
+/* The card at the top of the sidebar is the retrieval mode: it is the setting that decides whether a
+   question may leave the device, so it sits where you can see it rather than three clicks away. */
+const MODE_CARD = {
+  local:  ["This device only", "nothing leaves it"],
+  auto:   ["This device first", "then the internet"],
+  online: ["Device and internet", "every question is searched"],
+};
+function paintModelCard() {
+  const [t, s] = MODE_CARD[retrieval.mode] || MODE_CARD.auto;
+  $("mcTitle").textContent = t;
+  $("mcSub").textContent = s;
+}
+$("modelCard").addEventListener("click", async () => {
+  const order = ["local", "auto", "online"];
+  const next = order[(order.indexOf(retrieval.mode) + 1) % order.length];
+  try {
+    retrieval = await api(DEV + "retrieval", { mode: next });
+    paintModelCard(); paintRetrieval();
+    toast(`Ask now uses ${MODE_LABEL[retrieval.mode]}.`);
+  } catch { toast("Could not change that setting.", true); }
+});
+
+/* Export: the conversation as plain text, which is the only format that is still readable in ten years */
+$("exportChat").addEventListener("click", () => {
+  const lines = [...document.querySelectorAll(".turn")].map(t =>
+    (t.classList.contains("you") ? "You: " : "Edge Memory: ") + (t.textContent || "").trim());
+  if (!lines.length) return toast("Nothing to export yet.");
+  const blob = new Blob([lines.join("\n\n") + "\n"], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "edge-memory-conversation.txt";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast("Conversation exported.");
+});
 $("settingsBtn").addEventListener("click", () => showPage("settings"));
 $("openSystemBtn").addEventListener("click", () => showPage("system"));
 document.querySelectorAll("#themeSeg .seg-btn").forEach(b =>
@@ -212,6 +255,7 @@ async function loadSettings() {
     retrieval = await api(DEV + "retrieval");
   } catch { /* an unreachable device must not blank the page */ }
   paintRetrieval();
+  paintModelCard();
 
   const s = retrieval.search || {};
   $("searchProviderNote").textContent = !s.enabled
@@ -428,8 +472,9 @@ $("clearChat").addEventListener("click", async () => {
 function buildWelcome() {
   const w = el("div", { class: "welcome", id: "welcome" },
     el("div", { class: "hero-mark" }),
-    el("h1", { class: "hero-title" }, "What do you want to remember?"),
-    el("p", { class: "hero-sub" }, "Ask anything about your memories, devices, conversations or evidence."),
+    el("h1", { class: "hero-title" }, "Welcome to Edge Memory."),
+    el("p", { class: "hero-sub" },
+      "Answers from what this device holds, with citations — and from the internet when you allow it."),
     el("div", { class: "chips", id: "chips" }));
   $("chatScroll").append(w);
   buildChips();
@@ -1081,6 +1126,9 @@ async function boot() {
     $("connStatus").textContent = "device unreachable";
     $("connStatus").classList.add("off");
   }
+  // the sidebar card shows the retrieval mode, so it has to know it before Settings is ever opened
+  try { retrieval = await api(DEV + "retrieval"); paintModelCard(); } catch {}
+
   await restoreChat();
   loadConversations();
   initMic();
