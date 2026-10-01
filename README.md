@@ -238,8 +238,9 @@ real-time monitoring 16.5 % of one core, ~0.3 GB RAM. One shared fix is ~0.9 kB;
 
 ## Tests
 
-`.venv\Scripts\python.exe -m pytest` runs **302 tests, all passing** on the machine above (~9.5 min; 0 skipped with
-the data sets downloaded). Some tests start the real Qdrant Server binary themselves.
+`.venv\Scripts\python.exe -m pytest` runs **399 tests, all passing** on the machine above (~12 min; 0 skipped with
+the data sets and language models downloaded; last run 2 Oct 2026). Some tests start the real Qdrant Server binary
+themselves.
 
 | Folder | What it proves |
 |---|---|
@@ -322,10 +323,15 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
 - **Asking it things is newer than the rest and less measured.** Known gaps: a single shared word is treated as a
   match, so an off-topic question can return a record that merely contains the word ("what is harsh" returns a
   transmission code); first boot blocks for minutes while the reference pack is embedded; the device kind is fixed
-  at launch, so the Devices tab lists seven but you cannot switch between them from the UI; video is not wired
+  at launch (it cannot be switched from the UI); video is not wired
   (the frame sampler exists, unused) and there is no OCR, so a nameplate or dashboard code in a photo is not read.
   Retrieval, follow-ups, pictures and sharing have tests; the speech, broadcast and Qdrant screens were checked
   by hand only.
+- **Hindi is thin, and was tested on synthetic speech only.** Dictation (Whisper) and the Hindi answers were checked
+  with text-to-speech audio, never a real microphone or a real Hindi speaker. Only the whole-record questions, the
+  device's standard messages and episode summaries are hand-written Hindi; every other answer is machine translation
+  from a small model that gets technical words wrong ("bearing" came back as "automobile" once) and is labelled as
+  such in the UI. Hindi typed in Latin letters and other languages are not supported.
 - **The optional LLM is small** (1.5B); its sentences must cite evidence and never advise; a reading aid only.
 - **Licence:** Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). Data sets are not redistributed; derived word and
   name lists in `knowledge/` credit their sources.
