@@ -214,6 +214,52 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   harmonic-clash rule, HUST hint 97.6 -> 95.2 % (B604, documented); microphone + louder neighbour measured (one
   "normal operation" confirmation: FA 0-4 %, but 30-66 % of faulty windows masked when the neighbour is as loud).
   302 tests pass (9 min 21 s). Android app NOT built (user's choice).
+- [x] (1 Oct) launcher + "ask about the whole record" pass:
+  - `demo\stop_demo.ps1` / `stop.ps1`: taskkill's stderr is now redirected **inside cmd.exe**. PowerShell 5.1
+    wraps a native command's redirected stderr in a terminating NativeCommandError, so one already-dead PID
+    aborted `run_demo.ps1 -Reset` before it started anything. Reproduced, then fixed.
+  - `start.ps1` now starts `app.unified` on **9000**, waits for `/health`, writes `runtime\unified_pid.txt`
+    (which `stop.ps1` already expected) and opens **http://127.0.0.1:9000/** - the URL README.md:240 always
+    documented. It had regressed to opening 8101, which is why the redesigned app looked "unchanged".
+    Deleted the 0-byte `start-all.ps1`.
+  - `Device.ask`: whole-record questions ("what problems have you seen?", "has anything been fixed?",
+    "is anything still unresolved?", "what do you know about me?") are answered from stored episode state.
+    They name nothing in a record, so word-overlap relevance always returned "nothing relates to that at
+    all" - including on a device holding a technician-confirmed, sensor-verified repair. These are the four
+    chips the UI itself offers. A question carrying an identifier still goes down the retrieval path.
+    `mode: "overview"`, cited [E1..], wording stays "symptom resolved", never "root cause confirmed".
+    Tests: `tests/integration/test_overview_questions.py`.
+  - `setup.ps1` passed `--index-strategy` (a **uv** flag that pip rejects), so setup failed at the install
+    step on every clean machine; it also listed `abeten.github.io` (a typo of `abetlen`, an unowned domain)
+    as a package index. Both removed. `setup.sh` now passes the CPU wheel index so llama-cpp-python does not
+    try to compile from source.
+  - `.gitignore`: `.venv-*/` and `.playwright-mcp/`.
+- [x] (1 Oct, user request) **Ask can reach the wider world**, and the app got Settings:
+  - `edge/online.py`: the ONE module on the device that touches the network for anything but its own cloud.
+    Providers: duckduckgo+wikipedia (default, **no key, no account**), wikipedia, brave (`BRAVE_SEARCH_API_KEY`),
+    tavily (`TAVILY_API_KEY`), none. Never raises - an unreachable network is this product's normal state.
+  - `Device.retrieval_mode()` (`local` / `auto` / `online`, default `auto`, stored in the outbox kv so it
+    survives a restart) + `_may_go_online()`. Rules: never when set to local, never when offline, never when
+    the provider is unconfigured, and in `auto` only when the device holds no answer. A question about this
+    device's own record (the overview intent) **never** leaves it in any mode.
+  - Web hits face the same word-overlap relevance test as local evidence - a search engine always returns
+    something, and "Norfolk State University" for a question about France is worse than citing nothing.
+  - Web evidence shares the one [E1..] citation sequence rather than a [W1..] one, because `rag.check_output`
+    only recognises E-citations; what marks it as web is `source` + the URL. The answer carries `sources`,
+    and the UI says "answered on the device" / "answered using the internet" / both.
+  - API `GET|POST /api/retrieval`. **Tests must never hit the network**: `tests/conftest.py` forces
+    `EDGE_SEARCH_PROVIDER=none` for the whole session; `tests/unit/test_online.py` stubs the providers.
+  - UI: System left the primary tabs (now Ask / Memory / Broadcast / Devices + a gear). New Settings page:
+    Appearance (Light/Dark/System, **light is the default**, `:root:not([data-theme])` guards the OS query so
+    an explicit Light wins), Ask retrieval mode, system rows + a way into the old System page. Dark tokens
+    added; `nav` and the toast had hardcoded colours and stayed light - both are tokens now.
+  - Memory: search box + a collapsed "Technical details" block. `app/unified.py` proxy timeout 30s -> 180s
+    (the first Ask loads a 1.1 GB GGUF and was returning a bare 500).
+  - docs: README privacy section now states the exception honestly; `docs/THREATS.md` has the new surface;
+    `.env.example` documents every provider variable.
+  - `tools/qdrant_local.py`: test Qdrant now uses 1 segment + a 4 MB WAL. It was sized for production, so a
+    collection holding THREE events wrote a **513 MB** snapshot and one suite run left **98 GB** behind, then
+    died with StorageFull. (157 GB of old pytest scratch was deleted to get the machine working again.)
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).

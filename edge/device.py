@@ -221,6 +221,82 @@ def _identifiers(s: str) -> set[str]:
     return {t for t in re.findall(r"[a-z]*\d[a-z0-9]*", (s or "").lower()) if t not in _STOPWORDS}
 
 
+# Questions about the device's record as a whole, rather than about any one thing in it.
+# Word overlap cannot answer these: "has anything here been fixed before?" shares no word with an
+# episode record, so the four questions the UI itself offers as starting points all came back
+# "nothing on this device relates to that at all" while the device held a verified repair. These are
+# answered from stored episode state instead of from retrieval. Ordered: the first phrase that matches
+# wins, so the narrower intent ("still unresolved") is tested before the broader one ("what problems").
+_OVERVIEW_PHRASES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("unresolved", ("still unresolved", "unresolved", "still open", "still broken", "not fixed",
+                    "never fixed", "outstanding", "still a problem", "still wrong", "anything open",
+                    "yet to be fixed")),
+    ("fixed",      ("been fixed", "fixed before", "was fixed", "ever fixed", "fixed anything",
+                    "what fixed", "what worked", "any fixes", "repaired", "repairs", "sorted out")),
+    ("problems",   ("what problems", "any problems", "what faults", "any faults", "what issues",
+                    "any issues", "went wrong", "gone wrong", "anything wrong", "what have you seen",
+                    "seen recently", "seen lately", "what happened", "anything unusual")),
+    ("known",      ("know about me", "know about this", "know about the machine", "what do you know",
+                    "what do you remember", "what is in your memory", "whats in your memory",
+                    "what have you got", "what do you have", "about yourself")),
+)
+
+
+# Words an overview question is allowed to be made of. A question that names anything beyond these is
+# about a specific thing, not about the record as a whole: "what happened to the pump housing" shares the
+# phrase "what happened" with "what happened recently", and only the subject it names tells them apart.
+_OVERVIEW_VOCAB = frozenset("""
+anything everything something nothing problem problems fault faults issue issues trouble wrong
+fixed fix fixes repair repairs repaired resolved unresolved outstanding broken sorted worked work
+seen saw happened happening recent recently lately unusual odd strange still open pending waiting
+know knows remember memory memories hold holds machine machines device devices here there yourself
+told taught learned ever never before yet
+""".split())
+
+
+def _overview_intent(q: str) -> str | None:
+    """Which whole-record question this is, or None if it asks about something specific.
+
+    Two conditions, both required: the question uses one of the known phrasings, AND it names nothing
+    outside the overview vocabulary. The second is what keeps "what happened to the pump housing" on the
+    retrieval path, where the stored note about the pump actually answers it.
+    """
+    s = " " + " ".join(re.sub(r"[^a-z0-9 ]+", " ", (q or "").lower()).split()) + " "
+    if _content_words(q) - _OVERVIEW_VOCAB:
+        return None
+    for intent, phrases in _OVERVIEW_PHRASES:
+        if any(p in s for p in phrases):
+            return intent
+    return None
+
+
+def _ep_line(e: dict) -> str:
+    """One episode, stated as what was measured and recorded - never as a diagnosis.
+
+    The wording keeps the project's rule: the sensor says a symptom resolved, it does not say a root
+    cause was confirmed, and nothing here recommends an action.
+    """
+    fc = e.get("fault_class") or (e.get("fault_hint") or {}).get("fault_class") or "unclassified"
+    src = ("confirmed by a technician" if e.get("fault_class_source") == "technician"
+           else "suggested by physics, not yet confirmed")
+    s = (f"Episode #{e.get('seq')} on {e.get('machine_id')}: {e.get('component')} / {fc} "
+         f"({src}), {e.get('occurrences')} window(s), first seen {str(e.get('first_seen', ''))[:16]}.")
+    if e.get("action_code"):
+        s += f" Action taken: {e['action_code']} (outcome recorded as {e.get('outcome', 'pending')})."
+    else:
+        s += " No action has been recorded against it yet."
+    v = e.get("verify") or {}
+    if v.get("verdict") == "symptom_resolved":
+        s += (f" The sensor then saw {v.get('consecutive_ok', v.get('required', 0))} consecutive "
+              f"healthy windows: symptom resolved.")
+    elif v.get("verdict") == "symptom_persists":
+        s += " The sensor kept seeing the symptom afterwards: it did not hold."
+    elif e.get("status") == "verifying":
+        s += (f" Still verifying: {v.get('consecutive_ok', 0)} of {v.get('required', 0)} "
+              f"consecutive healthy windows so far.")
+    return s
+
+
 @dataclass
 class DeviceConfig:
     device_id: str
@@ -1314,6 +1390,104 @@ class Device:
         self.outbox.log("memory", f"started a new conversation (kept {n} turn(s))")
         return n
 
+    # How far `ask` may reach for an answer. Stored beside the online flag, so it survives a restart and
+    # so the UI reads it back the same way it reads everything else.
+    #   local  - this device only. Nothing ever leaves it. The original behaviour.
+    #   auto   - the device first; the internet only when the device holds nothing that answers it.
+    #   online - the internet on every question, alongside whatever the device holds.
+    RETRIEVAL_MODES = ("local", "auto", "online")
+
+    def retrieval_mode(self) -> str:
+        mode = self.outbox.kv_get("retrieval_mode", "auto")
+        return mode if mode in self.RETRIEVAL_MODES else "auto"
+
+    def set_retrieval_mode(self, mode: str) -> dict:
+        if mode not in self.RETRIEVAL_MODES:
+            raise ValueError(f"retrieval mode must be one of {self.RETRIEVAL_MODES}")
+        self.outbox.kv_set("retrieval_mode", mode)
+        return self.retrieval_status()
+
+    def retrieval_status(self) -> dict:
+        from edge import online
+        return {"mode": self.retrieval_mode(), "online": bool(self.outbox.kv_get("online", True)),
+                "search": online.available()}
+
+    def _may_go_online(self, has_local_answer: bool) -> tuple[bool, str]:
+        """Whether this question may leave the device, and the reason either way.
+
+        The reason is returned rather than logged because the UI shows it: "answered on the device" and
+        "answered using the internet" are different promises to the person asking, and which one they got
+        must never be something they have to infer.
+        """
+        from edge import online
+        mode = self.retrieval_mode()
+        if mode == "local":
+            return False, "set to this device only"
+        if not self.outbox.kv_get("online", True):
+            return False, "offline"
+        if not online.available()["ready"]:
+            return False, "no web search configured"
+        if mode == "auto" and has_local_answer:
+            return False, "this device already holds the answer"
+        return True, "online"
+
+    _OVERVIEW_EMPTY = {
+        "problems": "Nothing has been flagged on this machine yet. The gate has opened no episode, which "
+                    "means every window it has measured sat inside the healthy baseline.",
+        "fixed": "No repair has been recorded on this machine yet. Once someone records an action and the "
+                 "sensor then sees the machine stay healthy, it will be listed here.",
+        "unresolved": "Nothing is outstanding on this machine. No episode is open or waiting on a repair.",
+        "known": "This device holds nothing yet. Teach it something, or let it measure the machine, and it "
+                 "will remember.",
+    }
+
+    def _overview(self, intent: str) -> tuple[list[dict], str]:
+        """Answer a question about the whole record from stored episode state.
+
+        Counting is done over what is stored rather than over what retrieval returned: these questions
+        are about everything the device holds, and a nearest-neighbour search answers a different
+        question. Every sentence is a stored field; nothing here is inferred.
+        """
+        eps = self.episodes()
+        if intent == "fixed":
+            picked = [e for e in eps if e.get("action_code") and e.get("outcome") == "worked"]
+            head = ("{n} repair(s) on this machine have been recorded as having worked, each confirmed by "
+                    "the machine's own sensor data afterwards.")
+        elif intent == "unresolved":
+            picked = [e for e in eps
+                      if e.get("status") != "closed" or not e.get("action_code")
+                      or e.get("outcome") in (None, "pending", "failed")]
+            head = "{n} thing(s) on this machine are still outstanding."
+        elif intent == "problems":
+            picked = eps
+            head = "{n} episode(s) have been opened on this machine."
+        else:                                      # "known": what this device holds, in totals
+            picked = eps[:3]
+            facts = self.store.count({"type": "memory", "kind": "fact"})
+            shared = self.store.count({"type": "shared"})
+            pics = self.store.count({"type": "picture", "device_id": self.cfg.device_id})
+            worked = sum(1 for e in eps if e.get("outcome") == "worked")
+            failed = sum(1 for e in eps if e.get("outcome") == "failed")
+            if not (eps or facts or shared or pics):
+                return [], self._OVERVIEW_EMPTY["known"]
+            head = (f"This is {self.cfg.machine_id} at site {self.cfg.site_id}, watched by device "
+                    f"{self.cfg.device_id} on the {self.profile.name} profile. It holds {len(eps)} "
+                    f"episode(s) ({worked} repair(s) recorded as worked, {failed} as failed), {facts} "
+                    f"thing(s) you taught it, {shared} item(s) shared from other devices and {pics} "
+                    f"photo(s). Everything here was searched on this device, with no internet.")
+        if not picked and intent != "known":
+            return [], self._OVERVIEW_EMPTY[intent]
+
+        used = [{"source": "record", "id": e["episode_id"], "kind": "record", "text": _ep_line(e)}
+                for e in picked[:6]]
+        if intent == "known":
+            body = "\n\n".join(f"{c['text']} [E{i}]" for i, c in enumerate(used, 1))
+            return used, head + ("\n\nThe most recent:\n\n" + body if used else "")
+        lead = head.format(n=len(picked))
+        if len(picked) > len(used):
+            lead += f" The {len(used)} most recent:"
+        return used, lead + "\n\n" + "\n\n".join(f"{c['text']} [E{i}]" for i, c in enumerate(used, 1))
+
     def ask(self, text: str, llm=None, use_fleet: bool = True, limit: int = 5) -> dict:
         """One conversational turn over everything this device remembers.
 
@@ -1378,7 +1552,46 @@ class Device:
         for i, c in enumerate(used, 1):
             c["key"] = f"E{i}"
 
-        if not used:
+        # "What problems have you seen?" asks about the record as a whole and names nothing in it, so
+        # word overlap finds nothing however much the device holds. A question that does name a specific
+        # thing ("has plot 91 been fixed?") keeps the retrieval path: there the overview would be wrong.
+        intent = None if own_ids else _overview_intent(q)
+        if intent:
+            used, overview_answer = self._overview(intent)
+            for i, c in enumerate(used, 1):
+                c["key"], c["overlap"], c["ids"] = f"E{i}", [], []
+
+        # ---- the wider world ---------------------------------------------------------------------------
+        # An overview question is about this device's own record, so it never leaves the device however
+        # the retrieval mode is set: there is no answer to "what have you seen?" on the internet.
+        web_reason = "a question about this device"
+        if not intent:
+            may, web_reason = self._may_go_online(has_local_answer=bool(used))
+            if may:
+                from edge import online
+                hits = online.search(q, limit=max(3, min(limit, online.MAX_RESULTS)))
+                # A search engine always returns something, exactly like the vector store does, so web
+                # hits face the same relevance test as everything else: a result sharing no word with
+                # the question is not evidence. Asking about the president of France otherwise cited
+                # "Norfolk State University", which is worse than citing nothing.
+                web = [w for w in online.as_evidence(hits) if qw & _content_words(w["text"])]
+                if web:
+                    # web evidence sits after local evidence and shares the one [E1..] sequence, so the
+                    # grounding check in edge/rag.py keeps working unchanged
+                    used = used + web
+                    for i, c in enumerate(used, 1):
+                        c["key"] = f"E{i}"
+                        c.setdefault("overlap", [])
+                        c.setdefault("ids", [])
+                else:
+                    web_reason = "the internet returned nothing for this"
+
+        if intent:
+            out = {"answer": overview_answer, "grounded": bool(used), "mode": "overview",
+                   "model": None, "llm_ms": 0,
+                   "used": [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
+                             "title": None, "sources": [], "matched": []} for c in used]}
+        elif not used:
             # Say which of the two it is. "Nothing matched" and "this device could never know that" feel
             # identical from the outside but need different things from the person: one is a search that
             # missed, the other needs teaching or a source this device does not have.
@@ -1386,22 +1599,44 @@ class Device:
             # is whether a single stored record shares even one word with the question: none at all means
             # the subject is outside this device's world, rather than a search that just missed.
             searched_anything = any(c["overlap"] for c in cands)
-            answer = (
-                "I found nothing close enough to answer that. This device does hold records that touch on "
-                "some of those words, but none of them answer the question. Try naming the part, code or "
-                "symptom directly, or teach it."
-                if searched_anything else
-                "Nothing on this device relates to that at all. Everything here is searched offline, so a "
-                "question about the wider world would need an internet connection — or you can teach it "
-                "with “Teach it something” and it will remember.")
+            # Saying "that would need an internet connection" when the device HAS one, and simply was not
+            # allowed or able to use it, is the complaint this whole path exists to answer. Each reason
+            # gets its own sentence, because each one needs something different from the person.
+            why = {
+                "offline": "This device is offline, so it cannot look it up. Turn the network back on and "
+                           "ask again, or teach it with “Teach it something”.",
+                "set to this device only": "Ask is set to search this device only. Settings → Ask will let "
+                                           "it use the internet as well.",
+                "no web search configured": "No web search is configured on this device, so it cannot look "
+                                            "it up. Set EDGE_SEARCH_PROVIDER, or teach it.",
+                "the internet returned nothing for this": "I searched the internet too and found nothing "
+                                                          "that answers it.",
+            }.get(web_reason, "")
+            if searched_anything:
+                answer = ("I found nothing close enough to answer that. This device does hold records that "
+                          "touch on some of those words, but none of them answer the question. Try naming "
+                          "the part, code or symptom directly, or teach it.")
+            else:
+                answer = "Nothing on this device relates to that. " + (
+                    why or "I searched the internet too and found nothing that answers it.")
             out = {"answer": answer, "grounded": False, "mode": "no_evidence", "used": [],
-                   "model": None, "llm_ms": 0, "needs_internet": not searched_anything}
+                   "model": None, "llm_ms": 0, "web_reason": web_reason,
+                   # only a question outside this device's world needs the internet. A near miss - words
+                   # it does hold, about a thing it does not - is a search that missed, and no connection
+                   # would have helped.
+                   "needs_internet": (not searched_anything)
+                   and web_reason in ("offline", "set to this device only", "no web search configured")}
         else:
             texts = {c["key"]: c["text"] for c in used}
             # quoting the source verbatim is a fine answer, not a failure: the reference packs are already
             # written as prose and cite where they came from, so this says so plainly instead of apologising
-            template = ("From what this device holds:\n\n"
-                        + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used))
+            # The lead has to match where the lines actually came from. "From what this device holds"
+            # over a block of web snippets is the one sentence in the whole product that would be a lie.
+            kinds = {c["source"] for c in used}
+            lead = ("From the internet:" if kinds == {"web"} else
+                    "From this device, and from the internet:" if "web" in kinds else
+                    "From what this device holds:")
+            template = lead + "\n\n" + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used)
             if llm is not None and getattr(llm, "available", False):
                 # the recent turns go in as conversation, never as citable evidence, so a pronoun can be
                 # resolved without the model being able to cite its own earlier answer back as a source
@@ -1434,7 +1669,12 @@ class Device:
                     out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
             else:
                 out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
+            # Where the answer actually came from. The person is promised different things by "this
+            # device knows" and "the internet says", so the answer carries which it was rather than
+            # leaving the UI to guess from the evidence list.
+            out["sources"] = sorted({"web" if c["source"] == "web" else "device" for c in used})
             out["used"] = [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
+                            "url": c.get("url"),
                             "title": c.get("title"), "sources": c.get("sources") or [],
                             "matched": c["overlap"]} for c in used]
 
@@ -1454,6 +1694,10 @@ class Device:
                         if qw & _content_words(p.get("note_text", ""))][:3]
         except Exception:
             pics = []                              # a missing CLIP model must never break a text answer
+
+        out.setdefault("sources", ["device"] if out.get("used") else [])
+        out.setdefault("web_reason", web_reason)
+        out["retrieval_mode"] = self.retrieval_mode()
 
         self.remember(f"Q: {q}\nA: {out['answer']}", kind="chat")
         return {"question": q, **out, "pictures": pics,

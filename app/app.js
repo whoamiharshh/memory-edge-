@@ -40,15 +40,250 @@ async function api(path, body, method) {
   return d;
 }
 
+/* ══════════ theme ══════════ */
+/* Applied before anything renders, so the page never flashes light and then turns dark. "system" is
+   stored as the ABSENCE of data-theme, which is exactly what the CSS media query is guarded on. */
+const THEMES = ["light", "dark", "system"];
+function currentTheme() {
+  const t = localStorage.getItem("mm_theme");
+  return THEMES.includes(t) ? t : "light";
+}
+function applyTheme(t) {
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  document.querySelectorAll("#themeSeg .seg-btn").forEach(b =>
+    b.setAttribute("aria-checked", String(b.dataset.theme === t)));
+}
+function setTheme(t) {
+  if (!THEMES.includes(t)) return;
+  localStorage.setItem("mm_theme", t);
+  applyTheme(t);
+}
+applyTheme(currentTheme());
+
 /* ══════════ navigation ══════════ */
-const LOADERS = { memory: loadMemory, broadcast: loadBroadcast, devices: loadDevices,
-                  sync: loadSync, qdrant: renderQdrant };
-document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === btn));
-  const page = btn.dataset.page;
+const LOADERS = { memory: loadMemory, broadcast: loadBroadcast, devices: loadDevices, system: loadSystem,
+                  settings: loadSettings };
+function showPage(page) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.page === page));
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
+  $("settingsBtn").classList.toggle("active", page === "settings" || page === "system");
+  closeDrawer();
   LOADERS[page]?.();
-}));
+  document.body.classList.toggle("no-history", page !== "ask");
+}
+document.querySelectorAll(".tab").forEach(btn =>
+  btn.addEventListener("click", () => showPage(btn.dataset.page)));
+$("settingsBtn").addEventListener("click", () => showPage("settings"));
+$("openSystemBtn").addEventListener("click", () => showPage("system"));
+document.querySelectorAll("#themeSeg .seg-btn").forEach(b =>
+  b.addEventListener("click", () => setTheme(b.dataset.theme)));
+
+/* ══════════ history sidebar ══════════ */
+let activeSession = null;
+
+function sidebarTitle(c) {
+  return localStorage.getItem("mm_conv_title:" + c.session) || c.title || "Conversation";
+}
+function sidebarHidden() {
+  try { return new Set(JSON.parse(localStorage.getItem("mm_conv_hidden") || "[]")); } catch { return new Set(); }
+}
+function dateGroup(lastAt) {
+  if (!lastAt) return "Older";
+  const d = new Date(lastAt), now = new Date();
+  const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff <= 7) return "Previous 7 days";
+  if (diff <= 30) return "Previous 30 days";
+  return "Older";
+}
+function sideIcon(path) {
+  const icons = {
+    rename: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M9.5 1.8l2.7 2.7L5 11.7l-3.2.5.5-3.2z"/></svg>',
+    delete: '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 3.5h10M5.5 3V1.8h3V3M3.5 3.5l.6 8.7h5.8l.6-8.7"/></svg>',
+  };
+  return icons[path] || "";
+}
+
+async function loadConversations() {
+  const box = $("convList");
+  let rows = [];
+  try { rows = await api(DEV + "conversations?limit=50"); } catch (e) { return; }
+  const hidden = sidebarHidden();
+  const q = ($("histSearch").value || "").toLowerCase().trim();
+  rows = rows.filter(c => !hidden.has(c.session));
+  if (q) rows = rows.filter(c => sidebarTitle(c).toLowerCase().includes(q));
+  if (!rows.length) {
+    box.replaceChildren(el("div", { class: "hist-empty" }, q ? "Nothing matches that search." : "No conversations yet."));
+    return;
+  }
+  const groups = [];
+  for (const c of rows) {
+    const g = dateGroup(c.last_at);
+    let bucket = groups.find(x => x.name === g);
+    if (!bucket) { bucket = { name: g, items: [] }; groups.push(bucket); }
+    bucket.items.push(c);
+  }
+  box.replaceChildren(...groups.map(grp => el("div", { class: "hist-group-wrap" },
+    el("div", { class: "hist-group" }, grp.name),
+    ...grp.items.map(c => {
+      const item = el("div", { class: "hist-item" + (c.session === activeSession ? " on" : ""), title: sidebarTitle(c) },
+        el("div", { class: "hist-title" }, sidebarTitle(c)),
+        el("div", { class: "hist-meta" }, `${c.turns} message${c.turns === 1 ? "" : "s"}`),
+        el("span", { class: "hist-actions" },
+          el("button", { class: "hist-act", title: "Rename", on: { click: e => { e.stopPropagation(); openRename(c.session); } } }),
+          el("button", { class: "hist-act danger", title: "Remove from list", on: { click: e => { e.stopPropagation(); hideConversation(c.session); } } })));
+      item.querySelector(".hist-act").textContent = "✎";
+      item.querySelector(".hist-act.danger").textContent = "×";
+      item.addEventListener("click", () => openConversation(c.session, item));
+      return item;
+    }))));
+}
+
+async function openConversation(session, item) {
+  try {
+    const turns = await api(DEV + "conversations/" + session);
+    activeSession = session;
+    document.querySelectorAll(".hist-item").forEach(i => i.classList.remove("on"));
+    item?.classList.add("on");
+    const firstQ = turns.length ? (turns[0].note_text || "").replace(/^Q:\s*/, "").split("\n")[0] : "Conversation";
+    $("convTitle").textContent = turns.length ? sidebarTitle({ session, title: firstQ.slice(0, 70) }) : "Conversation";
+    const scroll = $("chatScroll");
+    scroll.replaceChildren();
+    turns.forEach(t => {
+      const m = /^Q:\s*([\s\S]*?)\nA:\s*([\s\S]*)$/.exec(t.note_text || "");
+      if (!m) return;
+      scroll.append(bubble("you", m[1].trim()));
+      scroll.append(bubble("bot", m[2].trim()));
+    });
+    scroll.append(el("div", { class: "replay-note" },
+      "You are looking at an earlier conversation. Ask something to start a new one."));
+    scroll.scrollTop = scroll.scrollHeight;
+    closeDrawer();
+  } catch (e) { toast(e.message, true); }
+}
+
+let renameTarget = null;
+function openRename(session) {
+  renameTarget = session;
+  $("renameInput").value = localStorage.getItem("mm_conv_title:" + session) || "";
+  $("renameModal").hidden = false;
+  $("renameInput").focus();
+}
+$("renameCancel").addEventListener("click", () => { $("renameModal").hidden = true; });
+$("renameModal").addEventListener("click", e => { if (e.target === $("renameModal")) $("renameModal").hidden = true; });
+$("renameSave").addEventListener("click", () => {
+  const v = $("renameInput").value.trim();
+  if (renameTarget && v) localStorage.setItem("mm_conv_title:" + renameTarget, v);
+  $("renameModal").hidden = true;
+  loadConversations();
+  if (activeSession === renameTarget && v) $("convTitle").textContent = v;
+});
+function hideConversation(session) {
+  const h = sidebarHidden(); h.add(session);
+  localStorage.setItem("mm_conv_hidden", JSON.stringify([...h]));
+  if (activeSession === session) { activeSession = null; $("convTitle").textContent = "New conversation"; }
+  loadConversations();
+  toast("Removed from the list. What is stored on the device stays.");
+}
+
+$("sideToggle").addEventListener("click", () => {
+  const open = document.body.classList.toggle("drawer-open");
+  $("drawerOverlay").hidden = !open;
+});
+function closeDrawer() { document.body.classList.remove("drawer-open"); $("drawerOverlay").hidden = true; }
+$("drawerOverlay").addEventListener("click", closeDrawer);
+$("histSearch").addEventListener("input", () => loadConversations());
+$("memSearch").addEventListener("input", () => loadMemory());
+$("systemLink").addEventListener("click", () => showPage("system"));
+
+/* ══════════ settings ══════════ */
+/* The retrieval mode lives on the device, not in this browser: it decides whether a question may leave
+   the machine, so it has to hold for the phone and the technician's laptop alike, not per browser. */
+const MODE_LABEL = { local: "this device only", auto: "this device first, then the internet",
+                     online: "this device and the internet" };
+let retrieval = { mode: "auto", search: {} };
+
+async function loadSettings() {
+  applyTheme(currentTheme());
+  try {
+    retrieval = await api(DEV + "retrieval");
+  } catch { /* an unreachable device must not blank the page */ }
+  paintRetrieval();
+
+  const s = retrieval.search || {};
+  $("searchProviderNote").textContent = !s.enabled
+    ? "Web search is switched off on this device (EDGE_SEARCH_PROVIDER=none)."
+    : s.ready
+      ? `Web search uses ${s.provider}. No account or key is needed for it.`
+      : `Web search is set to ${s.provider}, but ${s.needs_key} is not set, so it cannot be used yet.`;
+
+  const rows = [["Connection", retrieval.online ? "online" : "offline (simulated)"],
+                ["Answers may use", MODE_LABEL[retrieval.mode] || retrieval.mode],
+                ["Web search", s.enabled ? `${s.provider}${s.ready ? "" : " (not configured)"}` : "off"]];
+  $("settingsSystem").replaceChildren(...rows.map(([k, v]) =>
+    el("div", { class: "set-row" }, el("span", {}, k), el("span", {}, v))));
+}
+
+function paintRetrieval() {
+  document.querySelectorAll("#retrievalChoices .choice").forEach(c =>
+    c.setAttribute("aria-checked", String(c.dataset.mode === retrieval.mode)));
+}
+
+document.querySelectorAll("#retrievalChoices .choice").forEach(c =>
+  c.addEventListener("click", async () => {
+    const was = retrieval.mode;
+    retrieval.mode = c.dataset.mode;
+    paintRetrieval();
+    try {
+      retrieval = await api(DEV + "retrieval", { mode: c.dataset.mode });
+      toast(`Ask now uses ${MODE_LABEL[retrieval.mode]}.`);
+      loadSettings();
+    } catch {
+      retrieval.mode = was;                        // the device refused it: do not leave the UI lying
+      paintRetrieval();
+      toast("Could not change that setting.");
+    }
+  }));
+
+/* ══════════ evidence panel ══════════ */
+const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet", reference: "reference pack", web: "from the internet" };
+function showEvidence(used) {
+  const panel = $("ctxPanel");
+  if (!used?.length) { panel.hidden = true; $("ctxToggle").hidden = true; return; }
+  $("ctxToggle").hidden = false;
+  const web = used.filter(u => u.source === "web").length;
+  $("ctxCount").textContent = web === used.length ? `${web} web source${web === 1 ? "" : "s"}`
+    : web ? `${used.length} sources, ${web} from the web`
+    : `${used.length} memor${used.length === 1 ? "y" : "ies"}`;
+  $("ctxBody").replaceChildren(...used.map(u => {
+    const item = el("div", { class: "ctx-item" },
+      el("span", { class: "src-key" }, u.key),
+      el("div", { class: "src-where" + (u.source === "web" ? " src-web" : "") },
+         WHERE[u.source] || u.source || ""),
+      el("div", { class: "ctx-text" }, u.title || u.text || ""));
+    // a web source is only checkable if you can open it, so the link is part of the evidence
+    if (u.url) {
+      const a = el("a", { class: "ctx-link" }, u.url);
+      a.href = u.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      item.append(a);
+    }
+    return item;
+  }));
+  panel.hidden = !document.body.classList.contains("ctx-open");
+}
+$("ctxToggle").addEventListener("click", () => {
+  document.body.classList.add("ctx-open");
+  $("ctxPanel").hidden = false;
+  document.querySelector(".ask-shell").classList.add("has-ctx");
+});
+$("ctxClose").addEventListener("click", () => {
+  document.body.classList.remove("ctx-open");
+  $("ctxPanel").hidden = true;
+  document.querySelector(".ask-shell").classList.remove("has-ctx");
+});
 
 /* ══════════ chat ══════════ */
 const SUGGESTIONS = [
@@ -103,15 +338,25 @@ function sourcesBlock(used) {
 let busy = false;
 let lastRetrieval = null;
 
+function setDogState(state) {
+  const b = $("askBtn");
+  b.classList.toggle("processing", state === "processing");
+  b.querySelector(".send-stop").hidden = state !== "processing";
+  b.disabled = state === "processing";
+}
+
 async function send() {
   const q = $("askInput").value.trim();
   if (!q || busy) return;
   busy = true;
-  $("askBtn").disabled = true;
+  setDogState("processing");
+  $("composerNote").textContent = "retrieving memories…";
   $("welcome")?.remove();
   const scroll = $("chatScroll");
   scroll.append(bubble("you", q));
   $("askInput").value = "";
+  autosize();
+  if (!activeSession) $("convTitle").textContent = q.slice(0, 60) + (q.length > 60 ? "…" : "");
 
   const thinking = el("div", { class: "turn bot" },
     el("div", { class: "bubble" }, el("div", { class: "typing" },
@@ -132,26 +377,47 @@ async function send() {
       b.querySelector(".bubble").append(act);
     }
     scroll.append(b);
+    showEvidence(r.used);
+    renderQdrant(lastRetrieval);
+    // "answered on the device" is a promise about where the question went. Once a question can leave
+    // the device, saying that unconditionally would be false, so the line follows what actually happened.
+    const src = r.sources || [];
+    const origin = src.includes("web") && src.includes("device") ? "answered from this device and the internet"
+      : src.includes("web") ? "answered using the internet"
+      : "answered on the device";
     $("composerNote").textContent =
-      `${r.latency_ms} ms · answered on the device` + (r.mode === "llm" ? " · local model" : "");
+      `${r.latency_ms} ms · ${origin}` + (r.mode === "llm" ? " · local model" : "");
+    loadConversations();
   } catch (e) {
     thinking.remove();
     scroll.append(bubble("bot", "Something went wrong: " + e.message));
+    $("composerNote").textContent = "";
   } finally {
     busy = false;
-    $("askBtn").disabled = false;
+    setDogState("idle");
     scroll.scrollTop = scroll.scrollHeight;
     $("askInput").focus();
   }
 }
 
+function autosize() {
+  const t = $("askInput");
+  t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight, 180) + "px";
+}
+$("askInput").addEventListener("input", autosize);
+
 $("askBtn").addEventListener("click", send);
-$("askInput").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+$("askInput").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
 
 $("clearChat").addEventListener("click", async () => {
   try {
     await api(DEV + "memory/chat", undefined, "DELETE");
+    activeSession = null;
     $("chatScroll").replaceChildren();
+    $("convTitle").textContent = "New conversation";
     buildWelcome();
     loadConversations();
     toast("Started a new conversation. The earlier one is saved.");
@@ -160,8 +426,9 @@ $("clearChat").addEventListener("click", async () => {
 
 function buildWelcome() {
   const w = el("div", { class: "welcome", id: "welcome" },
-    el("h1", { class: "hero-title" }, "Ask this device anything"),
-    el("p", { class: "hero-sub" }, "It answers from what it remembers — and says so plainly when it has nothing."),
+    el("div", { class: "hero-mark" }),
+    el("h1", { class: "hero-title" }, "What do you want to remember?"),
+    el("p", { class: "hero-sub" }, "Ask anything about your memories, devices, conversations or evidence."),
     el("div", { class: "chips", id: "chips" }));
   $("chatScroll").append(w);
   buildChips();
@@ -289,96 +556,45 @@ $("pullShared")?.addEventListener("click", async () => {
   finally { btn.disabled = false; }
 });
 
-/* ══════════ conversation history ══════════ */
-async function loadConversations() {
-  try {
-    const rows = await api(DEV + "conversations?limit=30");
-    const box = $("convList");
-    if (!rows.length) {
-      box.replaceChildren(el("div", { class: "empty" }, "No past conversations."));
-      return;
-    }
-    box.replaceChildren(...rows.map(c => {
-      const item = el("button", { class: "side-item" },
-        el("div", { class: "side-title" }, c.title || "Conversation"),
-        el("div", { class: "side-meta" },
-          `${c.turns} message${c.turns === 1 ? "" : "s"} · ${clock(c.last_at)}`));
-      item.addEventListener("click", () => openConversation(c.session, item));
-      return item;
-    }));
-  } catch (e) { /* history simply stays empty */ }
-}
+/* (history sidebar lives near the top of this file; this section intentionally removed) */
 
-async function openConversation(session, item) {
-  try {
-    const turns = await api(DEV + "conversations/" + session);
-    document.querySelectorAll(".side-item").forEach(i => i.classList.remove("on"));
-    item?.classList.add("on");
-    const scroll = $("chatScroll");
-    scroll.replaceChildren();
-    turns.forEach(t => {
-      const m = /^Q:\s*([\s\S]*?)\nA:\s*([\s\S]*)$/.exec(t.note_text || "");
-      if (!m) return;
-      scroll.append(bubble("you", m[1].trim()));
-      scroll.append(bubble("bot", m[2].trim()));
-    });
-    scroll.append(el("div", { class: "replay-note" },
-      "You are looking at an earlier conversation. Ask something to start a new one."));
-    scroll.scrollTop = scroll.scrollHeight;
-  } catch (e) { toast(e.message, true); }
-}
+// Starting a new conversation from the sidebar has to take you to it. Pressed from Memory or Settings it
+// used to start one on a page that cannot show it, so nothing appeared to happen.
+$("newChat").addEventListener("click", () => { showPage("ask"); $("clearChat").click(); });
 
-$("newChat").addEventListener("click", () => $("clearChat").click());
-
-/* ══════════ qdrant inspector ══════════ */
-function renderQdrant() {
-  const box = $("qdrantBody");
-  if (!lastRetrieval) {
-    box.replaceChildren(el("div", { class: "empty" }, "Ask something first, then come back here."));
-    return;
-  }
-  const r = lastRetrieval;
-  box.replaceChildren();
-
-  box.append(el("div", { class: "q-hero" },
-    el("div", { class: "q-stat" }, el("b", {}, String(r.total_points)), el("span", {}, "vectors searched")),
-    el("div", { class: "q-stat" }, el("b", {}, r.search_ms + " ms"), el("span", {}, "on this device")),
-    el("div", { class: "q-stat" }, el("b", {}, String(r.kept_sources.length)),
-      el("span", {}, "source(s) used"))));
-
-  box.append(el("div", { class: "panel" },
-    el("h2", {}, "The question Qdrant was given"),
-    el("div", { class: "q-query" }, r.query_sent),
-    r.follow_up ? el("p", { class: "hint", style: "margin-top:8px" },
-      "This was a follow-up, so the subject of the previous question was added before searching.") : null,
-    el("p", { class: "hint", style: "margin:8px 0 0" }, "Searched in: " + r.where)));
-
-  const rows = r.searched.map(sc => el("tr", {},
+/* ══════════ qdrant inspector + sync → System page ══════════ */
+function renderQdrant(r = lastRetrieval) {
+  if (!r) return;   // the panels keep their "ask something first" placeholders
+  $("qVectors").textContent = String(r.total_points);
+  $("qMs").textContent = r.search_ms + " ms";
+  $("qSources").textContent = String((r.kept_sources || []).length);
+  $("qQuery").textContent = r.query_sent;
+  $("qFollow").hidden = !r.follow_up;
+  $("qWhere").textContent = "Searched in: " + r.where;
+  $("qSearched").replaceChildren(...(r.searched || []).map(sc => el("tr", {},
     el("td", {}, sc.label),
     el("td", { class: "num" }, sc.stored == null ? "—" : String(sc.stored)),
     el("td", { class: "num" }, String(sc.returned)),
-    el("td", { class: "num " + (sc.kept ? "w" : "") }, String(sc.kept))));
-  box.append(el("div", { class: "panel" },
-    el("h2", {}, "Where it looked"),
-    el("p", { class: "hint" }, "Every one of these is a filtered query against the same Qdrant Edge shard."),
-    el("table", { class: "tally" },
-      el("thead", {}, el("tr", {}, el("th", {}, "Kind of memory"), el("th", {}, "Stored"),
-        el("th", {}, "Returned"), el("th", {}, "Used in the answer"))),
-      el("tbody", {}, ...rows))));
-
-  const vrows = r.vectors.map(v => el("tr", {},
+    el("td", { class: "num " + (sc.kept ? "w" : "") }, String(sc.kept)))));
+  $("qFusion").textContent = r.fusion || "";
+  $("qVectorsBody").replaceChildren(...(r.vectors || []).map(v => el("tr", {},
     el("td", {}, el("code", {}, v.name)),
     el("td", {}, v.kind),
     el("td", { class: "num" }, v.dim == null ? "sparse" : String(v.dim)),
     el("td", {}, v.model || "—"),
-    el("td", {}, el("span", { class: "badge " + (v.used ? "ok" : "mut") }, v.used ? "compared" : "not used"))));
-  box.append(el("div", { class: "panel" },
-    el("h2", {}, "Vectors compared"),
-    el("p", { class: "hint" }, r.fusion),
-    el("table", { class: "tally" },
-      el("thead", {}, el("tr", {}, el("th", {}, "Vector"), el("th", {}, "What it holds"),
-        el("th", {}, "Size"), el("th", {}, "Made by"), el("th", {}, ""))),
-      el("tbody", {}, ...vrows))));
+    el("td", {}, el("span", { class: "badge " + (v.used ? "ok" : "mut") }, v.used ? "compared" : "not used")))));
+}
+
+let sysTab = "qdrant";
+document.querySelectorAll("#sysSeg .seg-btn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#sysSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+  sysTab = b.dataset.sys;
+  $("sys-qdrant").hidden = sysTab !== "qdrant";
+  $("sys-sync").hidden = sysTab !== "sync";
+  if (sysTab === "sync") loadSync();
+}));
+function loadSystem() {
+  if (sysTab === "sync") loadSync();
 }
 
 /* ══════════ photos ══════════ */
@@ -561,9 +777,17 @@ async function loadMemory() {
     })),
   ];
 
-  if (!rows.length) {
+  // Filtering happens here rather than on the device: everything on this screen has already been
+  // fetched, and a round trip per keystroke would make typing feel slower than reading.
+  const needle = ($("memSearch").value || "").trim().toLowerCase();
+  const shown = needle
+    ? rows.filter(r => `${r.title} ${r.sub} ${r.text}`.toLowerCase().includes(needle))
+    : rows;
+
+  if (!shown.length) {
     list.replaceChildren(el("div", { class: "empty" },
-      memFilter === "fact" ? "Nothing added yet. Use “Add to memory”."
+      needle ? `Nothing here matches “${needle}”.`
+      : memFilter === "fact" ? "Nothing added yet. Use “Add to memory”."
       : memFilter === "shared" ? "Nothing has been shared with this device yet."
       : "Nothing recorded yet."));
     $("memDetail").replaceChildren(el("div", { class: "empty" }, "Select an item to see it."));
@@ -572,7 +796,7 @@ async function loadMemory() {
 
   const TAG = { fact: ["you", "info"], shared: ["shared", "ok"], picture: ["photo", "warn"],
                 chat: ["chat", "info"], record: ["noticed", "mut"] };
-  list.replaceChildren(...rows.map(r => {
+  list.replaceChildren(...shown.map(r => {
     const [label, cls] = TAG[r.key];
     const item = el("div", { class: "mitem" + (memSel === r.id ? " sel" : "") },
       el("div", { class: "mi-top" },
@@ -672,6 +896,26 @@ async function showRecord(eid) {
       box.append(el("div", { class: "dsec" },
         el("h3", {}, "Note"),
         el("div", { style: "font-size:14px;line-height:1.65" }, ep.note_text)));
+    }
+
+    // Everything an engineer may want and nobody else should have to look at. Collapsed, so the page
+    // leads with what happened rather than with defect-frequency names and vector-store internals.
+    const tech = [
+      ["Fault class suggested by physics", (ep.fault_hint || {}).fault_class],
+      ["Why", (ep.fault_hint || {}).why],
+      ["Measured accuracy of that hint", (ep.fault_hint || {}).measured_accuracy != null
+        ? `${Math.round((ep.fault_hint || {}).measured_accuracy * 100)}% for this class` : null],
+      ["Signal profile", ep.profile],
+      ["Machine", ep.machine_id],
+      ["Episode id", ep.episode_id],
+      ["Sensor verdict", (vf.verdict || "").replace(/_/g, " ") || null],
+    ].filter(([, v]) => v != null && v !== "");
+    if (tech.length) {
+      const d = el("details", { class: "sources" });
+      d.append(el("summary", {}, "Technical details"),
+               el("div", { class: "kv-list" }, ...tech.map(([k, v]) =>
+                 el("div", { class: "kv-row" }, el("span", {}, k), el("b", {}, String(v))))));
+      box.append(d);
     }
 
     const dec = ep.decision || {};

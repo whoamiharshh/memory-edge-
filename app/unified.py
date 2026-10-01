@@ -76,7 +76,10 @@ async def _proxy(url: str, request: Request, extra_headers: dict) -> JSONRespons
     qs = str(request.url.query)
     if qs:
         url = f"{url}?{qs}"
-    async with httpx.AsyncClient(timeout=30) as client:
+    # Generous, because the slowest call behind this proxy is the first Ask after a start: it loads a
+    # 1.1 GB model from disk and may also be waiting on a web search. 30s timed that out and the browser
+    # saw a bare 500. Everything here is a loopback call to our own process, so a long read is harmless.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=5.0)) as client:
         try:
             resp = await client.request(request.method, url, content=body if body else None, headers=headers)
         except httpx.ConnectError:

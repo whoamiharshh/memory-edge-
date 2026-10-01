@@ -181,6 +181,10 @@ class NetBody(BaseModel):
     online: bool
 
 
+class RetrievalBody(BaseModel):
+    mode: str = Field(pattern="^(local|auto|online)$")
+
+
 class ReplayBody(BaseModel):
     fid: int
     n: int | None = Field(default=None, ge=1, le=5000)
@@ -524,6 +528,15 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
         answering from records that do not match the question.
         """
         return guard(lambda: device.ask(b.text, llm, b.use_fleet, b.limit))
+
+    @app.get("/api/retrieval", dependencies=[api])
+    def retrieval():
+        """How far Ask may reach, and whether web search is actually usable right now."""
+        return device.retrieval_status()
+
+    @app.post("/api/retrieval", dependencies=[api])
+    def set_retrieval(b: RetrievalBody):
+        return guard(lambda: device.set_retrieval_mode(b.mode))
 
     @app.get("/api/procedures", dependencies=[api])
     def procedures(fault_class: str | None = None, episode_id: str | None = None):

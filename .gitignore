@@ -1,4 +1,5 @@
 .venv/
+.venv-*/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -23,3 +24,6 @@ package-lock.json
 .vscode/
 # runtime marker written by the launcher
 .qdrant-initialized
+
+# browser-automation scratch output (screenshots, page snapshots)
+.playwright-mcp/

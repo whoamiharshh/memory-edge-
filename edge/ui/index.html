@@ -2,213 +2,498 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Machine Memory · Edge</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/style.css">
-<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Edge Memory</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#2563EB">
+<link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
-<div id="login" class="overlay" hidden>
-  <form class="login" id="loginForm">
-    <h1>Operator sign-in</h1>
-    <p class="muted">This device holds raw technician notes. Enter the operator token printed when the device started.</p>
-    <div class="row"><input id="tok" type="password" placeholder="operator token" style="flex:1" autocomplete="current-password"></div>
-    <div class="row"><button class="primary" type="submit">Sign in</button><span id="loginErr" class="muted"></span></div>
-  </form>
+
+<!-- SETTINGS PANEL -->
+<div id="settingsOverlay" class="settings-overlay" hidden></div>
+<div id="settingsPanel" class="settings-panel" hidden>
+  <div class="settings-inner">
+    <div class="settings-hdr">
+      <span class="settings-title">System</span>
+      <button class="icon-btn" id="settingsClose" aria-label="Close">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Appearance</div>
+      <div class="appearance-row">
+        <button class="theme-opt" data-theme="light">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.4"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.9 11.9l1.05 1.05M3.05 12.95l1.06-1.06M11.9 4.1l1.05-1.06" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Light
+        </button>
+        <button class="theme-opt" data-theme="dark">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 10.3A6 6 0 0 1 5.7 2a6 6 0 1 0 8.3 8.3z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Dark
+        </button>
+        <button class="theme-opt active" data-theme="system">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 14.5h5M8 11.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          System
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Device</div>
+      <div class="settings-row"><span class="text-muted">device</span><b id="hDev">–</b></div>
+      <div class="settings-row"><span class="text-muted">site</span><b id="hSite">–</b></div>
+      <div class="settings-row"><span class="text-muted">machine</span><b id="hMach">–</b></div>
+      <div class="settings-row"><span class="text-muted">embedder</span><b id="hModel">–</b></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Sync &amp; Network</div>
+      <div class="sync-kpis">
+        <div class="sync-kpi"><div class="sync-v" id="oQ">0</div><div class="sync-l">queued</div></div>
+        <div class="sync-kpi"><div class="sync-v" id="oS">0</div><div class="sync-l">synced</div></div>
+        <div class="sync-kpi"><div class="sync-v" id="oF">0</div><div class="sync-l">retrying</div></div>
+        <div class="sync-kpi"><div class="sync-v" id="oR">0</div><div class="sync-l">rejected</div></div>
+      </div>
+      <div class="settings-row"><span class="text-muted">bytes sent</span><b class="mono" id="bSent">0</b></div>
+      <div class="settings-row"><span class="text-muted">raw kept local</span><b class="mono" id="bRaw">0</b></div>
+      <div class="settings-row"><span class="text-muted">last push</span><span class="mono" id="lPush">–</span></div>
+      <div class="settings-row"><span class="text-muted">last pull</span><span class="mono" id="lPull">–</span></div>
+      <div class="settings-row" style="align-items:flex-start"><span class="text-muted">mirror</span><span class="mono text-sm" id="mMode" style="text-align:right">–</span></div>
+      <div id="syncErr" class="text-muted text-sm"></div>
+      <div id="clockWarn" class="text-muted text-sm"></div>
+      <div class="settings-actions">
+        <label class="switch" id="netSwitch" title="Simulated network partition"><span class="track"></span><span id="netLabel">network</span></label>
+        <button class="btn-outline btn-sm" id="syncNow">Sync now</button>
+      </div>
+      <div class="ctrl-row" style="margin-top:8px">
+        <input id="devTok" type="password" placeholder="New device token" class="flex-input">
+        <button class="btn-outline btn-sm" id="setTok">Set</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Qdrant Edge</div>
+      <div class="settings-row"><span class="text-muted">local points</span><b id="pts">0</b></div>
+      <div class="settings-row"><span class="text-muted">fleet cases (mirror)</span><b id="mC">0</b></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Live signal replay</div>
+      <canvas id="chart" width="800" height="120"></canvas>
+      <div class="kpis-mini">
+        <div class="kpi-mini"><span class="kpi-v" id="kState">–</span><span class="kpi-l">gate</span></div>
+        <div class="kpi-mini"><span class="kpi-v" id="kWin">0</span><span class="kpi-l">windows</span></div>
+        <div class="kpi-mini"><span class="kpi-v" id="kNorm">0</span><span class="kpi-l">normal</span></div>
+        <div class="kpi-mini"><span class="kpi-v" id="kNew">0</span><span class="kpi-l">new</span></div>
+        <div class="kpi-mini"><span class="kpi-v" id="kGate">–</span><span class="kpi-l">p50/p95 ms</span></div>
+        <div class="kpi-mini"><span class="kpi-v" id="kTau">–</span><span class="kpi-l">radius</span></div>
+      </div>
+      <div class="replay-controls">
+        <button class="btn-outline btn-sm" id="fitBtn">Fit baseline</button>
+        <select id="fileSel" class="select-ctrl" style="min-width:180px"></select>
+        <label class="text-muted text-sm">windows <input id="nWin" type="number" min="1" max="500" value="40" class="num-input"></label>
+        <label class="text-muted text-sm">interval <input id="ivl" type="number" step="0.05" min="0" max="2" value="0.15" class="num-input"></label>
+        <button class="btn-primary btn-sm" id="playBtn">Play</button>
+        <button class="btn-outline btn-sm" id="stopBtn">Stop</button>
+      </div>
+      <div class="progress-row">
+        <div class="progress-bar"><div id="replayBar" style="width:0%"></div></div>
+        <span class="text-muted mono text-sm" id="replayTxt">idle</span>
+      </div>
+    </div>
+  </div>
 </div>
 
-<header>
-  <div class="brand">Machine Memory <span>· Edge</span></div>
-  <span class="chip">device <b id="hDev">–</b></span>
-  <span class="chip">site <b id="hSite">–</b></span>
-  <span class="chip">machine <b id="hMach">–</b></span>
-  <span class="chip" id="hModel">–</span>
-  <div class="spacer"></div>
-  <span id="hSync" class="badge b-mute">sync –</span>
-  <label class="switch" id="netSwitch" title="Simulated network partition"><span class="track"></span><span id="netLabel">network</span></label>
-  <button class="ghost" id="logout" title="Sign out">Sign out</button>
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect width="24" height="24" rx="7" fill="var(--accent)"/>
+      <circle cx="12" cy="11" r="4" fill="white" opacity="0.9"/>
+      <ellipse cx="8" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(-15 8 7)"/>
+      <ellipse cx="16" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(15 16 7)"/>
+      <circle cx="10.5" cy="11" r="1" fill="var(--accent)"/>
+      <circle cx="13.5" cy="11" r="1" fill="var(--accent)"/>
+      <ellipse cx="12" cy="13.5" rx="1.7" ry="1" fill="var(--accent)" opacity="0.65"/>
+    </svg>
+    <span class="brand-text">Edge Memory</span>
+  </div>
+  <nav class="primary-nav">
+    <button class="nav-btn active" data-tab="ask">Ask</button>
+    <button class="nav-btn" data-tab="memory">Memory</button>
+    <button class="nav-btn" data-tab="broadcast">Broadcast</button>
+    <button class="nav-btn" data-tab="devices">Devices</button>
+  </nav>
+  <div class="header-end">
+    <span id="hSync" class="status-pill">sync –</span>
+    <button class="icon-btn" id="settingsBtn" aria-label="System settings">
+      <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M9 11.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z" stroke="currentColor" stroke-width="1.4"/><path d="M9 1.5v1.5M9 15v1.5M1.5 9H3M15 9h1.5M3.17 3.17l1.06 1.06M13.77 13.77l1.06 1.06M3.17 14.83l1.06-1.06M13.77 4.23l1.06-1.06" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+    <button class="btn-ghost" id="logout" hidden>Sign out</button>
+  </div>
 </header>
 
-<main>
-  <section class="card s8">
-    <h2>Live vibration monitor <span class="hint muted">distance of each window to this machine's healthy baseline (z-units)</span></h2>
-    <canvas id="chart" width="1000" height="190"></canvas>
-    <div class="kpis">
-      <div class="kpi"><div class="v" id="kState">–</div><div class="l">gate state</div></div>
-      <div class="kpi"><div class="v" id="kWin">0</div><div class="l">windows</div></div>
-      <div class="kpi"><div class="v" id="kNorm">0</div><div class="l">normal (not stored)</div></div>
-      <div class="kpi"><div class="v" id="kNew">0</div><div class="l">new episodes</div></div>
-      <div class="kpi"><div class="v" id="kGate">–</div><div class="l">gate p50 / p95 ms</div></div>
-      <div class="kpi"><div class="v" id="kTau">–</div><div class="l">radius normal / merge</div></div>
-    </div>
-    <div class="section">
-      <h3>Signal source <span class="muted" style="text-transform:none">replay of real CWRU recordings, as if streamed from the sensor</span></h3>
-      <div class="row">
-        <button id="fitBtn">Fit healthy baseline</button>
-        <select id="fileSel" style="min-width:260px"></select>
-        <label class="muted">windows <input id="nWin" type="number" min="1" max="500" value="40" style="width:70px"></label>
-        <label class="muted">interval s <input id="ivl" type="number" step="0.05" min="0" max="2" value="0.15" style="width:70px"></label>
-        <button class="primary" id="playBtn">Play</button><button id="stopBtn">Stop</button>
-      </div>
-      <div class="row"><div class="bar" style="flex:1"><div id="replayBar" style="width:0%"></div></div><span class="muted mono" id="replayTxt">idle</span></div>
-    </div>
-  </section>
+<main class="app-main" id="appMain">
 
-  <section class="card s4">
-    <h2>Sync &amp; network</h2>
-    <div class="kpis" style="margin-top:0">
-      <div class="kpi"><div class="v" id="oQ">0</div><div class="l">queued</div></div>
-      <div class="kpi"><div class="v" id="oS">0</div><div class="l">synced</div></div>
-      <div class="kpi"><div class="v" id="oF">0</div><div class="l">failed / retrying</div></div>
-      <div class="kpi"><div class="v" id="oR">0</div><div class="l">rejected</div></div>
-      <div class="kpi"><div class="v" id="mC">0</div><div class="l">fleet cases (mirror)</div></div>
-      <div class="kpi"><div class="v" id="pts">0</div><div class="l">local points</div></div>
-    </div>
-    <div class="section">
-      <div class="row"><span class="muted">bytes sent</span><b class="mono" id="bSent">0</b><span class="muted">· raw signal kept local</span><b class="mono" id="bRaw">0</b></div>
-      <div class="row"><span class="muted">last push</span><span class="mono" id="lPush">–</span><span class="muted">last pull</span><span class="mono" id="lPull">–</span></div>
-      <div class="row"><span class="muted">mirror</span><span class="mono" id="mMode">–</span></div>
-      <div class="row"><span id="syncErr" class="muted"></span></div>
-      <div class="row"><span id="clockWarn" class="muted"></span></div>
-      <div class="row"><button id="syncNow">Sync now</button><input id="devTok" type="password" placeholder="new device token" style="flex:1"><button id="setTok">Set token</button></div>
-    </div>
-  </section>
+  <!-- ASK TAB -->
+  <div id="tabAsk" class="tab-panel active">
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
 
-  <section class="card s4">
-    <h2>Episodes <span class="hint muted" id="epCount"></span></h2>
-    <div class="list" id="epList"><div class="empty">No episodes yet. Fit the baseline, then replay a fault file.</div></div>
-  </section>
+    <div class="ask-layout" id="askLayout">
 
-  <section class="card s8" id="detailCard">
-    <h2>Episode <span class="hint mono muted" id="dId"></span></h2>
-    <div id="detailEmpty" class="empty">Select an episode.</div>
-    <div id="detail" hidden>
-      <div class="row" id="dBadges"></div>
-      <div id="dOp" class="warnbox" hidden></div>
-      <div class="row muted" id="dMeta"></div>
-      <div class="grid2">
-        <div>
-          <div class="section">
-            <h3>Fault class</h3>
-            <div id="dHint" class="muted"></div>
-            <div class="row"><select id="fcSel"></select><select id="dmSel" title="What you SAW on the removed part (ISO 15243)"></select><button id="fcBtn">Confirm fault class</button></div>
+      <!-- LEFT: History sidebar -->
+      <aside class="ask-sidebar" id="askSidebar">
+        <div class="sidebar-inner">
+          <div class="sidebar-brand-row">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect width="24" height="24" rx="7" fill="var(--accent)"/>
+              <circle cx="12" cy="11" r="4" fill="white" opacity="0.9"/>
+              <ellipse cx="8" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(-15 8 7)"/>
+              <ellipse cx="16" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(15 16 7)"/>
+            </svg>
+            <span class="sidebar-brand-text">Edge Memory</span>
+            <button class="icon-btn sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Close sidebar">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M9 1L3 7l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
-          <div class="section" id="dPhysBox" hidden>
-            <h3>Physics <span class="hint muted">computed from the signal · deterministic</span></h3>
-            <div id="dPhys" class="muted"></div>
+          <button class="sidebar-new-btn" id="newConvBtn">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            New Ask
+          </button>
+          <div class="sidebar-convs" id="sidebarConvs">
+            <div class="sidebar-empty">Start your first conversation.</div>
           </div>
-          <div class="section">
-            <h3>Documented procedures <span class="hint muted">reference checklists with sources · follow the manufacturer's manual</span></h3>
-            <div id="dProc" class="muted">confirm or get a fault class to see procedures</div>
-            <details id="addProc">
-              <summary>Add a procedure from this machine's manual or your site SOP</summary>
-              <div class="row"><input id="pTitle" placeholder="title, e.g. Pump P-12 bearing change" style="flex:1" maxlength="120"></div>
-              <div class="row"><select id="pFault"></select><select id="pComp"></select></div>
-              <textarea id="pConfirm" rows="2" placeholder="confirm first (one per line, optional)" style="width:100%"></textarea>
-              <textarea id="pSteps" rows="4" placeholder="steps (one per line)" style="width:100%"></textarea>
-              <div class="row"><input id="pSource" placeholder="source: the manual / SOP it follows (required)" style="flex:1" maxlength="160">
-                <button id="pSave">Save procedure</button></div>
-            </details>
-          </div>
-          <div class="section">
-            <h3>From this machine's manuals <span class="hint muted">the manufacturer's own words, with page numbers</span></h3>
-            <div id="dMan" class="muted">no manuals indexed (add one under Machine card)</div>
-          </div>
-          <div class="section">
-            <h3>Technician note <span class="muted" style="text-transform:none">(raw note never leaves the device)</span></h3>
-            <textarea id="noteTxt" maxlength="2000" placeholder="What did you see? What did you do?"></textarea>
-            <div class="row"><label><input type="checkbox" id="noteOpt"> share a redacted copy if it contains no personal data</label><button id="noteBtn">Save note</button></div>
+          <div class="sidebar-footer">
+            <button class="sidebar-footer-btn" id="sidebarSettingsBtn">
+              <svg width="13" height="13" viewBox="0 0 18 18" fill="none"><path d="M9 11.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z" stroke="currentColor" stroke-width="1.4"/><path d="M9 1.5v1.5M9 15v1.5M1.5 9H3M15 9h1.5M3.17 3.17l1.06 1.06M13.77 13.77l1.06 1.06M3.17 14.83l1.06-1.06M13.77 4.23l1.06-1.06" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Settings
+            </button>
           </div>
         </div>
-        <div>
-          <div class="section">
-            <h3>Action</h3>
-            <div class="row"><select id="actSel"></select><select id="rcSel"></select></div>
-            <div class="row"><label class="muted">verify over <input id="reqWin" type="number" min="3" max="500" value="20" style="width:64px"> windows</label><button id="actBtn">Record action</button></div>
+      </aside>
+
+      <!-- CENTER: Conversation area -->
+      <div class="ask-conv-area">
+
+        <!-- Topbar: sidebar toggle + conversation title + sources toggle -->
+        <div class="ask-conv-topbar">
+          <button class="icon-btn sidebar-open-btn" id="sidebarOpenBtn" aria-label="Open history">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <span class="ask-conv-title" id="askConvTitle"></span>
+          <button class="icon-btn" id="showSourcesBtn" aria-label="Toggle sources panel" hidden title="Sources">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M4 5h4M4 8h4M4 11h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 5l3-3M14 2v4M10 2h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable messages area -->
+        <div class="ask-messages-scroll" id="askMessagesScroll">
+          <!-- Welcome / empty state -->
+          <div class="ask-empty-state" id="askEmptyState">
+            <div class="ask-empty-content">
+              <div class="ask-empty-icon" aria-hidden="true">
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                  <rect width="52" height="52" rx="16" fill="var(--accent-subtle)"/>
+                  <circle cx="26" cy="25" r="8.5" fill="var(--accent)" opacity="0.85"/>
+                  <ellipse cx="18" cy="16" rx="4" ry="5.8" fill="var(--accent)" opacity="0.5" transform="rotate(-18 18 16)"/>
+                  <ellipse cx="34" cy="16" rx="4" ry="5.8" fill="var(--accent)" opacity="0.5" transform="rotate(18 34 16)"/>
+                  <circle cx="22.5" cy="24" r="1.8" fill="white"/>
+                  <circle cx="29.5" cy="24" r="1.8" fill="white"/>
+                  <ellipse cx="26" cy="28.5" rx="3.5" ry="2.2" fill="white" opacity="0.65"/>
+                </svg>
+              </div>
+              <h2 class="ask-empty-title">What do you want to remember?</h2>
+              <p class="ask-empty-sub">Ask anything about your memories,<br>devices, conversations or evidence.</p>
+              <div class="ask-suggestions">
+                <button class="suggestion-chip">What has been tried for inner race faults?</button>
+                <button class="suggestion-chip">When did the last fault resolve?</button>
+                <button class="suggestion-chip">Show related bearing memories</button>
+                <button class="suggestion-chip">What evidence supports this repair?</button>
+              </div>
+              <span id="llmInfo"></span>
+            </div>
           </div>
-          <div class="section">
-            <h3>Outcome verification (sensor)</h3>
-            <div class="bar"><div id="vBar" style="width:0%"></div></div>
-            <div class="row"><span id="vTxt" class="muted">no action yet</span></div>
-            <div class="row"><span class="muted">Technician says:</span><button id="okBtn">Worked</button><button id="failBtn" class="danger">Failed</button></div>
-            <div class="row"><button id="normalBtn" title="A new load, speed or a re-mounted sensor: teach this state as healthy">Not a fault: normal operation</button>
-              <span class="muted">adds this state to the machine's healthy baseline; never shared</span></div>
+
+          <!-- Messages list -->
+          <div class="ask-messages-list" id="askMessagesList"></div>
+
+          <!-- Legacy briefOut kept in DOM (hidden) for internal render functions -->
+          <div id="briefOut" hidden></div>
+        </div>
+
+        <!-- Search drawer (collapsible, secondary) -->
+        <details class="ask-search-drawer" id="askSearchDrawer">
+          <summary class="ask-search-summary">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Search memory directly
+          </summary>
+          <div class="ask-search-section">
+            <div class="search-bar-wrap">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input id="q" type="text" placeholder="e.g. inner race spall, bearing noise after regrease" maxlength="500" class="search-input">
+              <button class="btn-primary" id="searchBtn">Search</button>
+              <button class="btn-outline" id="simBtn">Similar to selection</button>
+            </div>
+            <div class="search-info" id="sInfo"></div>
+            <div class="search-cols">
+              <div class="search-col"><span class="col-label">This machine</span><div id="sLocal"><div class="empty-state">Run a search to see results.</div></div></div>
+              <div class="search-col"><span class="col-label">Fleet evidence (mirror)</span><div id="sFleet"><div class="empty-state">Run a search to see results.</div></div></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Composer dock -->
+        <div class="ask-composer-dock">
+          <div class="ask-composer-v2" id="askComposer">
+            <textarea id="bq" class="ask-composer-textarea" rows="1" maxlength="300" placeholder="Ask Edge Memory anything…"></textarea>
+            <div class="ask-composer-row">
+              <label class="checkbox-chip"><input type="checkbox" id="useFleet" checked><span>Fleet mirror</span></label>
+              <div class="composer-right">
+                <span class="ask-composer-hint">Ctrl+Enter</span>
+                <button class="brief-send-btn" id="briefBtn" aria-label="Ask">
+                  <span class="dog-wrap" aria-hidden="true">
+                    <svg class="dog-send" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M16 9L2 3l3.5 6L2 15 16 9z" fill="currentColor"/></svg>
+                    <svg class="dog-body" width="26" height="26" viewBox="0 0 26 26" fill="none">
+                      <ellipse cx="7" cy="7" rx="3" ry="4.5" fill="currentColor" opacity="0.7" transform="rotate(-20 7 7)"/>
+                      <ellipse cx="19" cy="7" rx="3" ry="4.5" fill="currentColor" opacity="0.7" transform="rotate(20 19 7)"/>
+                      <circle cx="13" cy="15" r="6.3" stroke="currentColor" stroke-width="1.4" opacity="0.55"/>
+                      <circle cx="10.5" cy="14" r="1.4" fill="currentColor"/>
+                      <circle cx="15.5" cy="14" r="1.4" fill="currentColor"/>
+                      <ellipse cx="13" cy="17.5" rx="2.2" ry="1.4" fill="currentColor" opacity="0.6"/>
+                      <path class="dog-tail" d="M20.5 18.5 Q24 14 22 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.55"/>
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="ask-composer-disclaimer">Answers come from this device's memory. Evidence shown, no advice given.</p>
+        </div>
+
+      </div><!-- end .ask-conv-area -->
+
+      <!-- RIGHT: Sources / context panel -->
+      <aside class="ask-context-panel" id="contextPanel" hidden>
+        <div class="context-panel-hdr">
+          <span class="context-panel-title">Sources</span>
+          <button class="icon-btn" id="contextClose" aria-label="Close sources">
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="context-panel-body" id="contextBody"></div>
+      </aside>
+
+    </div><!-- end .ask-layout -->
+  </div>
+
+  <!-- MEMORY TAB -->
+  <div id="tabMemory" class="tab-panel" hidden>
+    <div class="memory-workspace">
+      <aside class="memory-list-pane">
+        <div class="pane-hdr">
+          <span class="pane-title">Episodes</span>
+          <span class="text-muted text-sm" id="epCount"></span>
+        </div>
+        <div class="memory-list-search">
+          <input type="text" id="epSearch" placeholder="Filter episodes…" class="memory-search-input">
+        </div>
+        <div class="list" id="epList">
+          <div class="empty-state">No episodes yet. Fit the baseline, then replay a fault file.</div>
+        </div>
+      </aside>
+
+      <div class="memory-detail-pane" id="detailCard">
+        <div id="detailEmpty" class="detail-empty-state">
+          <div class="detail-empty-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="14" width="32" height="26" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M16 26h16M16 32h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M18 14v-3a6 6 0 0 1 12 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <p class="detail-empty-title">No episode selected</p>
+          <p class="detail-empty-sub">Choose a fault episode from the list to inspect its fault class, procedures, outcome, and policy decision.</p>
+        </div>
+
+        <div id="detail" hidden>
+          <div class="ep-header">
+            <div class="ep-meta-row">
+              <div class="text-xmuted mono text-sm" id="dId"></div>
+              <div class="badge-row" id="dBadges"></div>
+            </div>
+            <div id="dOp" class="warnbox" hidden></div>
+            <div class="detail-meta" id="dMeta"></div>
+          </div>
+
+          <div class="detail-body">
+            <div class="detail-col">
+              <section class="detail-section">
+                <span class="section-label">Fault class</span>
+                <div id="dHint" class="hint-block"></div>
+                <div class="ctrl-row">
+                  <select id="fcSel" class="select-ctrl"></select>
+                  <select id="dmSel" class="select-ctrl" title="What you saw on the removed part (ISO 15243)"></select>
+                  <button class="btn-outline" id="fcBtn">Confirm</button>
+                </div>
+              </section>
+
+              <section class="detail-section">
+                <span class="section-label">Technician note <span class="text-xmuted" style="text-transform:none;font-weight:400;letter-spacing:0">raw note stays on this device</span></span>
+                <textarea id="noteTxt" maxlength="2000" placeholder="What did you see? What did you do?"></textarea>
+                <div class="ctrl-row" style="margin-top:6px">
+                  <label class="checkbox-label"><input type="checkbox" id="noteOpt"> share redacted copy if no personal data</label>
+                  <button class="btn-primary" id="noteBtn">Save note</button>
+                </div>
+              </section>
+
+              <details class="detail-section">
+                <summary>Procedures</summary>
+                <div id="dProc" class="text-muted text-sm" style="margin-top:8px">confirm or get a fault class to see procedures</div>
+                <details id="addProc" style="margin-top:8px">
+                  <summary style="font-size:12.5px;color:var(--text-muted)">Add a procedure from manual or site SOP</summary>
+                  <div class="form-stack">
+                    <input id="pTitle" placeholder="title" maxlength="120">
+                    <div class="ctrl-row"><select id="pFault" class="select-ctrl"></select><select id="pComp" class="select-ctrl"></select></div>
+                    <textarea id="pConfirm" rows="2" placeholder="confirm first (one per line, optional)"></textarea>
+                    <textarea id="pSteps" rows="4" placeholder="steps (one per line)"></textarea>
+                    <div class="ctrl-row">
+                      <input id="pSource" placeholder="source: manual / SOP title (required)" class="flex-input" maxlength="160">
+                      <button class="btn-primary" id="pSave">Save</button>
+                    </div>
+                  </div>
+                </details>
+              </details>
+
+              <details class="detail-section">
+                <summary>Manual references</summary>
+                <div id="dMan" class="text-muted text-sm" style="margin-top:8px">no manuals indexed</div>
+              </details>
+            </div>
+
+            <div class="detail-col">
+              <section class="detail-section">
+                <span class="section-label">Action</span>
+                <div class="ctrl-row">
+                  <select id="actSel" class="select-ctrl"></select>
+                  <select id="rcSel" class="select-ctrl"></select>
+                </div>
+                <div class="ctrl-row">
+                  <label class="text-muted text-sm">verify over <input id="reqWin" type="number" min="3" max="500" value="20" class="num-input"> windows</label>
+                  <button class="btn-primary" id="actBtn">Record action</button>
+                </div>
+              </section>
+
+              <section class="detail-section">
+                <span class="section-label">Outcome verification</span>
+                <div class="verify-bar"><div id="vBar" style="width:0%"></div></div>
+                <div class="verify-text" id="vTxt">no action yet</div>
+                <div class="ctrl-row">
+                  <button class="btn-ok" id="okBtn">Worked</button>
+                  <button class="btn-danger" id="failBtn">Failed</button>
+                </div>
+                <div class="ctrl-row" style="margin-top:6px">
+                  <button class="btn-outline" id="normalBtn">Not a fault: normal operation</button>
+                </div>
+              </section>
+
+              <details class="detail-section" id="dPhysBox" hidden>
+                <summary>Physics</summary>
+                <div id="dPhys" class="text-muted text-sm" style="margin-top:8px"></div>
+              </details>
+
+              <details class="detail-section">
+                <summary>Policy decision</summary>
+                <div style="margin-top:8px">
+                  <div class="badge-row" id="decBadge"></div>
+                  <ul class="gates" id="gates"></ul>
+                </div>
+              </details>
+            </div>
           </div>
         </div>
       </div>
-      <div class="section">
-        <h3>Policy decision <span class="muted" style="text-transform:none">deterministic gates · no AI in this decision</span></h3>
-        <div class="row" id="decBadge"></div>
-        <ul class="gates" id="gates"></ul>
+    </div>
+  </div>
+
+  <!-- BROADCAST TAB -->
+  <div id="tabBroadcast" class="tab-panel" hidden>
+    <div class="broadcast-workspace">
+      <div class="broadcast-main">
+        <div class="pane-hdr">
+          <span class="pane-title">Fleet Mirror</span>
+          <span class="text-muted text-sm">read-only · offline · cases shared from the fleet</span>
+        </div>
+        <div id="mirror" class="mirror-grid"></div>
       </div>
+      <aside class="broadcast-aside">
+        <section class="aside-section">
+          <div class="pane-hdr"><span class="pane-title">Outbox</span></div>
+          <div class="tablewrap">
+            <table><thead><tr><th>event</th><th>episode</th><th>status</th><th>tries</th><th>error</th><th></th></tr></thead><tbody id="obBody"></tbody></table>
+          </div>
+        </section>
+        <section class="aside-section" style="margin-top:16px">
+          <div class="pane-hdr"><span class="pane-title">Activity</span></div>
+          <div class="feed" id="feed"></div>
+        </section>
+      </aside>
     </div>
-  </section>
+  </div>
 
-  <section class="card s7">
-    <h2>Search memory <span class="hint muted">offline · hybrid: fingerprint + dense text + BM25, fused with RRF in one Qdrant Edge query</span></h2>
-    <div class="row">
-      <input id="q" type="text" placeholder="e.g. inner race spall, bearing noise after regrease" style="flex:1" maxlength="500">
-      <label class="muted"><input type="checkbox" id="useFleet" checked> fleet mirror</label>
-      <button class="primary" id="searchBtn">Search</button><button id="simBtn">Similar to selected episode</button>
+  <!-- DEVICES TAB -->
+  <div id="tabDevices" class="tab-panel" hidden>
+    <div class="devices-workspace">
+      <section class="device-card-wrap" id="cardCard">
+        <div class="device-card-hdr">
+          <h2 class="pane-title">Machine card</h2>
+          <p>Manufacturer data from manual / nameplate / bearing catalogue</p>
+        </div>
+        <div class="text-muted text-sm" id="mcNow">No machine card yet.</div>
+        <details id="mcEdit" style="margin-top:12px">
+          <summary>Enter / edit from the manual</summary>
+          <div class="form-grid">
+            <input id="mcMan" placeholder="manufacturer" maxlength="100">
+            <input id="mcModel" placeholder="model" maxlength="100">
+            <select id="mcType" class="select-ctrl"></select>
+            <select id="mcFound" class="select-ctrl"><option value="rigid">rigid foundation</option><option value="flexible">flexible foundation</option></select>
+            <label class="text-muted text-sm">power kW<input id="mcKw" type="number" step="any" min="0" class="num-input-w"></label>
+            <label class="text-muted text-sm">nominal rpm<input id="mcRpm" type="number" step="any" min="0" class="num-input-w"></label>
+            <label class="text-muted text-sm">mains Hz<input id="mcMains" type="number" step="any" min="0" class="num-input-w"></label>
+          </div>
+          <div class="ctrl-row" style="margin-top:8px;flex-wrap:wrap">
+            <select id="mcBear" class="select-ctrl"></select>
+            <input id="mcN" type="number" placeholder="balls" class="num-input">
+            <input id="mcD" type="number" step="any" placeholder="ball Ø" class="num-input">
+            <input id="mcP" type="number" step="any" placeholder="pitch Ø" class="num-input">
+            <input id="mcA" type="number" step="any" placeholder="contact °" class="num-input">
+          </div>
+          <div class="ctrl-row" style="margin-top:8px;flex-wrap:wrap">
+            <input id="mcAcc" type="number" step="any" placeholder="acceptable mm/s" class="num-input-w">
+            <input id="mcTrip" type="number" step="any" placeholder="trip mm/s" class="num-input-w">
+          </div>
+          <div class="ctrl-row" style="margin-top:8px">
+            <input id="mcSrc" placeholder="source: manual title, section, page" class="flex-input" maxlength="300">
+            <button class="btn-primary" id="mcSave">Save machine card</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="device-card-wrap">
+        <div class="device-card-hdr">
+          <h2 class="pane-title">Manuals</h2>
+          <p>PDF manuals indexed on this device · searched offline · never shared</p>
+        </div>
+        <div id="manList" class="text-muted text-sm">no manuals yet</div>
+        <div class="ctrl-row" style="margin-top:14px;flex-wrap:wrap">
+          <input id="manFile" type="file" accept="application/pdf">
+          <input id="manTitle" placeholder="title, e.g. XYZ motor manual rev 3" maxlength="160" class="flex-input">
+          <input id="manSrc" placeholder="source (optional)" maxlength="300">
+          <button class="btn-primary" id="manAdd">Index manual</button>
+        </div>
+      </section>
     </div>
-    <div class="row muted mono" id="sInfo"></div>
-    <div class="grid2" style="margin-top:8px">
-      <div><h3 class="muted" style="font-size:12px">This machine</h3><div id="sLocal"></div></div>
-      <div><h3 class="muted" style="font-size:12px">Fleet evidence (from mirror)</h3><div id="sFleet"></div></div>
-    </div>
-  </section>
+  </div>
 
-  <section class="card s5">
-    <h2>Evidence brief <span class="badge b-violet">local AI</span> <span class="hint muted" id="llmInfo"></span></h2>
-    <div class="row"><input id="bq" type="text" value="What has been tried for this fault, and how did it turn out?" style="flex:1" maxlength="300"><button class="primary" id="briefBtn">Generate</button></div>
-    <p class="muted" style="font-size:12px">Retrieval-augmented: it summarises only the retrieved evidence. Sentences without a valid citation, or that recommend an action, are removed. Never used for decisions.</p>
-    <div id="briefOut"></div>
-  </section>
-
-  <section class="card s7">
-    <h2>Outbox <span class="hint muted">SQLite · written before the shard · per-event acks from the cloud</span></h2>
-    <div class="tablewrap"><table><thead><tr><th>event</th><th>episode</th><th>status</th><th>tries</th><th>last error</th><th></th></tr></thead><tbody id="obBody"></tbody></table></div>
-  </section>
-
-  <section class="card s5">
-    <h2>Activity</h2>
-    <div class="feed" id="feed"></div>
-  </section>
-
-  <section class="card s12" id="cardCard">
-    <h2>Machine card <span class="hint muted">the manufacturer's data from the manual / nameplate / bearing catalogue · makes the physics and the "fixed" check machine-specific</span></h2>
-    <div class="row muted" id="mcNow">no machine card yet: severity uses the generic ISO 10816-3 group 2 table and no limit is applied to "fixed"</div>
-    <details id="mcEdit">
-      <summary>Enter / edit from the manual</summary>
-      <div class="row"><input id="mcMan" placeholder="manufacturer" maxlength="100"><input id="mcModel" placeholder="model" maxlength="100">
-        <select id="mcType"></select><select id="mcFound"><option value="rigid">rigid foundation</option><option value="flexible">flexible foundation</option></select></div>
-      <div class="row"><label class="muted">power kW <input id="mcKw" type="number" step="any" min="0" style="width:90px"></label>
-        <label class="muted">nominal rpm <input id="mcRpm" type="number" step="any" min="0" style="width:90px"></label>
-        <label class="muted">mains Hz <input id="mcMains" type="number" step="any" min="0" style="width:70px"></label></div>
-      <div class="row"><select id="mcBear"></select>
-        <span class="muted">or catalogue geometry:</span>
-        <input id="mcN" type="number" placeholder="balls" style="width:70px"><input id="mcD" type="number" step="any" placeholder="ball Ø" style="width:80px">
-        <input id="mcP" type="number" step="any" placeholder="pitch Ø" style="width:80px"><input id="mcA" type="number" step="any" placeholder="contact °" style="width:80px"></div>
-      <div class="row"><span class="muted">manufacturer limits (velocity RMS):</span>
-        <input id="mcAcc" type="number" step="any" placeholder="acceptable mm/s" style="width:130px"><input id="mcTrip" type="number" step="any" placeholder="trip mm/s" style="width:110px"></div>
-      <div class="row"><input id="mcSrc" placeholder="source: manual title, section, page (shown next to every limit)" style="flex:1" maxlength="300"><button id="mcSave" class="primary">Save machine card</button></div>
-    </details>
-    <div class="section">
-      <h3>Manuals <span class="hint muted">PDF manuals indexed on this device · searched offline next to each episode · never shared</span></h3>
-      <div id="manList" class="muted">no manuals yet</div>
-      <div class="row"><input id="manFile" type="file" accept="application/pdf"><input id="manTitle" placeholder="title, e.g. XYZ motor manual rev 3" maxlength="160" style="flex:1">
-        <input id="manSrc" placeholder="where it came from (optional)" maxlength="300"><button id="manAdd">Index manual</button></div>
-    </div>
-  </section>
-
-  <section class="card s12">
-    <h2>Fleet mirror <span class="hint muted">read-only shard (Qdrant's dual-shard pattern): Qdrant snapshot to start, then the cheaper of scroll delta or snapshot · usable offline</span></h2>
-    <div id="mirror" class="grid2"></div>
-  </section>
 </main>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>

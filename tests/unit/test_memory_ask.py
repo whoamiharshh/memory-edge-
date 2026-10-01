@@ -45,7 +45,11 @@ def test_it_distinguishes_a_near_miss_from_something_it_could_never_know(make_de
 
     far = d.ask("who won the world cup in 1998")
     assert far["needs_internet"] is True
-    assert "internet connection" in far["answer"]
+    assert "Nothing on this device relates to that" in far["answer"]
+    # and it says WHICH reason it could not look it up, rather than implying it never could. Under test
+    # the provider is forced off (conftest), so that is the reason reported here.
+    assert far["web_reason"] == "no web search configured"
+    assert "no web search is configured" in far["answer"].lower()
 
     near = d.ask("how big is plot 91")           # shares "plot" with a stored record, but not that plot
     assert near["needs_internet"] is False

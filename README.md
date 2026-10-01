@@ -153,6 +153,24 @@ Made-up data appears **only inside tests** (e.g. a sine wave whose answer is kno
 **Privacy:** raw signals and raw notes never leave the device; text embeddings are never shipped (embedding
 inversion); a note is shared only on opt-in **and** only if the redactor finds nothing; manuals never leave the device.
 
+**The one exception, and it is opt-out:** Ask can also look things up on the internet, because a device that
+answers "I do not know" to *"who is the current president of France"* while connected is not being careful,
+it is being useless. What leaves the device is **the question text and nothing else** - no episode, note,
+fingerprint, embedding, device id, site id or machine id (`edge/online.py` is the only module on the device
+that reaches the network). Three settings, in **Settings -> Ask**:
+
+| Mode | What happens |
+|---|---|
+| This device only | Nothing ever leaves. The original behaviour. |
+| This device first, then the internet (**default**) | Only a question the device cannot answer is looked up. |
+| Always check the internet too | Every question is also searched online. |
+
+A question about this machine's own record ("what problems have you seen?") **never** leaves the device in any
+mode, and every answer states on its face whether it came from the device, the internet, or both.
+Web search needs no account by default (DuckDuckGo + Wikipedia). To use a keyed provider instead, set
+`EDGE_SEARCH_PROVIDER=brave` with `BRAVE_SEARCH_API_KEY`, or `=tavily` with `TAVILY_API_KEY`; `=none` disables
+it entirely.
+
 ## Measurements
 
 Laptop: Intel i5-1335U, 15.7 GB RAM, no GPU, Windows 11, Python 3.12. Raw JSON in `bench/results/`; methods and

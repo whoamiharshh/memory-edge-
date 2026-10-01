@@ -20,6 +20,23 @@ from edge.device import Device, DeviceConfig
 from edge.sync_worker import SyncWorker
 from shared.embed import HashEmbedder
 
+@pytest.fixture(autouse=True, scope="session")
+def _no_web_search_in_tests():
+    """Ask may reach the internet in the product; it may never do so from a test.
+
+    A suite whose results depend on a search engine being reachable, and on what it happened to return
+    today, cannot tell anyone whether this code works. The tests that exercise online retrieval turn it
+    back on deliberately and stub the provider (tests/unit/test_online.py).
+    """
+    before = os.environ.get("EDGE_SEARCH_PROVIDER")
+    os.environ["EDGE_SEARCH_PROVIDER"] = "none"
+    yield
+    if before is None:
+        os.environ.pop("EDGE_SEARCH_PROVIDER", None)
+    else:
+        os.environ["EDGE_SEARCH_PROVIDER"] = before
+
+
 needs_cwru = pytest.mark.skipif(not CACHE.exists(), reason="CWRU feature cache missing (run data/fetch_data.py, then "
                                 "python -c \"from data.splits import build_dataset; build_dataset()\")")
 from tools import qdrant_local

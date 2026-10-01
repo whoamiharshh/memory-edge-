@@ -9,77 +9,144 @@
 </head>
 <body>
 
+<!-- ════════ TOP NAV: google-style product tabs ════════ -->
 <nav>
+  <button class="icon-btn side-toggle" id="sideToggle" title="History" aria-label="Toggle history">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4.5h14M2 9h14M2 13.5h14"/></svg>
+  </button>
   <div class="brand">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-      <rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <rect width="24" height="24" rx="7" fill="var(--blue)"/>
+      <circle cx="12" cy="11" r="4" fill="white" opacity="0.9"/>
+      <ellipse cx="8" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(-15 8 7)"/>
+      <ellipse cx="16" cy="7" rx="2.2" ry="3.2" fill="white" opacity="0.65" transform="rotate(15 16 7)"/>
+      <circle cx="10.5" cy="11" r="1" fill="var(--blue)"/>
+      <circle cx="13.5" cy="11" r="1" fill="var(--blue)"/>
+      <ellipse cx="12" cy="13.5" rx="1.7" ry="1" fill="var(--blue)" opacity="0.65"/>
     </svg>
-    Edge Memory
+    <span>Edge Memory</span>
   </div>
-  <button class="tab active" data-page="chat">Ask</button>
-  <button class="tab" data-page="memory">Memory</button>
-  <button class="tab" data-page="broadcast">Broadcast</button>
-  <button class="tab" data-page="devices">Devices</button>
-  <button class="tab" data-page="qdrant">Qdrant</button>
-  <button class="tab" data-page="sync">Sync</button>
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-page="ask" role="tab">Ask</button>
+    <button class="tab" data-page="memory" role="tab">Memory</button>
+    <button class="tab" data-page="broadcast" role="tab">Broadcast</button>
+    <button class="tab" data-page="devices" role="tab">Devices</button>
+  </div>
   <div class="spacer"></div>
   <div class="net-toggle">
     <span class="net-label" id="netLabel">Online</span>
     <button class="switch on" id="netSwitch" title="Simulate losing the network"><span class="knob"></span></button>
   </div>
   <span class="status" id="connStatus">connecting</span>
+  <button class="icon-btn nav-settings" id="settingsBtn" title="Settings" aria-label="Settings">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.1a1.5 1.5 0 0 0 .3 1.7l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.5 1.5 0 0 0-2.6 1.1v.2a1.9 1.9 0 1 1-3.8 0v-.1a1.5 1.5 0 0 0-2.6-1.1l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.5 1.5 0 0 0-1.1-2.6h-.2a1.9 1.9 0 1 1 0-3.8h.1a1.5 1.5 0 0 0 1.1-2.6l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.5 1.5 0 0 0 2.6-1.1v-.2a1.9 1.9 0 1 1 3.8 0v.1a1.5 1.5 0 0 0 2.6 1.1l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.5 1.5 0 0 0 1.1 2.6h.2a1.9 1.9 0 1 1 0 3.8h-.1a1.5 1.5 0 0 0-1.4.9z"/></svg>
+  </button>
 </nav>
+
+<div class="shell">
+
+<!-- ════════ LEFT: conversation history ════════ -->
+<aside class="history" id="historyPane">
+  <div class="hist-brand"><span class="hist-logo">◈</span><span class="hist-name">Edge Memory</span></div>
+  <button class="newask" id="newChat">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7.5 2v11M2 7.5h11"/></svg>
+    New Ask
+  </button>
+  <div class="hist-search">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4"/><path d="M10.5 10.5L14 14"/></svg>
+    <input id="histSearch" type="text" placeholder="Search history" autocomplete="off">
+  </div>
+  <div class="hist-label">Recent</div>
+  <div class="hist-list" id="convList"><div class="hist-empty">No conversations yet.</div></div>
+  <div class="hist-foot">
+    <button class="hist-foot-btn" id="systemLink">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="9" cy="9" r="2.4"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.7 3.7l1.4 1.4M12.9 12.9l1.4 1.4M3.7 14.3l1.4-1.4M12.9 5.1l1.4-1.4"/></svg>
+      System
+    </button>
+  </div>
+</aside>
+<div class="drawer-overlay" id="drawerOverlay" hidden></div>
 
 <main>
 
 <!-- ══════════ ASK ══════════ -->
-<div class="page active" id="page-chat">
-  <div class="chat-shell">
-  <aside class="chat-side" id="chatSide">
-    <button class="btn newchat" id="newChat">New conversation</button>
-    <div class="side-label">Earlier</div>
-    <div class="side-list" id="convList"><div class="empty">No past conversations.</div></div>
-  </aside>
-  <div class="chat-wrap">
-    <div class="chat-scroll" id="chatScroll">
-      <div class="welcome" id="welcome">
-        <h1 class="hero-title">Ask this device anything</h1>
-        <p class="hero-sub">It answers from what it remembers — and says so plainly when it has nothing.<br>
-          Everything stays on the device and works without internet.</p>
-        <div class="chips" id="chips"></div>
+<div class="page active" id="page-ask">
+  <div class="ask-shell">
+    <div class="chat-col">
+      <div class="chat-top">
+        <div class="conv-title" id="convTitle">New conversation</div>
+        <button class="ctx-toggle" id="ctxToggle" hidden>Evidence</button>
+      </div>
+      <div class="chat-scroll" id="chatScroll">
+        <div class="welcome" id="welcome">
+          <div class="hero-mark">
+            <svg width="34" height="34" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+              <ellipse cx="7" cy="7" rx="3" ry="4.5" fill="var(--blue)" opacity="0.7" transform="rotate(-20 7 7)"/>
+              <ellipse cx="19" cy="7" rx="3" ry="4.5" fill="var(--blue)" opacity="0.7" transform="rotate(20 19 7)"/>
+              <circle cx="13" cy="15" r="6.3" stroke="var(--blue)" stroke-width="1.4" opacity="0.55"/>
+              <circle cx="10.5" cy="14" r="1.4" fill="var(--blue)"/>
+              <circle cx="15.5" cy="14" r="1.4" fill="var(--blue)"/>
+              <ellipse cx="13" cy="17.5" rx="2.2" ry="1.4" fill="var(--blue)" opacity="0.6"/>
+              <path d="M20.5 18.5 Q24 14 22 10" stroke="var(--blue)" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.55"/>
+            </svg>
+          </div>
+          <h1 class="hero-title">What do you want to remember?</h1>
+          <p class="hero-sub">Ask anything about your memories, devices, conversations or evidence.<br>
+            Everything stays on this device and works without internet.</p>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+      <div class="composer-zone">
+        <div class="composer" id="composerBox">
+          <textarea id="askInput" rows="1" placeholder="Ask Edge Memory anything…" autocomplete="off" maxlength="1000"></textarea>
+          <div class="composer-tools">
+            <button class="tool-btn" id="photoBtn" title="Attach a photo — stored and searchable on this device">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.2"/><path d="M8 6l1.5-2h5L16 6"/></svg>
+            </button>
+            <input id="photoFile" type="file" accept="image/*" hidden>
+            <button class="tool-btn" id="micBtn" title="Dictate — recognised on this device" hidden>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+            </button>
+            <span class="composer-hint" id="composerHint">Enter to ask · Shift+Enter for a new line</span>
+            <button class="send-btn" id="askBtn" title="Send">
+              <span class="send-arrow"><svg width="17" height="17" viewBox="0 0 18 18" fill="none"><path d="M16 9L2 3l3.5 6L2 15 16 9z" fill="currentColor"/></svg></span>
+              <span class="send-dog" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 26 26" fill="none">
+                  <ellipse cx="7" cy="7" rx="3" ry="4.5" fill="currentColor" opacity="0.7" transform="rotate(-20 7 7)"/>
+                  <ellipse cx="19" cy="7" rx="3" ry="4.5" fill="currentColor" opacity="0.7" transform="rotate(20 19 7)"/>
+                  <circle cx="13" cy="15" r="6.3" stroke="currentColor" stroke-width="1.4" opacity="0.55"/>
+                  <circle cx="10.5" cy="14" r="1.4" fill="currentColor"/>
+                  <circle cx="15.5" cy="14" r="1.4" fill="currentColor"/>
+                  <ellipse cx="13" cy="17.5" rx="2.2" ry="1.4" fill="currentColor" opacity="0.6"/>
+                  <path class="dog-tail" d="M20.5 18.5 Q24 14 22 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.55"/>
+                </svg>
+              </span>
+              <span class="send-stop" hidden><svg width="12" height="12" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="currentColor"/></svg></span>
+            </button>
+          </div>
+        </div>
+        <div class="composer-foot">
+          <button class="linkbtn" id="teachBtn">Teach it something</button>
+          <button class="linkbtn" id="clearChat">New conversation</button>
+          <span class="spacer"></span>
+          <span class="composer-note" id="composerNote"></span>
+        </div>
       </div>
     </div>
 
-    <div class="composer">
-      <div class="searchbar" id="searchbar">
-        <input id="askInput" type="text" placeholder="Ask a question, or tell it something to remember…" autocomplete="off" maxlength="1000">
-        <button class="s-mic" id="photoBtn" title="Attach a photo — stored and searchable on this device">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.2"/>
-            <path d="M8 6l1.5-2h5L16 6"/>
-          </svg>
-        </button>
-        <input id="photoFile" type="file" accept="image/*" hidden>
-        <button class="s-mic" id="micBtn" title="Dictate — recognised on this device" hidden>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>
-          </svg>
-        </button>
-        <button class="s-send" id="askBtn" title="Send">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
+    <!-- RIGHT: contextual evidence, only when there is something to show -->
+    <aside class="ctx-panel" id="ctxPanel" hidden>
+      <div class="ctx-head">
+        <div>
+          <div class="ctx-title">Sources</div>
+          <div class="ctx-sub" id="ctxCount">0 memories</div>
+        </div>
+        <button class="icon-btn" id="ctxClose" aria-label="Close evidence">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg>
         </button>
       </div>
-      <div class="composer-foot">
-        <button class="linkbtn" id="teachBtn">Teach it something</button>
-        <button class="linkbtn" id="clearChat">New conversation</button>
-        <span class="spacer"></span>
-        <span class="composer-note" id="composerNote"></span>
-      </div>
-    </div>
-  </div>
+      <div class="ctx-body" id="ctxBody"><div class="empty">Ask something to see the memories behind the answer.</div></div>
+    </aside>
   </div>
 </div>
 
@@ -96,6 +163,7 @@
   </div>
 
   <div class="mem-toolbar">
+    <input id="memSearch" class="inp mem-search" type="search" placeholder="Search what this device remembers" autocomplete="off">
     <div class="seg" id="memFilter">
       <button class="seg-btn active" data-f="all">All</button>
       <button class="seg-btn" data-f="fact">You added</button>
@@ -166,16 +234,6 @@
   </div>
 </div>
 
-<!-- ══════════ QDRANT ══════════ -->
-<div class="page" id="page-qdrant">
-  <div class="phead">
-    <h1>What Qdrant just did</h1>
-    <p class="psub">Every answer comes from a vector search on this device. This is the last one, exactly
-      as it ran — nothing here is recomputed for display.</p>
-  </div>
-  <div id="qdrantBody"><div class="empty">Ask something first, then come back here.</div></div>
-</div>
-
 <!-- ══════════ DEVICES ══════════ -->
 <div class="page" id="page-devices">
   <div class="phead">
@@ -185,70 +243,108 @@
   <div class="dev-grid" id="devGrid"></div>
 </div>
 
-<!-- ══════════ SYNC ══════════ -->
-<div class="page" id="page-sync">
+<!-- ══════════ SETTINGS ══════════ -->
+<div class="page" id="page-settings">
   <div class="phead">
-    <h1>What stays here, what is shared</h1>
-    <p class="psub">Nothing is shared until this device's own sensor has confirmed the fix actually held.</p>
+    <h1>Settings</h1>
+    <p class="psub">How this device looks, and how far it may reach to answer you.</p>
   </div>
 
-  <div class="flow">
-    <div class="fnode local">
-      <div class="fn-count" id="fnLocal">–</div>
-      <div class="fn-title">On this device</div>
-      <div class="fn-detail">works offline</div>
-    </div>
-    <div class="farrow">
-      <div class="fa-line"><span id="fnQueued">0</span> waiting</div>
-      <svg width="28" height="14" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 7h24m0 0-5-5m5 5-5 5"/></svg>
-      <div class="fa-sub">checks</div>
-    </div>
-    <div class="fnode cloud">
-      <div class="fn-count" id="fnCloud">–</div>
-      <div class="fn-title">Shared</div>
-      <div class="fn-detail">with other devices</div>
-    </div>
-  </div>
-
-  <div class="two-col">
-    <div class="panel">
-      <h2>Never leaves this device</h2>
-      <ul class="privacy-list">
-        <li><span class="pl-x">✕</span> Anything you type<em>kept encrypted</em></li>
-        <li><span class="pl-x">✕</span> Your conversation<em>never sent</em></li>
-        <li><span class="pl-x">✕</span> Raw sensor readings<em id="plRaw">—</em></li>
-        <li><span class="pl-x">✕</span> Personal names<em>removed before sharing</em></li>
-      </ul>
-    </div>
-
-    <div class="panel">
-      <h2>Status</h2>
-      <div class="kv-list">
-        <div class="kv-row"><span>Connection</span><b id="syState">–</b></div>
-        <div class="kv-row"><span>Waiting to send</span><b id="syQueued">0</b></div>
-        <div class="kv-row"><span>Shared so far</span><b id="sySynced">0</b></div>
-        <div class="kv-row"><span>Data sent</span><b id="syBytes">0</b></div>
-        <div class="kv-row"><span>Last sync</span><b id="syPush">never</b></div>
+  <div class="settings-wrap">
+    <section class="set-group">
+      <h2>Appearance</h2>
+      <p class="set-note">Light is the default. System follows whatever your computer or phone is set to.</p>
+      <div class="seg" id="themeSeg" role="radiogroup" aria-label="Theme">
+        <button class="seg-btn" data-theme="light" role="radio">Light</button>
+        <button class="seg-btn" data-theme="dark" role="radio">Dark</button>
+        <button class="seg-btn" data-theme="system" role="radio">System</button>
       </div>
-      <div class="pending-box" id="pendingBox">
-        <div class="pending-head">
-          <span class="pending-count" id="pendCount">0</span>
-          <span class="pending-label">waiting to send</span>
-          <span class="pending-size" id="pendSize"></span>
-        </div>
-        <div class="pending-advice" id="pendAdvice">nothing waiting</div>
-      </div>
-      <button class="btn primary" id="syncNow" style="margin-top:12px">Sync now</button>
-    </div>
-  </div>
+    </section>
 
-  <div class="panel">
-    <h2>Shared knowledge <span class="hint-inline">when devices disagree, both sides are kept</span></h2>
-    <div id="fleetCases" class="case-list"><div class="empty">Loading…</div></div>
+    <section class="set-group">
+      <h2>Ask</h2>
+      <p class="set-note">Where answers may come from. Your question only ever leaves this device in the
+        last two settings, and an answer always says which it used.</p>
+      <div class="set-choices" id="retrievalChoices" role="radiogroup" aria-label="Where Ask may look">
+        <button class="choice" data-mode="local" role="radio">
+          <span class="choice-title">This device only</span>
+          <span class="choice-sub">Nothing ever leaves it. Questions about the wider world go unanswered.</span>
+        </button>
+        <button class="choice" data-mode="auto" role="radio">
+          <span class="choice-title">This device first, then the internet</span>
+          <span class="choice-sub">The device answers whatever it can. Only what it cannot answer is looked up.</span>
+        </button>
+        <button class="choice" data-mode="online" role="radio">
+          <span class="choice-title">Always check the internet too</span>
+          <span class="choice-sub">Every question is also searched online, alongside what this device holds.</span>
+        </button>
+      </div>
+      <p class="set-note" id="searchProviderNote"></p>
+    </section>
+
+    <section class="set-group">
+      <h2>System</h2>
+      <p class="set-note">Connection, sync and the vector store. Nothing here is needed day to day.</p>
+      <div class="set-rows" id="settingsSystem"></div>
+      <button class="btn" id="openSystemBtn">Open system &amp; diagnostics</button>
+    </section>
   </div>
 </div>
 
+<!-- ══════════ SYSTEM (Qdrant + Sync + diagnostics: reached from Settings, not the main tabs) ══════════ -->
+<div class="page" id="page-system">
+  <div class="phead">
+    <h1>System</h1>
+    <p class="psub">Technical internals: what Qdrant just did, and what is shared or waiting to be shared.</p>
+  </div>
+  <div class="seg sys-seg" id="sysSeg">
+    <button class="seg-btn active" data-sys="qdrant">Qdrant</button>
+    <button class="seg-btn" data-sys="sync">Sync</button>
+  </div>
+
+  <div id="sys-qdrant">
+    <div class="qdrant-hero">
+      <div class="q-stat"><b id="qVectors">–</b><span>vectors searched</span></div>
+      <div class="q-stat"><b id="qMs">–</b><span>on this device</span></div>
+      <div class="q-stat"><b id="qSources">–</b><span>source(s) used</span></div>
+    </div>
+    <div class="panel">
+      <h2>The question Qdrant was given</h2>
+      <div class="q-query" id="qQuery">Ask something first, then come back here.</div>
+      <p class="hint" id="qFollow" style="margin-top:8px" hidden>This was a follow-up, so the subject of the previous question was added before searching.</p>
+      <p class="hint" style="margin:8px 0 0" id="qWhere"></p>
+    </div>
+    <div class="panel">
+      <h2>Where it looked</h2>
+      <p class="hint">Every one of these is a filtered query against the same Qdrant Edge shard.</p>
+      <table class="tally"><thead><tr><th>Kind of memory</th><th>Stored</th><th>Returned</th><th>Used in the answer</th></tr></thead><tbody id="qSearched"></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>Vectors compared</h2>
+      <p class="hint" id="qFusion"></p>
+      <table class="tally"><thead><tr><th>Vector</th><th>What it holds</th><th>Size</th><th>Made by</th><th></th></tr></thead><tbody id="qVectorsBody"></tbody></table>
+    </div>
+  </div>
+
+<div id="sys-sync" hidden>
+  <div class="flow">
+    <div class="fnode local"><div class="fn-count" id="fnLocal">–</div><div class="fn-title">On this device</div><div class="fn-detail">works offline</div></div>
+    <div class="farrow"><div class="fa-line"><span id="fnQueued">0</span> waiting</div><svg width="28" height="14" viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 7h24m0 0-5-5m5 5-5 5"/></svg><div class="fa-sub">checks</div></div>
+    <div class="fnode cloud"><div class="fn-count" id="fnCloud">–</div><div class="fn-title">Shared</div><div class="fn-detail">with other devices</div></div>
+  </div>
+  <div class="two-col">
+    <div class="panel"><h2>Never leaves this device</h2><ul class="privacy-list">
+      <li><span class="pl-x">✕</span> Anything you type<em>kept encrypted</em></li><li><span class="pl-x">✕</span> Your conversation<em>never sent</em></li><li><span class="pl-x">✕</span> Raw sensor readings<em id="plRaw">—</em></li><li><span class="pl-x">✕</span> Personal names<em>removed before sharing</em></li>
+    </ul></div>
+    <div class="panel"><h2>Status</h2><div class="kv-list">
+      <div class="kv-row"><span>Connection</span><b id="syState">–</b></div><div class="kv-row"><span>Waiting to send</span><b id="syQueued">0</b></div><div class="kv-row"><span>Shared so far</span><b id="sySynced">0</b></div><div class="kv-row"><span>Data sent</span><b id="syBytes">0</b></div><div class="kv-row"><span>Last sync</span><b id="syPush">never</b></div>
+    </div><div class="pending-box" id="pendingBox"><div class="pending-head"><span class="pending-count" id="pendCount">0</span><span class="pending-label">waiting to send</span><span class="pending-size" id="pendSize"></span></div><div class="pending-advice" id="pendAdvice">nothing waiting</div></div><button class="btn primary" id="syncNow" style="margin-top:12px">Sync now</button></div>
+  </div>
+  <div class="panel"><h2>Shared knowledge <span class="hint-inline">when devices disagree, both sides are kept</span></h2><div id="fleetCases" class="case-list"><div class="empty">Loading…</div></div></div>
+</div>
+</div>
 </main>
+</div><!-- /shell -->
 
 <div class="toast-area" id="toasts"></div>
 
@@ -278,6 +374,18 @@
     <div class="modal-foot">
       <button class="btn" id="photoCancel">Cancel</button>
       <button class="btn primary" id="photoSave">Save photo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="renameModal" hidden>
+  <div class="modal-card">
+    <h2>Rename conversation</h2>
+    <p class="hint">A local label for this conversation list. What is stored on the device does not change.</p>
+    <input id="renameInput" class="inp rename-inp" type="text" maxlength="80">
+    <div class="modal-foot">
+      <button class="btn" id="renameCancel">Cancel</button>
+      <button class="btn primary" id="renameSave">Save</button>
     </div>
   </div>
 </div>

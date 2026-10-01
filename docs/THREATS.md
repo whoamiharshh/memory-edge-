@@ -36,6 +36,22 @@ Prototype scope. We do **not** claim the system has no security bugs. Each row: 
 | **Lost or tampered backups** | `tools/backup.py`: device archive with a SHA-256 manifest, restore refuses a damaged archive or a non-empty target and reopens the store to count points; cloud backup = Qdrant snapshots of every tenant collection | Backups must be stored off the machine by the operator; notes in a Windows backup decrypt only on the same account | `tests/failure/test_backup_restore.py` |
 | **Supply chain** | Exact versions pinned in `requirements.txt`; `qdrant-edge-py` pinned (beta) | `pip-audit` of the installed environment (63 packages, 28 Sep 2026): **1 advisory, `diskcache` 5.6.3 PYSEC-2026-2447** (pickle deserialisation of its cache files; no fixed release). It is pulled in by llama-cpp-python; **our code never creates a disk cache**, so the exposure needs an attacker who can already write to a cache directory we do not use. No hashes in the lockfile yet. | `uvx pip-audit --path .venv\Lib\site-packages` |
 
+## Online retrieval: a deliberate hole in "nothing leaves the device"
+
+Ask can search the web (`edge/online.py`). This is the only part of the device that reaches the network for
+a reason other than syncing with its own cloud, so it is stated here rather than buried.
+
+| | |
+|---|---|
+| **What leaves** | The question text, and nothing else. No episode, note, fingerprint, embedding, device id, site id or machine id is in the request. |
+| **Who sees it** | The configured search provider, and anyone able to observe that connection. DuckDuckGo and Wikipedia are the keyless default; Brave and Tavily are available with a key. |
+| **What cannot leave** | A question about this machine's own record is answered from stored state and is never sent, in any mode (`test_a_question_about_this_device_never_leaves_it`). |
+| **Off switch** | Settings -> Ask -> "This device only", or `EDGE_SEARCH_PROVIDER=none`. Also off whenever the device is offline. |
+| **Residual risk** | A technician can type machine-identifying detail into a question, and it will be sent. The setting is the mitigation; the product does not try to redact free-text questions, because a redactor that silently rewrote a question would make the answer untrustworthy in a different way. |
+| **Honesty** | Every answer reports whether it came from the device, the internet, or both, and web evidence is shown with its URL so it can be checked. |
+
+Tests: `tests/unit/test_online.py` (routing, both off switches, the device-only rule, provider failure).
+
 ## Not built (stated, not hidden)
 - Hardware-rooted device identity (secure boot / TPM attestation); the code-integrity hash is tamper evidence only.
 - Encryption of structured fields and vectors inside the device shard (they must stay searchable): rely on OS disk

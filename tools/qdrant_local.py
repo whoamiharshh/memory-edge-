@@ -69,7 +69,14 @@ def server(storage: pathlib.Path):
     env = os.environ | {"QDRANT__STORAGE__STORAGE_PATH": str(storage / "storage"),
                         "QDRANT__STORAGE__SNAPSHOTS_PATH": str(storage / "snapshots"),
                         "QDRANT__SERVICE__HTTP_PORT": str(http), "QDRANT__SERVICE__GRPC_PORT": str(grpc),
-                        "QDRANT__TELEMETRY_DISABLED": "true"}
+                        "QDRANT__TELEMETRY_DISABLED": "true",
+                        # A throwaway server holds a handful of points per collection, but Qdrant sizes a
+                        # new collection for a real workload: one segment per CPU thread, each with a
+                        # preallocated write-ahead log. Measured here, a collection holding THREE events
+                        # produced a 513 MB snapshot, and one full test run left 98 GB behind and then
+                        # failed with StorageFull. One segment and a small WAL cost nothing at this size.
+                        "QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER": "1",
+                        "QDRANT__STORAGE__WAL__WAL_CAPACITY_MB": "4"}
     proc = subprocess.Popen([str(binary())], cwd=storage, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url = f"http://127.0.0.1:{http}"
     try:
