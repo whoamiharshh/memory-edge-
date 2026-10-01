@@ -914,3 +914,402 @@ details.sources summary:hover{color:var(--blue-hover)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PREMIUM PASS — type scale, rhythm, materials, depth.
+   The previous layer got the colour right and the feel wrong: same shapes,
+   new paint. This one changes the things that actually read as expensive —
+   how large the type is, how much room it has, and how surfaces sit in depth.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --fs-body:14.5px; --lh-body:1.7;
+  --gut:32px;                      /* one gutter, used everywhere, so edges line up */
+  --maxw:780px;                    /* a reading column, not a stretched page */
+}
+body{
+  font-family:"Inter","Inter var","Segoe UI Variable Display","Segoe UI",-apple-system,system-ui,sans-serif;
+  font-size:var(--fs-body); line-height:var(--lh-body);
+  letter-spacing:-.006em;          /* tightens the default stack just enough to stop it looking like a form */
+  text-rendering:optimizeLegibility;
+}
+
+/* ── the frame ── */
+nav{height:64px;padding:0 var(--gut);background:var(--surface);backdrop-filter:none;
+  border-bottom:1px solid var(--line)}
+.brand{font-size:16px;font-weight:700;letter-spacing:-.028em;gap:10px;margin-right:34px}
+.brand svg{width:26px;height:26px}
+.tab{font-size:14px;padding:8px 16px;letter-spacing:-.012em}
+.tab.active{box-shadow:0 2px 10px rgba(37,99,235,.28)}
+
+/* ── sidebar: quieter, roomier, with real section rhythm ── */
+.history{width:272px;background:var(--surface);border-right:1px solid var(--line);padding:18px 14px}
+.hist-brand{display:none}                 /* the brand is already in the nav; twice is clutter */
+.newask{width:100%;justify-content:center;gap:9px;height:42px;border-radius:11px;
+  background:var(--blue);color:#fff;border:0;font-size:14px;font-weight:600;letter-spacing:-.012em;
+  box-shadow:0 2px 10px rgba(37,99,235,.26);transition:background .16s,transform .16s,box-shadow .16s}
+/* the colour has to be restated: an earlier rule turns this button's text blue on hover, which on a
+   blue background made the label disappear entirely */
+.newask,.newask svg{color:#fff}
+.newask:hover,.newask:hover svg{color:#fff}
+.newask:hover{background:var(--blue-hover);transform:translateY(-1px);box-shadow:0 6px 18px rgba(37,99,235,.3)}
+.hist-search{margin:14px 0 20px}
+.hist-search input{height:38px;border-radius:10px;font-size:13.5px}
+.history > div:nth-of-type(n) .hist-day,.hist-day{font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--mut-2);padding:0 10px;margin:18px 0 7px}
+.hist-item{padding:9px 10px;border-radius:10px}
+.hist-title{font-size:13.5px;letter-spacing:-.01em}
+
+/* ── the conversation: a column, not a stack of boxes ── */
+main{padding:0}
+#page-ask .ask-shell,.ask-shell{padding:0 var(--gut)}
+.turn{margin-bottom:28px;max-width:var(--maxw);margin-left:auto;margin-right:auto}
+.turn.you{display:flex;justify-content:flex-end}
+.turn.you .bubble{max-width:76%;padding:12px 17px;font-size:14.5px;letter-spacing:-.008em;
+  border-radius:18px;border-bottom-right-radius:7px}
+/* the assistant does not speak from inside a card: text on the page reads calmer and more expensive */
+.turn.bot .bubble{background:transparent;border:0;box-shadow:none;padding:2px 0;max-width:100%}
+.turn.bot .btext,.ai-body{font-size:15px;line-height:1.78;color:var(--ink);letter-spacing:-.008em}
+.turn.bot .bubble::before{content:"";display:block;width:26px;height:2px;border-radius:2px;
+  background:var(--blue);opacity:.55;margin:0 0 13px}
+.turn.bot{max-width:var(--maxw)}
+
+.hero-title{font-size:38px;line-height:1.14;letter-spacing:-.035em;margin-bottom:12px}
+.hero-sub{font-size:15px;max-width:520px;margin:0 auto}
+.chips{margin-top:26px}
+.chips button,.chip{padding:9px 16px;font-size:13.5px;letter-spacing:-.008em}
+
+/* ── composer: the one object with weight on the screen ── */
+.composer-zone{width:100%;max-width:var(--maxw);margin:0 auto;padding-bottom:20px}
+.composer{border-radius:20px;padding:6px 6px 6px 18px;border-color:#DCE4EF;
+  box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 28px rgba(15,23,42,.07)}
+.composer:focus-within{border-color:var(--blue);
+  box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 32px rgba(37,99,235,.14),0 0 0 4px rgba(37,99,235,.10)}
+.composer textarea{font-size:15px;line-height:1.65;padding:12px 0 2px}
+.composer textarea::placeholder{color:var(--mut-2)}
+.send-btn{width:40px;height:40px}
+.composer-foot{width:100%;max-width:var(--maxw);margin:10px auto 0;font-size:12.5px}
+
+/* ── pages: one gutter, one column ── */
+.page{padding:30px var(--gut) 56px}
+#page-ask{padding:0}
+.phead h1{font-size:28px;letter-spacing:-.032em}
+.settings-wrap{max-width:760px}
+.set-group{padding:24px 26px;border-radius:16px}
+.set-group h2{font-size:15px;letter-spacing:-.018em;margin-bottom:5px}
+
+/* ── surfaces sit in depth rather than being outlined ── */
+.panel,.mem-list,.mem-detail,.bc-list,.card,.set-group{
+  box-shadow:0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.03)}
+.mem-layout{gap:18px}
+.mitem{padding:13px 14px}
+.mi-title{font-size:13.5px;letter-spacing:-.01em}
+
+/* ── evidence ── */
+.ctx-panel{width:340px;padding:20px}
+.ctx-item{padding:16px 0}
+
+/* ── small type stops being grey mush ── */
+.psub,.set-note,.mi-meta,.hint{font-size:13px;line-height:1.62;color:var(--mut)}
+.empty{font-size:13.5px;padding:38px 20px}
+
+@media(max-width:900px){
+  :root{--gut:18px}
+  .hero-title{font-size:29px}
+  .ctx-panel{width:100%}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MONOCHROME — black, white, one accent.
+   The accent IS black, so every rule written against --blue keeps working and
+   simply stops being blue. Colour survives in exactly one place: status, where
+   it carries meaning (worked / failed / warning) and greyscale could not.
+   Separation comes from hairline borders and type weight rather than from fills.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F5F5F5;
+  --line:#E5E5E5; --line-soft:#F0F0F0;
+  --navy:#0A0A0A; --ink:#0A0A0A; --ink-2:#262626; --mut:#737373; --mut-2:#A3A3A3;
+  /* the accent */
+  --blue:#0A0A0A; --blue-hover:#262626; --blue-ink:#0A0A0A;
+  --blue-bg:#F5F5F5; --blue-line:#D4D4D4; --blue-tint:#FAFAFA;
+  /* status only */
+  --ok:#15803D; --ok-bg:#F0FDF4; --warn:#A16207; --warn-bg:#FEFCE8;
+  --bad:#B91C1C; --bad-bg:#FEF2F2;
+  --nav:#FFFFFF; --toast-bg:#0A0A0A; --toast-ink:#FFFFFF;
+  --sh:0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 2px 8px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04);
+  --sh-lg:0 12px 32px rgba(0,0,0,.09), 0 2px 6px rgba(0,0,0,.05);
+  --sh-blue:0 2px 10px rgba(0,0,0,.14);
+  --ring:0 0 0 3px rgba(10,10,10,.10);
+}
+:root[data-theme="dark"]{
+  --bg:#0A0A0A; --surface:#141414; --surface-2:#1C1C1C;
+  --line:#262626; --line-soft:#1F1F1F;
+  --navy:#FAFAFA; --ink:#FAFAFA; --ink-2:#E5E5E5; --mut:#A3A3A3; --mut-2:#737373;
+  --blue:#FAFAFA; --blue-hover:#FFFFFF; --blue-ink:#FAFAFA;
+  --blue-bg:#1F1F1F; --blue-line:#3A3A3A; --blue-tint:#121212;
+  --ok:#4ADE80; --ok-bg:#0F2417; --warn:#FACC15; --warn-bg:#241F0C;
+  --bad:#F87171; --bad-bg:#2A1414;
+  --nav:#0A0A0A; --toast-bg:#FAFAFA; --toast-ink:#0A0A0A;
+  --sh:0 1px 2px rgba(0,0,0,.5);
+  --sh-md:0 2px 10px rgba(0,0,0,.55);
+  --sh-lg:0 14px 36px rgba(0,0,0,.65);
+  --sh-blue:0 2px 10px rgba(0,0,0,.6);
+  --ring:0 0 0 3px rgba(250,250,250,.16);
+  color-scheme:dark;
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme]){
+    --bg:#0A0A0A; --surface:#141414; --surface-2:#1C1C1C;
+    --line:#262626; --line-soft:#1F1F1F;
+    --navy:#FAFAFA; --ink:#FAFAFA; --ink-2:#E5E5E5; --mut:#A3A3A3; --mut-2:#737373;
+    --blue:#FAFAFA; --blue-hover:#FFFFFF; --blue-ink:#FAFAFA;
+    --blue-bg:#1F1F1F; --blue-line:#3A3A3A; --blue-tint:#121212;
+    --ok:#4ADE80; --ok-bg:#0F2417; --warn:#FACC15; --warn-bg:#241F0C;
+    --bad:#F87171; --bad-bg:#2A1414;
+    --nav:#0A0A0A; --toast-bg:#FAFAFA; --toast-ink:#0A0A0A;
+    --sh:0 1px 2px rgba(0,0,0,.5);
+    --sh-md:0 2px 10px rgba(0,0,0,.55);
+    --sh-lg:0 14px 36px rgba(0,0,0,.65);
+    --sh-blue:0 2px 10px rgba(0,0,0,.6);
+    --ring:0 0 0 3px rgba(250,250,250,.16);
+    color-scheme:dark;
+  }
+}
+
+/* ── monochrome leans on type and rule weight, because it has no colour to lean on ── */
+.brand{font-weight:750;letter-spacing:-.03em;text-transform:none}
+.hero-title{font-weight:720;letter-spacing:-.04em}
+.phead h1{font-weight:720;letter-spacing:-.035em}
+.tab.active{box-shadow:none}                  /* a black pill needs no glow */
+.newask{box-shadow:none;font-weight:620}
+.newask:hover{box-shadow:none;transform:none;background:var(--blue-hover)}
+.send-btn{box-shadow:none}
+.send-btn:hover{transform:none;background:var(--blue-hover)}
+.turn.you .bubble{box-shadow:none;font-weight:480}
+.turn.bot .bubble::before{background:var(--ink);opacity:.18;width:22px}
+.chips button,.chip{box-shadow:none}
+.chips button:hover,.chip:hover{transform:none;background:var(--surface-2);
+  border-color:var(--mut-2);color:var(--ink);box-shadow:none}
+.btn{box-shadow:none}
+.btn.primary{box-shadow:none}
+.composer{box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 22px rgba(0,0,0,.06)}
+.composer:focus-within{border-color:var(--ink);
+  box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 22px rgba(0,0,0,.07),var(--ring)}
+.panel,.mem-list,.mem-detail,.bc-list,.card,.set-group{box-shadow:none}
+.history{background:var(--surface)}
+.hist-item.sel,.hist-item.active,.mitem.sel{box-shadow:inset 2px 0 0 var(--ink)}
+.src-key,.cite{background:var(--surface-2);color:var(--ink);border-color:var(--line);font-weight:600}
+.turn.you .cite{background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.28)}
+.ctx-link{color:var(--ink);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--mut-2)}
+.ctx-link:hover{text-decoration-color:var(--ink)}
+details.sources summary{color:var(--mut)}
+details.sources summary:hover{color:var(--ink)}
+.typing span{background:var(--ink);opacity:.28}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDGE MEMORY — premium dark monochrome. THIS is the default.
+   Charcoal canvas, soft grey raised surfaces, off-white text. Depth comes from
+   layered greys and hairline borders, not from colour. One restrained accent
+   (warm amber) marks state and nothing else; the primary action is off-white,
+   which is why --on-accent exists: text on an off-white button must go dark.
+   Colour otherwise survives only as status, where grey could not carry meaning.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0E0E10; --surface:#161619; --surface-2:#1D1D21;
+  --line:#28282D; --line-soft:#202024;
+  --navy:#F4F4F6; --ink:#EDEDEF; --ink-2:#C9C9D0; --mut:#8C8C95; --mut-2:#61616A;
+
+  --accent:#E3A857;                 /* the one accent: warm amber, used sparingly */
+  --accent-soft:rgba(227,168,87,.14);
+  --on-accent:#0E0E10;              /* text sitting ON an off-white primary action */
+
+  /* every existing rule is written against --blue; it now means "primary", off-white */
+  --blue:#EDEDEF; --blue-hover:#FFFFFF; --blue-ink:#EDEDEF;
+  --blue-bg:#202025; --blue-line:#34343A; --blue-tint:#121215;
+
+  --ok:#5BC98C; --ok-bg:#10231A; --warn:#E3A857; --warn-bg:#241B0D;
+  --bad:#E57373; --bad-bg:#2A1517;
+  --nav:#0E0E10; --toast-bg:#EDEDEF; --toast-ink:#0E0E10;
+  --sh:0 1px 2px rgba(0,0,0,.45);
+  --sh-md:0 2px 12px rgba(0,0,0,.5);
+  --sh-lg:0 18px 44px rgba(0,0,0,.6);
+  --sh-blue:none;
+  --ring:0 0 0 3px rgba(227,168,87,.22);
+  color-scheme:dark;
+}
+
+/* the light theme is neutral off-white, never blue/white */
+:root[data-theme="light"]{
+  --bg:#F7F7F6; --surface:#FFFFFF; --surface-2:#F0F0EF;
+  --line:#E3E3E1; --line-soft:#EDEDEB;
+  --navy:#111111; --ink:#17171A; --ink-2:#3A3A3E; --mut:#70707A; --mut-2:#9B9BA3;
+  --accent:#B07A2E; --accent-soft:rgba(176,122,46,.12); --on-accent:#FFFFFF;
+  --blue:#17171A; --blue-hover:#000000; --blue-ink:#17171A;
+  --blue-bg:#F0F0EF; --blue-line:#D6D6D3; --blue-tint:#FAFAF9;
+  --ok:#2F7D4F; --ok-bg:#F1F8F3; --warn:#9A6B1E; --warn-bg:#FBF6EC;
+  --bad:#B3453F; --bad-bg:#FBF1F0;
+  --nav:#FFFFFF; --toast-bg:#17171A; --toast-ink:#FFFFFF;
+  --sh:0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 2px 10px rgba(0,0,0,.05);
+  --sh-lg:0 14px 36px rgba(0,0,0,.09);
+  --sh-blue:none;
+  --ring:0 0 0 3px rgba(176,122,46,.18);
+  color-scheme:light;
+}
+/* "System" means follow the machine; the default without a choice stays dark */
+@media(prefers-color-scheme:light){
+  :root:not([data-theme]){
+    --bg:#F7F7F6; --surface:#FFFFFF; --surface-2:#F0F0EF;
+    --line:#E3E3E1; --line-soft:#EDEDEB;
+    --navy:#111111; --ink:#17171A; --ink-2:#3A3A3E; --mut:#70707A; --mut-2:#9B9BA3;
+    --accent:#B07A2E; --accent-soft:rgba(176,122,46,.12); --on-accent:#FFFFFF;
+    --blue:#17171A; --blue-hover:#000000; --blue-ink:#17171A;
+    --blue-bg:#F0F0EF; --blue-line:#D6D6D3; --blue-tint:#FAFAF9;
+    --ok:#2F7D4F; --ok-bg:#F1F8F3; --warn:#9A6B1E; --warn-bg:#FBF6EC;
+    --bad:#B3453F; --bad-bg:#FBF1F0;
+    --nav:#FFFFFF; --toast-bg:#17171A; --toast-ink:#FFFFFF;
+    --sh:0 1px 2px rgba(0,0,0,.04);
+    --sh-md:0 2px 10px rgba(0,0,0,.05);
+    --sh-lg:0 14px 36px rgba(0,0,0,.09);
+    --ring:0 0 0 3px rgba(176,122,46,.18);
+    color-scheme:light;
+  }
+}
+
+/* ── text on the primary action has to invert with it ── */
+.tab.active,.send-btn,.btn.primary,.newask,.newask svg,.newask:hover,.newask:hover svg,
+.turn.you .bubble{color:var(--on-accent)}
+.turn.you .bubble .cite,.turn.you .cite{background:rgba(0,0,0,.14);color:var(--on-accent);
+  border-color:rgba(0,0,0,.18)}
+.send-btn svg,.tab.active svg{color:var(--on-accent)}
+.toast{background:var(--toast-bg);color:var(--toast-ink)}
+
+/* ── the accent earns its keep in three places and nowhere else ── */
+.hist-item.sel,.hist-item.active,.mitem.sel{box-shadow:inset 2px 0 0 var(--accent)}
+.hist-item.sel .hist-title,.mitem.sel .mi-title{color:var(--ink)}
+.turn.bot .bubble::before{background:var(--accent);opacity:.9;width:20px;height:2px}
+.choice[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.choice[aria-checked="true"] .choice-title{color:var(--ink)}
+.src-key,.cite{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:650}
+.seg-btn.active,.seg-btn[aria-checked="true"]{background:var(--surface);color:var(--ink)}
+
+/* ── depth from layering, not from glow ── */
+.history{background:var(--blue-tint);border-right:1px solid var(--line)}
+nav{background:var(--nav);border-bottom:1px solid var(--line)}
+.composer{background:var(--surface-2);border-color:var(--line);box-shadow:var(--sh-md)}
+.composer:focus-within{border-color:var(--mut-2);box-shadow:var(--sh-md),var(--ring)}
+.panel,.mem-list,.mem-detail,.bc-list,.card,.set-group{background:var(--surface);box-shadow:none}
+.chips button,.chip{background:var(--surface-2);border-color:var(--line);color:var(--ink-2)}
+.chips button:hover,.chip:hover{background:var(--surface);border-color:var(--mut-2);color:var(--ink)}
+.btn{background:var(--surface-2);border-color:var(--line);color:var(--ink-2)}
+.btn:hover{background:var(--surface);border-color:var(--mut-2);color:var(--ink)}
+.inp,.composer textarea{background:transparent;color:var(--ink)}
+.inp{background:var(--surface-2);border-color:var(--line)}
+.inp:focus{border-color:var(--mut-2);box-shadow:var(--ring)}
+.icon-btn:hover,.tool-btn:hover{color:var(--ink);background:var(--surface-2)}
+.tab:hover{color:var(--ink);background:var(--surface-2)}
+.typing span{background:var(--mut)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESTRAINT PASS — the part that actually reads as expensive.
+   Large type set tight, one rhythm, hairline separators, almost no shadow, and
+   nothing on screen that is not doing a job. SF first, because on a Mac or an
+   iPhone it is already there; Inter and Segoe UI Variable carry the rest.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{ --gut:40px; --maxw:720px; }
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",
+              "Inter var","Inter","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  font-size:15px; line-height:1.72; letter-spacing:-.011em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+
+/* ── chrome: thinner, calmer, translucent ── */
+nav{height:56px;padding:0 var(--gut);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(160%) blur(18px);
+  -webkit-backdrop-filter:saturate(160%) blur(18px);border-bottom:1px solid var(--line-soft)}
+.brand{font-size:15px;font-weight:600;letter-spacing:-.022em;margin-right:30px}
+.brand svg{width:22px;height:22px}
+.tab{font-size:13.5px;font-weight:450;padding:6px 13px;letter-spacing:-.011em;border-radius:8px}
+.tab.active{font-weight:550}
+.status,.net-label{font-size:12px;letter-spacing:-.006em}
+
+/* ── sidebar: a quiet index, not a panel ── */
+.history{width:260px;padding:16px 12px;background:var(--bg);border-right:1px solid var(--line-soft)}
+.newask{height:38px;border-radius:9px;font-size:13.5px;font-weight:550;letter-spacing:-.011em}
+.hist-search input{height:34px;border-radius:8px;font-size:13px}
+.hist-day{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--mut-2);
+  text-transform:uppercase;margin:20px 0 6px;padding:0 9px}
+.hist-item{padding:7px 9px;border-radius:8px}
+.hist-title{font-size:13px;font-weight:450;letter-spacing:-.008em}
+
+/* ── the hero: one line, set large and tight, with room around it ── */
+.hero-title{font-size:42px;line-height:1.08;letter-spacing:-.042em;font-weight:600;margin-bottom:14px}
+.hero-sub{font-size:16px;line-height:1.6;color:var(--mut);max-width:460px;letter-spacing:-.014em}
+.chips{margin-top:34px;gap:9px}
+.chips button,.chip{padding:8px 15px;font-size:13px;font-weight:450;border-radius:9px;letter-spacing:-.008em}
+
+/* ── conversation: a reading column ── */
+.turn{margin-bottom:30px;max-width:var(--maxw)}
+.turn.you .bubble{max-width:72%;padding:11px 16px;border-radius:17px;border-bottom-right-radius:6px;
+  font-size:15px;font-weight:450;letter-spacing:-.011em}
+.turn.bot .btext,.ai-body{font-size:16px;line-height:1.75;letter-spacing:-.013em;color:var(--ink)}
+.turn.bot .bubble::before{margin-bottom:14px}
+
+/* ── composer ── */
+.composer{border-radius:16px;padding:4px 4px 4px 16px;border-width:1px}
+.composer textarea{font-size:15.5px;line-height:1.6;letter-spacing:-.012em;padding:11px 0 1px}
+.send-btn{width:34px;height:34px;border-radius:9px}
+.composer-hint{font-size:11.5px;letter-spacing:-.004em}
+.composer-foot{font-size:12px;margin-top:11px}
+
+/* ── pages ── */
+.page{padding:36px var(--gut) 64px}
+.phead{margin-bottom:28px}
+.phead h1{font-size:30px;line-height:1.14;letter-spacing:-.036em;font-weight:600}
+.psub{font-size:14.5px;letter-spacing:-.011em;margin-top:7px;max-width:560px}
+
+/* ── settings: separators, not boxes ── */
+.settings-wrap{max-width:660px;gap:0}
+.set-group{border:0;border-bottom:1px solid var(--line-soft);border-radius:0;padding:30px 0;background:transparent}
+.set-group:last-child{border-bottom:0}
+.set-group h2{font-size:17px;font-weight:600;letter-spacing:-.022em;margin-bottom:6px}
+.set-note{font-size:13.5px;letter-spacing:-.008em}
+.choice{border-radius:11px;padding:13px 15px}
+.choice-title{font-size:14px;font-weight:500;letter-spacing:-.011em}
+.choice-sub{font-size:12.5px;letter-spacing:-.004em;margin-top:2px}
+.seg{border-radius:9px;padding:2px}
+.seg-btn{font-size:12.5px;font-weight:480;padding:6px 14px;border-radius:7px}
+
+/* ── lists ── */
+.mitem{padding:12px 13px;border-radius:9px}
+.mi-title{font-size:13.5px;font-weight:500;letter-spacing:-.011em}
+.kv-row{padding:10px 0}
+.kv-row span{font-size:13px}
+.kv-row b{font-size:13.5px;font-weight:550}
+.badge{font-size:10px;font-weight:600;letter-spacing:.015em;padding:2px 7px}
+
+/* ── everything moves on the same curve ── */
+.tab,.btn,.chip,.chips button,.icon-btn,.tool-btn,.send-btn,.newask,.hist-item,.mitem,.choice,.seg-btn{
+  transition:background .18s cubic-bezier(.4,0,.2,1),color .18s cubic-bezier(.4,0,.2,1),
+             border-color .18s cubic-bezier(.4,0,.2,1),box-shadow .18s cubic-bezier(.4,0,.2,1)}
+:focus-visible{outline:none;box-shadow:var(--ring)}
+
+@media(max-width:900px){ :root{--gut:20px} .hero-title{font-size:30px} .history{width:100%} }
+
+/* ── corrections found by looking at the rendered page ── */
+/* The brand mark paints itself with the accent and plain white, which on an off-white accent left a
+   blank tile. Repainted against the theme: light tile, dark dog, accent-coloured eyes. */
+.brand svg rect{fill:var(--ink)}
+.brand svg [fill="white"]{fill:var(--bg)}
+.brand svg [fill="var(--blue)"]{fill:var(--ink)}
+
+/* the textarea was drawing its own bordered box inside the composer's box */
+.composer textarea{border:0;outline:none;box-shadow:none;background:transparent;resize:none;width:100%}
+.composer textarea:focus{outline:none;box-shadow:none}
+
+.hero-sub{max-width:580px}
+.hero-mark{margin-bottom:22px;opacity:.9}
+.hero-mark svg{width:30px;height:30px}

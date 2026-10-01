@@ -46,7 +46,7 @@ async function api(path, body, method) {
 const THEMES = ["light", "dark", "system"];
 function currentTheme() {
   const t = localStorage.getItem("mm_theme");
-  return THEMES.includes(t) ? t : "light";
+  return THEMES.includes(t) ? t : "dark";       // dark monochrome is the product's default
 }
 function applyTheme(t) {
   if (t === "system") document.documentElement.removeAttribute("data-theme");
@@ -249,7 +249,7 @@ document.querySelectorAll("#retrievalChoices .choice").forEach(c =>
   }));
 
 /* ══════════ evidence panel ══════════ */
-const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet", reference: "reference pack", web: "from the internet" };
+const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet", reference: "reference pack", web: "from the internet", learned: "learned earlier, kept on this device" };
 function showEvidence(used) {
   const panel = $("ctxPanel");
   if (!used?.length) { panel.hidden = true; $("ctxToggle").hidden = true; return; }
@@ -384,6 +384,7 @@ async function send() {
     const src = r.sources || [];
     const origin = src.includes("web") && src.includes("device") ? "answered from this device and the internet"
       : src.includes("web") ? "answered using the internet"
+      : r.from_learned ? "answered offline, from what it learned earlier"
       : "answered on the device";
     $("composerNote").textContent =
       `${r.latency_ms} ms · ${origin}` + (r.mode === "llm" ? " · local model" : "");
@@ -745,6 +746,8 @@ async function loadMemory() {
   const want = k => memFilter === "all" || memFilter === k;
   let facts = [], shared = [], records = [], pics = [], convs = [];
   if (want("fact")) { try { facts = await api(DEV + "memory?kind=fact&limit=50"); } catch (e) { facts = []; } }
+  let learned = [];
+  if (want("learned")) { try { learned = await api(DEV + "memory?kind=learned&limit=50"); } catch (e) { learned = []; } }
   if (want("picture")) { try { pics = await api(DEV + "pictures?limit=100"); } catch (e) { pics = []; } }
   if (want("chat")) { try { convs = await api(DEV + "conversations?limit=50"); } catch (e) { convs = []; } }
   if (want("shared")) { try { shared = await api(DEV + "knowledge?limit=100"); } catch (e) { shared = []; } }
@@ -754,6 +757,12 @@ async function loadMemory() {
     ...(facts || []).map(f => ({
       key: "fact", id: f.id, title: "You added this",
       sub: clock(f.created_at), text: f.note_text || "", raw: f,
+    })),
+    ...(learned || []).map(m => ({
+      key: "learned", id: m.id,
+      title: m.title || "Looked up online",
+      sub: `kept on this device · ${clock(m.created_at)}`,
+      text: m.note_text || "", raw: m,
     })),
     ...(shared || []).map(s => ({
       key: "shared", id: s.id,
@@ -795,7 +804,7 @@ async function loadMemory() {
   }
 
   const TAG = { fact: ["you", "info"], shared: ["shared", "ok"], picture: ["photo", "warn"],
-                chat: ["chat", "info"], record: ["noticed", "mut"] };
+                chat: ["chat", "info"], record: ["noticed", "mut"], learned: ["learned", "info"] };
   list.replaceChildren(...shown.map(r => {
     const [label, cls] = TAG[r.key];
     const item = el("div", { class: "mitem" + (memSel === r.id ? " sel" : "") },
@@ -849,15 +858,29 @@ function showText(r) {
         r.text || "No note was written for this photo."));
     return;
   }
+  const isLearned = r.key === "learned";
   const meta = isShared
     ? `From ${s.author_device || "another device"} · ${s.topic || "general"} · ` +
       (s.audience === "everyone" ? "sent to every device" : "sent only to this device")
-    : clock(s.created_at) + " · stays on this device";
-  $("memDetail").replaceChildren(
+    : isLearned
+      ? `Looked up ${clock(s.created_at)} · kept here, so it still answers offline`
+      : clock(s.created_at) + " · stays on this device";
+  const box = el("div", { class: "detail-body" },
     el("h2", { style: "font-size:16px;font-weight:650;margin-bottom:4px" },
-      isShared ? "Shared with this device" : "You added this"),
+      isShared ? "Shared with this device"
+      : isLearned ? (s.title || "Looked up online") : "You added this"),
     el("div", { class: "mi-meta", style: "margin-bottom:14px" }, meta),
     el("div", { style: "font-size:14.5px;line-height:1.7;white-space:pre-wrap" }, r.text));
+  if (isLearned && s.url) {                        // a looked-up fact is only checkable if you can open it
+    const a = el("a", { class: "ctx-link", style: "margin-top:12px" }, s.url);
+    a.href = s.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    box.append(a);
+    if (s.learned_for) {
+      box.append(el("div", { class: "mi-meta", style: "margin-top:10px" },
+                    `Found while answering: “${s.learned_for}”`));
+    }
+  }
+  $("memDetail").replaceChildren(box);
 }
 
 const GATE_NAMES = {

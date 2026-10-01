@@ -1156,10 +1156,13 @@ class Device:
         text = (text or "").strip()
         if not 1 <= len(text) <= self.MEMORY_MAX_CHARS:
             raise ValueError(f"memory text must be 1..{self.MEMORY_MAX_CHARS} characters")
-        if kind not in ("fact", "chat"):
-            raise ValueError("kind must be 'fact' or 'chat'")
+        if kind not in ("fact", "chat", "learned"):
+            raise ValueError("kind must be 'fact', 'chat' or 'learned'")
         ts = self._now_iso()
-        mid = ids.make_id("memory", self.cfg.device_id, kind, text, ts)
+        # 'learned' is keyed on its source URL rather than on the timestamp: looking the same thing up
+        # twice must update the one copy, not fill the device with duplicates of it.
+        mid = (ids.make_id("memory", self.cfg.device_id, kind, (meta or {}).get("url") or text)
+               if kind == "learned" else ids.make_id("memory", self.cfg.device_id, kind, text, ts))
         payload = {"type": "memory", "kind": kind, "note_text": text, "created_at": ts,
                    "device_id": self.cfg.device_id, "machine_id": self.cfg.machine_id,
                    "share_state": "local"} | (meta or {})
@@ -1517,6 +1520,14 @@ class Device:
         for m in self.recall(query, limit, kind="fact"):
             cands.append({"source": "memory", "id": m["id"], "kind": "fact",
                           "text": m.get("note_text", "")})
+        # What it has already looked up stays on the device and is searched like anything else. This is
+        # the whole point of the product: a machine that reached the internet once should still know the
+        # answer with the network off, instead of saying "this device is offline" about a thing it read
+        # last week.
+        for m in self.recall(query, limit, kind="learned"):
+            cands.append({"source": "learned", "id": m["id"], "kind": "learned",
+                          "text": m.get("note_text", ""), "url": m.get("url"),
+                          "title": m.get("title")})
         for s in self.recall_shared(query, limit):
             cands.append({"source": "shared", "id": s["id"], "kind": "shared",
                           "text": s.get("note_text", ""), "from": s.get("author_device")})
@@ -1575,7 +1586,16 @@ class Device:
                 # the question is not evidence. Asking about the president of France otherwise cited
                 # "Norfolk State University", which is worse than citing nothing.
                 web = [w for w in online.as_evidence(hits) if qw & _content_words(w["text"])]
+                for w in web:                      # keep it, so the next answer needs no network
+                    try:
+                        self.remember(w["text"][:self.MEMORY_MAX_CHARS], kind="learned",
+                                      meta={"url": w["url"], "title": w["title"], "learned_for": q})
+                    except Exception:
+                        pass                       # a cache that fails must never cost the live answer
                 if web:
+                    # a page already on the device and a fresh fetch of it are one source, not two
+                    fresh = {w["url"] for w in web}
+                    used = [c for c in used if c.get("url") not in fresh]
                     # web evidence sits after local evidence and shares the one [E1..] sequence, so the
                     # grounding check in edge/rag.py keeps working unchanged
                     used = used + web
@@ -1673,6 +1693,9 @@ class Device:
             # device knows" and "the internet says", so the answer carries which it was rather than
             # leaving the UI to guess from the evidence list.
             out["sources"] = sorted({"web" if c["source"] == "web" else "device" for c in used})
+            # answered offline from something it looked up before: worth saying, because it is the
+            # difference between "this device is useless without a network" and "it remembers"
+            out["from_learned"] = any(c["source"] == "learned" for c in used)
             out["used"] = [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
                             "url": c.get("url"),
                             "title": c.get("title"), "sources": c.get("sources") or [],

@@ -185,6 +185,70 @@ def test_a_web_hit_sharing_no_word_with_the_question_is_not_cited(make_device, m
     assert [u["url"] for u in out["used"]] == ["https://e.org/fr"]
 
 
+# ---- what it looked up once, it knows with the network off ------------------------------------------------
+HIT = [{"title": "Eiffel Tower", "url": "https://e.org/eiffel",
+        "snippet": "The Eiffel Tower is a lattice tower on the Champ de Mars in Paris, France."}]
+
+
+def test_what_it_learned_online_answers_the_same_question_offline(make_device, monkeypatch):
+    """The complaint this exists to answer: pull the network and the device went back to "nothing on
+    this device relates to that" about a thing it had read minutes earlier."""
+    monkeypatch.setenv("EDGE_SEARCH_PROVIDER", "duckduckgo")
+    monkeypatch.setattr(online, "search", lambda q, limit=5: list(HIT))
+    d, _ = make_device("devA", "site1")
+
+    assert d.ask("what is the Eiffel Tower")["sources"] == ["web"]
+
+    d.outbox.kv_set("online", False)               # the network goes away
+    out = d.ask("what is the Eiffel Tower")
+    assert out["grounded"] is True and out["from_learned"] is True
+    assert out["sources"] == ["device"], "it is answering from itself now, not from the internet"
+    assert "Eiffel" in out["answer"]
+
+
+def test_what_it_learned_answers_a_different_question_offline(make_device, monkeypatch):
+    """Not a cache keyed on the question: the text is searchable like anything else it holds."""
+    monkeypatch.setenv("EDGE_SEARCH_PROVIDER", "duckduckgo")
+    monkeypatch.setattr(online, "search", lambda q, limit=5: list(HIT))
+    d, _ = make_device("devA", "site1")
+    d.ask("what is the Eiffel Tower")
+
+    d.outbox.kv_set("online", False)
+    out = d.ask("which tower is on the Champ de Mars")
+    assert out["grounded"] is True and out["from_learned"] is True
+
+
+def test_looking_the_same_page_up_twice_keeps_one_copy(make_device, monkeypatch):
+    monkeypatch.setenv("EDGE_SEARCH_PROVIDER", "duckduckgo")
+    monkeypatch.setattr(online, "search", lambda q, limit=5: list(HIT))
+    d, _ = make_device("devA", "site1")
+    d.ask("what is the Eiffel Tower")
+    d.ask("tell me about the Eiffel Tower")
+    assert d.store.count({"type": "memory", "kind": "learned"}) == 1
+
+
+def test_a_cached_page_and_a_fresh_fetch_are_one_source(make_device, monkeypatch):
+    monkeypatch.setenv("EDGE_SEARCH_PROVIDER", "duckduckgo")
+    monkeypatch.setattr(online, "search", lambda q, limit=5: list(HIT))
+    d, _ = make_device("devA", "site1")
+    d.set_retrieval_mode("online")                 # always goes out, so both would otherwise be present
+    d.ask("what is the Eiffel Tower")
+    out = d.ask("what is the Eiffel Tower")
+    assert [u["url"] for u in out["used"]] == ["https://e.org/eiffel"]
+
+
+def test_what_it_learned_never_leaves_the_device(make_device, monkeypatch):
+    """It is stored like a technician note: local, and never queued for the cloud."""
+    monkeypatch.setenv("EDGE_SEARCH_PROVIDER", "duckduckgo")
+    monkeypatch.setattr(online, "search", lambda q, limit=5: list(HIT))
+    d, _ = make_device("devA", "site1")
+    before = d.outbox.counts()
+    d.ask("what is the Eiffel Tower")
+    assert d.outbox.counts() == before
+    learned = d.recall("Eiffel", limit=5, kind="learned")
+    assert learned and all(m["share_state"] == "local" for m in learned)
+
+
 def test_a_question_about_this_device_never_leaves_it(make_device, monkeypatch):
     """An overview question is about this machine's own record. There is no answer to it on the
     internet, and sending it out would leak what the device is for."""
