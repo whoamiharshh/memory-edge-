@@ -260,6 +260,32 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   - `tools/qdrant_local.py`: test Qdrant now uses 1 segment + a 4 MB WAL. It was sized for production, so a
     collection holding THREE events wrote a **513 MB** snapshot and one suite run left **98 GB** behind, then
     died with StorageFull. (157 GB of old pytest scratch was deleted to get the machine working again.)
+- [x] (2 Oct) UI fixes + Hindi/English + attachments in chat:
+  - **Which UI is which:** `http://127.0.0.1:9000/` is the CURRENT app (`app/`, served by `app/unified.py`, reads
+    files from disk each request, no cache headers, no service worker). `8101/8102` still serve the OLD `edge/ui`
+    (PWA with a service worker that caches): a user who "sees the old UI" is on one of those. Redirecting them to
+    9000 was proposed, NOT done (waiting for the user's yes). No Tailwind/bundler exists, so nothing can be purged.
+  - Sidebar: orb is a CSS sphere (turning texture + 3D tilt + glow); chat list is flat rounded cards (no
+    Today/Yesterday headings) with a last-answer `preview` (new key from `Device.conversations()`); active class is
+    `active` (JS used `on` before, which no CSS matched); nav is Ask/Memory/Broadcast only (Devices tab removed, its
+    page code remains but is unreachable), each with its own coloured icon chip; shared press-feedback transition rule.
+  - **Dictation = Whisper `small`** (`shared/speech.py`, faster-whisper 1.2.1, auto language, Devanagari for Hindi;
+    Vosk English-only kept as fallback). `faster-whisper`'s own file decoder breaks with `av` 19, so audio is passed
+    as a numpy array and that decoder is never used. 6-13 s per 5 s clip (fixed 30 s window). Tested on SYNTHETIC
+    speech only (SAPI + edge-tts); real-microphone Hindi is UNTESTED.
+  - **Answer language** (`shared/translate.py`, `Device.ask`): Hindi (Devanagari) question -> English -> the normal
+    grounded pipeline -> answer back to Hindi. Opus-mt hi-en/en-hi converted to CTranslate2 int8 by
+    `tools/build_language_models.py` (torch only in a throwaway venv; verified it reproduces the models byte for
+    byte). Hand-written Hindi for fixed messages, the 4 whole-record questions and episode summaries (MT garbled
+    them); the rest is MT (rough: "bearing" -> "automobile" once), flagged in the UI with the English original.
+    Protected tokens ([E1], ids, numbers) are cut out, never masked-and-restored (masking failed: the model
+    transliterated the placeholder). Not handled: Hinglish (Latin-letter Hindi), other languages, Hindi evidence
+    snippets. `argostranslate` was rejected (pulls torch + spacy + stanza).
+  - Attaching a photo now adds the picture + note to the chat as the user's message, with a device confirmation
+    (live session only; replaying an old chat from the sidebar does not rebuild photo bubbles).
+  - Test debris left in the user's live device by manual checks: one synthetic photo (`motor1-bearing.png`) and a
+    few test chat turns. Pictures have no delete endpoint (not added).
+  - Launcher gotcha: never pipe `start.ps1` (`| Out-Null` hangs, children inherit the pipe); use background run.
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).

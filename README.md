@@ -87,8 +87,18 @@ questions in plain language - offline, with citations, and with an honest answer
 - **It distinguishes two failures.** Nothing sharing a single word with the question means the subject is
   outside what this device holds, and it says so - that needs teaching or a connection. A near miss says so
   instead, and asks you to name the part or code.
-- **Speech, on the device.** Vosk (40 MB, Apache-2.0, CPU). The browser's own speech API would have been one
-  line of JavaScript, but on most platforms it uploads the audio; that would break the offline claim.
+- **Speech, on the device, in English or Hindi.** Whisper `small` (faster-whisper, ~480 MB, MIT, CPU) detects the
+  language itself and writes Hindi in Devanagari; Vosk (40 MB, English only) remains as a fallback. The browser's own
+  speech API would have been one line of JavaScript, but on most platforms it uploads the audio; that would break
+  the offline claim. Measured on synthetic speech only: English correct, Hindi detected at 98 % with one misheard
+  word in a sentence; a 5 s clip takes 6-13 s on a laptop CPU (Whisper always processes a 30 s window).
+- **Answers in the language you asked in (Hindi / English).** The whole answer pipeline is English, so a Hindi
+  question is translated to English, answered by the same grounded pipeline, and the answer is translated back,
+  with two small offline models (opus-mt hi-en / en-hi, ~78 MB each, CTranslate2, no torch at run time). Whole-record
+  questions, the device's standard messages and episode summaries are hand-written Hindi, because machine
+  translation garbled them; everything else is machine-translated, flagged as such in the UI with the English
+  original one click away. Identifiers, numbers and `[E1]` markers are never sent through the translator. Hindi typed
+  in Latin letters is read as English; cited source snippets stay in English.
 - **Photographs are retrieved, never described.** Qdrant's CLIP pair puts pictures and words in one 512-d
   space, so typing "cracked housing" finds the photo. Nothing reads the image and states what is wrong with
   it: a vision-language model would confidently misread a spalled race, and a nearest-neighbour hit makes no
@@ -272,8 +282,9 @@ The scripted three-device proof still exists:
 (devices on 8101/8102/8103, cloud on 8100, tokens in `runtime\cloud\bootstrap.json`).
 
 **First run takes a few minutes and blocks:** the device embeds ~9.5k reference records so it can answer
-something before anyone has taught it anything. Voice and photo search fetch their models on first use
-(Vosk 40 MB, Qdrant CLIP 590 MB) and are offline afterwards; both are optional and the app runs without them.
+something before anyone has taught it anything. Photo search fetches its model on first use (Qdrant CLIP 590 MB);
+voice and Hindi need `python -m tools.build_language_models` once (Whisper ~480 MB + two ~78 MB translation
+models). All are offline afterwards and optional; the app runs without them.
 
 For a phone, a second computer or production (HTTPS, mutual TLS, certificate revocation, strong tokens, backups):
 [docs/SETUP.md](docs/SETUP.md). Real-world test plan: [docs/FIELD_TEST.md](docs/FIELD_TEST.md).

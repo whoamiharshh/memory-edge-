@@ -85,6 +85,10 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
     `python -m tools.backup cloud-backup http://127.0.0.1:6333 backups\cloud` / `cloud-restore`.
 21. **Robots**: after a few failures are confirmed (or taught with "teach a failure"), `POST /api/detector/train`
     trains the robot's own detector; its cross-validated accuracy is shown in the device stats.
+22. **Voice and Hindi** (optional): `.venv\Scripts\python.exe -m tools.build_language_models`. Downloads Whisper `small`
+    (~480 MB) and converts the two Helsinki-NLP opus-mt models (hi-en, en-hi) to CTranslate2 int8 (~78 MB each) in a
+    throwaway venv that carries torch and is deleted afterwards (needs `uv` and a network, once). Without it dictation
+    falls back to the English-only Vosk model and a Hindi question is answered as if it were English.
 
 ## Production checklist (beyond the localhost demo)
 - HTTPS everywhere: `tools\make_certs.py`, cloud `--tls` or `--mtls`, devices `--ca` (+ `--client-cert/--client-key`).

@@ -76,7 +76,7 @@
 html,body{height:100%}
 body{
   background:var(--app);color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Nirmala UI","Noto Sans Devanagari",
               system-ui,sans-serif;
   font-size:14px;line-height:1.6;letter-spacing:-.011em;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
@@ -115,13 +115,29 @@ main{background:var(--main);border:1px solid var(--line);border-radius:var(--r-x
 .side-search kbd{font:inherit;font-size:10.5px;color:var(--dim);background:var(--card);
   border:1px solid var(--line);border-radius:5px;padding:1px 6px;flex:none}
 
-.side-nav{display:flex;flex-direction:column;gap:1px;margin-top:6px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);
+/* the bar is one raised panel; each icon sits in its own chip, and the open page's chip fills with the
+   accent colour and glows, so the current place reads at a glance */
+.side-nav{display:flex;flex-direction:column;gap:3px;margin-top:6px;padding:5px;
+  background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:4px 10px 4px 5px;border-radius:12px;
   color:var(--mut);font-size:13.5px;font-weight:500;letter-spacing:-.012em;
-  border:1px solid transparent;transition:background .15s,color .15s,border-color .15s}
-.nav-item svg{width:17px;height:17px;flex:none}
+  border:1px solid transparent;
+  transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease}
+.nav-item svg{width:30px;height:30px;padding:6.5px;flex:none;border-radius:9px;background:var(--sunken);
+  transition:background .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
 .nav-item:hover{background:var(--hover);color:var(--ink)}
-.nav-item.active{background:var(--card);color:var(--ink);border-color:var(--line);box-shadow:var(--sh-sm)}
+/* each destination keeps its own colour even when it isn't the open page */
+.nav-item[data-page="ask"] svg{background:rgba(139,92,246,.18);color:#8B5CF6}
+.nav-item[data-page="memory"] svg{background:rgba(14,165,233,.18);color:#0EA5E9}
+.nav-item[data-page="broadcast"] svg{background:rgba(244,114,182,.2);color:#EC4899}
+.nav-item[data-page="ask"].active svg{background:#8B5CF6;color:#fff;box-shadow:0 0 0 3px rgba(139,92,246,.28),0 4px 14px rgba(139,92,246,.55)}
+.nav-item[data-page="memory"].active svg{background:#0EA5E9;color:#fff;box-shadow:0 0 0 3px rgba(14,165,233,.28),0 4px 14px rgba(14,165,233,.55)}
+.nav-item[data-page="broadcast"].active svg{background:#EC4899;color:#fff;box-shadow:0 0 0 3px rgba(236,72,153,.28),0 4px 14px rgba(236,72,153,.55)}
+.nav-item:hover svg{transform:scale(1.07)}
+.nav-item:active svg{transform:scale(.95)}
+.nav-item.active{background:var(--hover);color:var(--ink);font-weight:600;border-color:var(--line)}
+.nav-item.active svg{background:var(--accent);color:var(--on-accent);
+  box-shadow:0 0 0 3px var(--focus),0 4px 12px rgba(143,124,232,.45)}
 
 .side-new{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:10px;height:36px;
   border-radius:var(--r);background:var(--accent);color:var(--on-accent);
@@ -135,13 +151,17 @@ main{background:var(--main);border:1px solid var(--line);border-radius:var(--r-x
   padding-bottom:6px}
 .hist-group-wrap{display:flex;flex-direction:column;gap:3px}
 .hist-group{font-size:11px;font-weight:600;color:var(--dim);padding:0 10px;margin:12px 0 4px}
-.hist-item{position:relative;display:flex;flex-direction:column;gap:1px;padding:8px 10px;
-  border-radius:var(--r);background:var(--card);border:1px solid var(--line);cursor:pointer;
-  transition:border-color .15s,background .15s}
-.hist-item:hover{border-color:var(--dim)}
-.hist-item.sel,.hist-item.active{background:var(--hover);border-color:var(--dim)}
-.hist-title{font-size:12.5px;font-weight:500;color:var(--ink);letter-spacing:-.011em;
+.hist-item{position:relative;display:flex;flex-direction:column;gap:2px;padding:7px 11px 8px;
+  border-radius:14px;background:var(--card);border:1px solid var(--line);cursor:pointer;
+  box-shadow:var(--sh-sm);
+  transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .18s ease}
+.hist-item:hover{border-color:var(--dim);box-shadow:var(--sh-md);transform:translateY(-1px)}
+.hist-item:active{transform:translateY(0);box-shadow:var(--sh-sm)}
+.hist-item.sel,.hist-item.active{background:var(--hover);border-color:var(--dim);box-shadow:var(--sh)}
+.hist-title{font-size:12.5px;font-weight:600;color:var(--ink);letter-spacing:-.011em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px}
+.hist-preview{font-size:11.5px;line-height:1.4;color:var(--mut);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
 .hist-meta{font-size:10.5px;color:var(--dim)}
 .hist-empty{font-size:12.5px;color:var(--dim);padding:18px 10px;text-align:center}
 .hist-actions{position:absolute;right:6px;top:6px;display:flex;gap:1px;opacity:0;transition:opacity .15s}
@@ -206,11 +226,30 @@ h2{font-size:14.5px;font-weight:650;letter-spacing:-.016em;margin-bottom:10px}
 
 .welcome{display:flex;flex-direction:column;align-items:center;text-align:center;
   padding:min(7vh,56px) 16px 8px;max-width:620px;margin:0 auto}
-.hero-mark{width:118px;height:118px;border-radius:50%;margin-bottom:26px;flex:none;background:var(--orb);
-  box-shadow:inset 0 -14px 28px rgba(96,20,130,.34),inset 0 10px 22px rgba(255,255,255,.5),
-             0 20px 44px rgba(170,90,200,.3);
-  animation:orb 7s ease-in-out infinite}
-@keyframes orb{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(2deg)}}
+/* a sphere, not a disc: the colour texture scrolls sideways (the sphere turning) under shading and a
+   highlight that stay put (the light), the whole ball tilts in perspective, and the glow breathes */
+.hero-mark{position:relative;width:118px;height:118px;border-radius:50%;margin-bottom:26px;flex:none;
+  overflow:hidden;isolation:isolate;
+  background-color:#8F7CE8;
+  background-image:
+    radial-gradient(ellipse 70px 46px at 30px 34px, rgba(244,155,214,.95), rgba(244,155,214,0) 70%),
+    radial-gradient(ellipse 80px 50px at 150px 84px, rgba(84,210,230,.95), rgba(84,210,230,0) 70%),
+    linear-gradient(90deg,#D9568F 0,#C56ED6 20%,#8F7CE8 40%,#4EC7E0 60%,#8F7CE8 80%,#D9568F 100%);
+  background-size:236px 100%;
+  animation:orb-turn 9s linear infinite, orb-tilt 7s ease-in-out infinite, orb-glow 3.6s ease-in-out infinite;
+  will-change:transform,background-position}
+.hero-mark::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255,255,255,.9) 0 4%, rgba(255,255,255,0) 26%),
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0) 52%, rgba(60,12,100,.5) 100%),
+    radial-gradient(circle at 66% 80%, rgba(255,255,255,.22), rgba(255,255,255,0) 40%)}
+@keyframes orb-turn{from{background-position:0 0}to{background-position:-236px 0}}
+@keyframes orb-tilt{
+  0%,100%{transform:perspective(520px) translateY(0) rotateX(8deg) rotateY(-14deg)}
+  50%{transform:perspective(520px) translateY(-9px) rotateX(-6deg) rotateY(14deg)}}
+@keyframes orb-glow{
+  0%,100%{box-shadow:0 18px 40px rgba(170,90,200,.28),0 0 0 0 rgba(143,124,232,0)}
+  50%{box-shadow:0 26px 60px rgba(170,90,200,.5),0 0 46px 8px rgba(143,124,232,.38)}}
 .hero-title{font-size:27px;line-height:1.18;letter-spacing:-.03em;font-weight:650;margin-bottom:8px}
 .hero-sub{font-size:14px;color:var(--mut);max-width:46ch;line-height:1.6}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:26px}
@@ -224,6 +263,10 @@ h2{font-size:14.5px;font-weight:650;letter-spacing:-.016em;margin-bottom:10px}
 .turn.you .bubble{background:var(--accent);color:var(--on-accent);border-radius:16px 16px 5px 16px;
   padding:10px 15px;max-width:74%}
 .turn.bot .bubble{min-width:0}
+.turn.you .bubble.has-photo{padding:6px;display:flex;flex-direction:column;gap:6px}
+.turn.you .bubble.has-photo .btext{padding:2px 8px 4px}
+.chat-photo{display:block;max-width:260px;max-height:220px;width:auto;height:auto;border-radius:12px;
+  object-fit:cover}
 .btext{font-size:15px;line-height:1.75;color:var(--ink);letter-spacing:-.012em;
   white-space:pre-wrap;word-wrap:break-word}
 .turn.you .btext{font-size:13.5px;line-height:1.55;color:var(--on-accent);font-weight:450}
@@ -500,6 +543,15 @@ details.sources[open] summary::before{content:"\25BE  "}
   .mem-list{max-height:none}
   .conv-title{display:none}
 }
+/* ═══ press feedback ═══
+   Every control already eased its colours, but none reacted to the click itself, which is what makes a
+   UI feel slow. One shared rule: all of them also animate transform, and sink slightly when pressed. */
+.side-new,.model-card,.side-foot-btn,.icon-btn,.top-btn,.ctx-toggle,.btn,.seg-btn,.chip,.send-btn,.hist-act{
+  transition-property:background-color,color,border-color,box-shadow,opacity,transform;
+  transition-duration:.15s;transition-timing-function:ease}
+.side-new:active,.model-card:active,.side-foot-btn:active,.icon-btn:active,.top-btn:active,.ctx-toggle:active,
+.btn:active,.seg-btn:active,.chip:active,.send-btn:active,.hist-act:active{transform:scale(.96)}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
     transition-duration:.001ms!important}

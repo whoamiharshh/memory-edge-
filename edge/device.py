@@ -1357,8 +1357,10 @@ class Device:
         for sid, rows in groups.items():
             rows.sort(key=lambda r: r.get("created_at", ""))
             first = re.match(r"^Q:\s*(.+?)(?:\nA:|$)", rows[0].get("note_text", ""), re.S)
+            last = re.search(r"\nA:\s*(.*)$", rows[-1].get("note_text", ""), re.S)
             out.append({"session": sid, "turns": len(rows),
                         "title": (first.group(1).strip() if first else "Conversation")[:70],
+                        "preview": re.sub(r"\s+", " ", last.group(1)).strip()[:90] if last else "",
                         "started_at": rows[0].get("created_at"),
                         "last_at": rows[-1].get("created_at")})
         out.sort(key=lambda c: c.get("last_at") or "", reverse=True)
@@ -1503,6 +1505,16 @@ class Device:
         q = (text or "").strip()
         if not q:
             raise ValueError("ask needs a question")
+        # Everything below is English: retrieval, the grounding check, the evidence texts. A question in
+        # Hindi is translated once here, answered by that same pipeline, and the answer is translated back
+        # at the end, so the person is answered in the language they asked in.
+        from shared import translate
+        original_q, lang, translated = q, translate.detect(q), False
+        if lang == "hi" and translate.available("hi"):
+            try:
+                q, translated = translate.to_english(q, "hi") or q, True
+            except Exception:                      # a missing or broken model must not cost the answer
+                q = original_q
         t0 = time.perf_counter()
         history = self.recent_chat(CHAT_CONTEXT_TURNS)
         follow_up = _is_follow_up(q)
@@ -1722,8 +1734,17 @@ class Device:
         out.setdefault("web_reason", web_reason)
         out["retrieval_mode"] = self.retrieval_mode()
 
-        self.remember(f"Q: {q}\nA: {out['answer']}", kind="chat")
-        return {"question": q, **out, "pictures": pics,
+        answer_en = None
+        if translated:
+            answer_en = out["answer"]
+            try:
+                out["answer"] = translate.from_english(answer_en, "hi")
+            except Exception:
+                translated, answer_en = False, None   # say it in English rather than not at all
+
+        self.remember(f"Q: {original_q}\nA: {out['answer']}", kind="chat")
+        return {"question": original_q, **out, "language": lang, "translated": translated,
+                "answer_en": answer_en, "pictures": pics,
                 "retrieval": self._retrieval_report(cands, used, res, follow_up, query),
                 "latency_ms": round((time.perf_counter() - t0) * 1000, 2)}
 

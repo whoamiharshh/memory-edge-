@@ -22,5 +22,10 @@ cryptography==50.0.1         # tools/make_certs.py: private CA + server certific
 scikit-learn==1.9.1         # bench/vehicle_scania.py: the vehicle early-warning model (trained on real SCANIA data)
 pypdf==6.19.0                # edge/manuals.py: text of uploaded machine manuals (pure Python)
 pandas==3.0.6                 # bench only: SCANIA CSV loading
-vosk==0.3.45                 # shared/speech.py: dictation recognised ON the device (the browser API uploads audio)
+vosk==0.3.45                 # shared/speech.py: English-only dictation FALLBACK when the Whisper weights are absent
+faster-whisper==1.2.1        # shared/speech.py: multilingual dictation (English/Hindi, auto-detected) ON the device
+ctranslate2==4.8.2           # shared/translate.py + faster-whisper: CPU inference, no torch at run time
+sentencepiece==0.2.2         # shared/translate.py: tokenizer for the Hindi<->English models
+# models for the three above are built/fetched by `python -m tools.build_language_models` (needs torch ONLY in a
+# throwaway venv that tool creates and deletes; never installed here)
 soundfile==0.14.0            # audio file IO alongside vosk

@@ -162,18 +162,12 @@ async function loadConversations() {
     box.replaceChildren(el("div", { class: "hist-empty" }, q ? "Nothing matches that search." : "No conversations yet."));
     return;
   }
-  const groups = [];
-  for (const c of rows) {
-    const g = dateGroup(c.last_at);
-    let bucket = groups.find(x => x.name === g);
-    if (!bucket) { bucket = { name: g, items: [] }; groups.push(bucket); }
-    bucket.items.push(c);
-  }
-  box.replaceChildren(...groups.map(grp => el("div", { class: "hist-group-wrap" },
-    el("div", { class: "hist-group" }, grp.name),
-    ...grp.items.map(c => {
-      const item = el("div", { class: "hist-item" + (c.session === activeSession ? " on" : ""), title: sidebarTitle(c) },
+  // one flat list of cards: no Today / Yesterday headings
+  box.replaceChildren(...[rows].map(items => el("div", { class: "hist-group-wrap" },
+    ...items.map(c => {
+      const item = el("div", { class: "hist-item" + (c.session === activeSession ? " active" : ""), title: sidebarTitle(c) },
         el("div", { class: "hist-title" }, sidebarTitle(c)),
+        c.preview ? el("div", { class: "hist-preview" }, c.preview) : null,
         el("div", { class: "hist-meta" }, `${c.turns} message${c.turns === 1 ? "" : "s"}`),
         el("span", { class: "hist-actions" },
           el("button", { class: "hist-act", title: "Rename", on: { click: e => { e.stopPropagation(); openRename(c.session); } } }),
@@ -189,8 +183,8 @@ async function openConversation(session, item) {
   try {
     const turns = await api(DEV + "conversations/" + session);
     activeSession = session;
-    document.querySelectorAll(".hist-item").forEach(i => i.classList.remove("on"));
-    item?.classList.add("on");
+    document.querySelectorAll(".hist-item").forEach(i => i.classList.remove("active"));
+    item?.classList.add("active");
     const firstQ = turns.length ? (turns[0].note_text || "").replace(/^Q:\s*/, "").split("\n")[0] : "Conversation";
     $("convTitle").textContent = turns.length ? sidebarTitle({ session, title: firstQ.slice(0, 70) }) : "Conversation";
     const scroll = $("chatScroll");
@@ -419,6 +413,13 @@ async function send() {
       const act = el("div", { class: "offer" },
         el("button", { class: "btn small", on: { click: () => openTeach(q) } }, "Teach it about this"));
       b.querySelector(".bubble").append(act);
+    }
+    if (r.translated && r.answer_en) {
+      // machine translation is rough: say so, and keep the English wording one click away
+      const en = el("details", { class: "sources" },
+        el("summary", {}, "अनुवाद मशीन से किया गया है · English original"),
+        el("div", { class: "src-text" }, r.answer_en));
+      b.querySelector(".bubble").append(en);
     }
     scroll.append(b);
     showEvidence(r.used);
@@ -672,15 +673,35 @@ $("photoSave").addEventListener("click", async () => {
   btn.disabled = true;
   btn.textContent = "Saving…";
   try {
-    await api(DEV + "pictures", { image_b64: pendingPhoto.b64, filename: pendingPhoto.name,
-                                  note: $("photoNote").value.trim() });
+    const note = $("photoNote").value.trim();
+    const shown = $("photoPreview").src;             // the data URL already on screen: no second fetch
+    const name = pendingPhoto.name;
+    await api(DEV + "pictures", { image_b64: pendingPhoto.b64, filename: name, note });
     $("photoModal").hidden = true;
     pendingPhoto = null;
+    attachmentTurn(shown, name, note);
     toast("Photo saved. Describe it later to find it again.");
     if ($("page-memory").classList.contains("active")) loadMemory();
   } catch (e) { toast(e.message, true); }
   finally { btn.disabled = false; btn.textContent = "Save photo"; }
 });
+
+/* Something you attach is something you said, so it belongs in the conversation, not only in memory:
+   your message shows the picture and your note, and the device answers with what it did with it. */
+function attachmentTurn(src, name, note) {
+  showPage("ask");
+  $("welcome")?.remove();
+  const scroll = $("chatScroll");
+  const you = bubble("you", note || "");
+  const body = you.querySelector(".bubble");
+  body.classList.add("has-photo");
+  body.prepend(el("img", { class: "chat-photo", src, alt: name || "attached photo" }));
+  if (!note) body.querySelector(".btext").remove();
+  scroll.append(you);
+  scroll.append(bubble("bot", "Saved to this device’s memory. It is not uploaded anywhere. " +
+    "Describe the photo in a question and I will find it again."));
+  scroll.scrollTop = scroll.scrollHeight;
+}
 
 function fileToB64(file) {
   return new Promise((res, rej) => {
@@ -731,18 +752,23 @@ $("micBtn").addEventListener("click", async () => {
       stream.getTracks().forEach(t => t.stop());
       recording = false;
       $("micBtn").classList.remove("rec");
-      $("composerNote").textContent = "transcribing on this device…";
+      // Whisper works on a fixed 30 s window, so even a short clip takes several seconds on a laptop CPU
+      $("composerNote").textContent = "writing down what you said — a few seconds, on this device…";
+      $("micBtn").disabled = true;
       try {
         const wav = await blobToWav(new Blob(chunks));
         const r = await api(DEV + "speech", { audio_b64: wav });
         if (r.text) {
           $("askInput").value = ($("askInput").value + " " + r.text).trim();
-          $("composerNote").textContent = `heard ${r.seconds}s · check it before sending`;
+          $("askInput").dispatchEvent(new Event("input"));        // grow the box / enable Send
+          const lang = { en: "English", hi: "Hindi" }[r.language] || r.language;
+          $("composerNote").textContent = `heard ${r.seconds}s${lang ? " · " + lang : ""} · check it before sending`;
           $("askInput").focus();
         } else {
           $("composerNote").textContent = "nothing recognised — try again closer to the microphone";
         }
       } catch (e) { toast(e.message, true); $("composerNote").textContent = ""; }
+      finally { $("micBtn").disabled = false; }
     };
     recorder.start();
     recording = true;
