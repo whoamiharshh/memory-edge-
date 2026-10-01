@@ -232,7 +232,8 @@ network access blocked (`bench/offline_check.py`): **15/15, 0 connection attempt
 | Real trucks, early warning | AUC 0.75; top 10 % alerts catch 32 % of repairs (3.4x base rate). A bigger training set was tried: worse, rejected | §20, §28 |
 
 ### Latency and resources (`bench/latency.py`, `bench/resources.py`)
-Gate decision 0.21 ms; hybrid query on Edge 0.50 / 1.06 / 1.97 ms at 1k / 10k / 50k points; durable write 32 ms;
+Gate decision 0.76 ms; hybrid query on Edge 0.75 / 1.08 / 2.60 ms at 1k / 10k / 50k points; durable write 60 ms
+(all p50, from `bench/results/latency.json`);
 real-time monitoring 16.5 % of one core, ~0.3 GB RAM. One shared fix is ~0.9 kB; the raw signal it summarises
 (~500 kB) never leaves the device.
 

@@ -6,6 +6,9 @@ around each operation, warm-up excluded, p50/p95 over N repetitions. Numbers are
   durable_write    EdgeStore.upsert of one point incl. flush() (the K4 rule)
   gate             Device.ingest_window() state decision query against 86 baseline points (no episode write)
   hybrid_{n}       EdgeStore.search(vib+note+text, RRF) with n points in the shard (n = 1k, 10k, 50k)
+  qt_{type}_{n}    the four device query types (novelty_gate, same_machine_recall, technician_hybrid, fleet_evidence)
+                   at n = 1k, 10k, 50k points; "qdrant" = the Edge call with the query vectors ready, "e2e" = the
+                   fingerprint (vib types) or the bge-small query embedding (text types) plus the same call
   server_{n}       the same dense note query against the local Qdrant Server over HTTP (if it is running)
   llm_brief        edge.rag.brief() with the local LLM on a 2-item evidence set
   bandwidth        JSON bytes of one shared event vs the raw float32 signal it summarises
@@ -42,6 +45,60 @@ def timeit(fn, n: int, warm: int = 3) -> dict:
         fn()
         xs.append((time.perf_counter() - t) * 1000)
     return {"p50_ms": round(float(np.percentile(xs, 50)), 3), "p95_ms": round(float(np.percentile(xs, 95)), 3), "n": n}
+
+
+def query_types(emb: BgeEmbedder, texts: list[str], vec_cache: list, W, rpm) -> dict:
+    """p50/p95 for each of the four EdgeStore query types, Qdrant-only and end-to-end, at 1k/10k/50k points."""
+    rng = np.random.default_rng(3)
+    res: dict = {}
+    for n in (1000, 10000, 50000):
+        root = pathlib.Path(tempfile.mkdtemp(prefix="qt_"))
+        try:
+            dev, mir = EdgeStore(root / "dev"), EdgeStore(root / "mirror")
+            comps, fcs = ("bearing", "gear", "fan"), ("inner", "outer", "ball", "imbalance")
+            pts = [StorePoint(ids.make_id("b", i), {"type": "baseline", "machine_id": "m1"}, vib=rng.normal(size=DIM).tolist())
+                   for i in range(80)]
+            pts += [StorePoint(ids.make_id("x", i), {"type": "exemplar", "machine_id": "m1", "episode_id": str(i % 50)},
+                               vib=rng.normal(size=DIM).tolist()) for i in range(n // 2)]
+            pts += [StorePoint(ids.make_id("e", i), {"type": "episode", "machine_id": f"m{i % 5}", "component": comps[i % 3],
+                                                    "fault_class": fcs[i % 4], "note": texts[i % len(texts)]},
+                               vib=rng.normal(size=DIM).tolist(), note=vec_cache[i % len(vec_cache)],
+                               bm25_text=texts[i % len(texts)]) for i in range(n // 2)]
+            for a in range(0, len(pts), 1000):
+                dev.upsert(pts[a:a + 1000])
+            for a in range(0, n, 1000):
+                mir.upsert([StorePoint(ids.make_id("s", i), {"type": "shared", "component": comps[i % 3],
+                                                             "fault_class": fcs[i % 4], "status": "active"},
+                                       note=vec_cache[i % len(vec_cache)], bm25_text=texts[i % len(texts)])
+                            for i in range(a, min(n, a + 1000))])
+            dev.optimize(); mir.optimize()
+            qs = random.Random(1).sample(texts, 20)
+            qv = [emb.embed_query(t) for t in qs]
+            vv = [rng.normal(size=DIM).tolist() for _ in qs]
+            k = iter(range(10 ** 9))
+
+            def pick():
+                i = next(k) % len(qs)
+                return qs[i], qv[i], vv[i]
+
+            def e2e_vib():
+                return [float(v) for v in features(W[next(k) % len(W)], rpm=rpm)]
+
+            cases = {
+                "novelty_gate": (lambda: dev.novelty_gate(pick()[2], "m1"), lambda: dev.novelty_gate(e2e_vib(), "m1")),
+                "same_machine_recall": (lambda: dev.same_machine_recall(pick()[2], "m1"),
+                                        lambda: dev.same_machine_recall(e2e_vib(), "m1")),
+                "technician_hybrid": (lambda: dev.technician_hybrid(note=pick()[1], text=pick()[0], component="bearing", fault_class="inner"),
+                                      lambda: (t := pick()[0], dev.technician_hybrid(note=emb.embed_query(t), text=t, component="bearing", fault_class="inner"))),
+                "fleet_evidence": (lambda: mir.fleet_evidence(note=pick()[1], text=pick()[0], component="bearing", fault_class="inner"),
+                                   lambda: (t := pick()[0], mir.fleet_evidence(note=emb.embed_query(t), text=t, component="bearing", fault_class="inner"))),
+            }
+            for name, (qdrant_only, end_to_end) in cases.items():
+                res[f"{name}_{n}"] = {"qdrant": timeit(qdrant_only, 200), "e2e": timeit(end_to_end, 100)}
+            dev.close(); mir.close()
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+    return res
 
 
 def main() -> dict:
@@ -86,6 +143,7 @@ def main() -> dict:
             server.get_collections()
         except Exception:
             server = None
+        out["query_types"] = query_types(emb, texts, vec_cache, W, rpm)
         for n in (1000, 10000, 50000):
             st = EdgeStore(root / f"h{n}")
             pts = [StorePoint(ids.make_id("h", i), {"type": "episode"}, vib=rng.normal(size=DIM).tolist(),

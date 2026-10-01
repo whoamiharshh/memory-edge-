@@ -213,3 +213,78 @@ def test_closed_store_rejects_use(tmp_path):
     s.close()                                              # idempotent
     with pytest.raises(Exception):
         s.count()
+
+
+# ---- the four named query types --------------------------------------------------------------------------
+
+def _seed(store):
+    store.upsert([
+        StorePoint(pid("b"), {"type": "baseline", "machine_id": "m1", "status": "healthy", "secret": "x"}, vib=[0, 0, 0, 0]),
+        StorePoint(pid("x1"), {"type": "exemplar", "machine_id": "m1", "episode_id": "e1"}, vib=[5, 5, 5, 5]),
+        StorePoint(pid("other"), {"type": "baseline", "machine_id": "m2"}, vib=[0, 0, 0, 0.1]),
+        StorePoint(pid("e1"), {"type": "episode", "machine_id": "m1", "component": "bearing", "fault_class": "inner",
+                               "note": "grease dried", "internal": "drop-me"}, vib=[5, 5, 5, 5.1],
+                   note=[1, 0, 0], bm25_text="inner race spall grease dried"),
+        StorePoint(pid("e2"), {"type": "episode", "machine_id": "m1", "component": "bearing", "fault_class": "outer"},
+                   vib=[9, 9, 9, 9], note=[0, 1, 0], bm25_text="outer race crack replaced"),
+        StorePoint(pid("f1"), {"type": "shared", "component": "bearing", "fault_class": "inner", "action_code": "replace",
+                               "outcome": "worked", "site_id": "s2", "status": "active"}, note=[1, 0.1, 0],
+                   bm25_text="replaced bearing inner race"),
+        StorePoint(pid("f2"), {"type": "shared", "component": "bearing", "fault_class": "inner", "status": "retracted"},
+                   note=[1, 0, 0], bm25_text="replaced bearing inner race"),
+    ])
+
+
+def test_novelty_gate_is_machine_scoped_and_trims_payload(store):
+    _seed(store)
+    hits = store.novelty_gate([0, 0, 0, 0], "m1")
+    assert hits and {h.payload["machine_id"] for h in hits} == {"m1"}
+    assert all(set(h.payload) <= set(EdgeStore.NOVELTY_FIELDS) for h in hits)
+    assert hits[0].id == pid("b") and hits[0].score == pytest.approx(0.0)
+
+
+def test_same_machine_recall_returns_only_that_machines_episodes(store):
+    _seed(store)
+    hits = store.same_machine_recall([5, 5, 5, 5], "m1", limit=2)
+    assert [h.id for h in hits][0] == pid("e1")
+    assert all(h.payload["type"] == "episode" for h in hits)
+    assert "internal" not in hits[0].payload
+
+
+def test_technician_hybrid_filters_by_fault_class_and_fuses(store):
+    _seed(store)
+    hits = store.technician_hybrid(note=[1, 0, 0], text="grease inner race", component="bearing", fault_class="inner")
+    assert [h.id for h in hits] == [pid("e1")]
+    both = store.technician_hybrid(note=[1, 0, 0], text="race", component="bearing")
+    assert {h.id for h in both} == {pid("e1"), pid("e2")}
+
+
+def test_fleet_evidence_excludes_retracted_and_trims(tmp_path):
+    mirror = EdgeStore(tmp_path / "mirror", vib_dim=VD, note_dim=ND)
+    _seed(mirror)
+    mirror.delete_where({"type": ["baseline", "exemplar", "episode"]})
+    hits = mirror.fleet_evidence(note=[1, 0, 0], text="replaced bearing", component="bearing", fault_class="inner")
+    assert [h.id for h in hits] == [pid("f1")]
+    assert set(hits[0].payload) <= set(EdgeStore.EVIDENCE_FIELDS)
+    mirror.close()
+
+
+@pytest.mark.parametrize("fusion", ["rrf", "dbsf"])
+def test_both_fusions_run_and_agree_on_an_easy_query(store, fusion):
+    _seed(store)
+    hits = store.search(note=[1, 0, 0], text="grease dried inner", limit=2, fusion=fusion,
+                        filter={"type": "episode"})
+    assert hits[0].id == pid("e1")
+
+
+def test_unknown_fusion_is_rejected(store):
+    _seed(store)
+    with pytest.raises(ValueError):
+        store.search(note=[1, 0, 0], fusion="magic")
+
+
+def test_queries_never_return_vectors_and_payload_none_returns_everything(store):
+    _seed(store)
+    h = store.nearest([5, 5, 5, 5.1], filter={"type": "episode"}, limit=1)[0]
+    assert h.payload["internal"] == "drop-me"
+    assert not hasattr(h, "vectors")

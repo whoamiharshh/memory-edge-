@@ -1,5 +1,5 @@
 """Text retrieval benchmark on REAL maintenance text: dense (bge-small) vs BM25 (Qdrant Edge built-in) vs
-RRF hybrid (one Qdrant Edge prefetch+fusion query) - the same store code the device uses.
+RRF hybrid and DBSF hybrid (one Qdrant Edge prefetch+fusion query each) - the same store code the device uses.
 
 Data: Annotated Maintenance Logbook (Zenodo 17903357, CC BY 4.0; aviation, a proxy domain for our motors).
 Index: every record's PROBLEM text. Query: the PROBLEM text of a sampled record.
@@ -78,13 +78,14 @@ def main() -> dict:
         for s in range(0, len(pts), 500):
             store.upsert(pts[s:s + 500])
         store.optimize()
-        res = {m: [] for m in ("dense", "bm25", "hybrid_rrf", "hybrid_bm25x2", "hybrid_densex2")}
+        res = {m: [] for m in ("dense", "bm25", "hybrid_rrf", "hybrid_dbsf", "hybrid_bm25x2", "hybrid_densex2")}
         lat = {m: [] for m in res}
         for q in queries:
             relevant = {j for j in groups[(q["tag"], q["part"])] if by_i[j]["norm"] != q["norm"]}
             qv = emb.embed_query(q["problem"])
             for m, kw in (("dense", {"note": qv}), ("bm25", {"text": q["problem"]}),
                           ("hybrid_rrf", {"note": qv, "text": q["problem"]}),
+                          ("hybrid_dbsf", {"note": qv, "text": q["problem"], "fusion": "dbsf"}),
                           ("hybrid_bm25x2", {"note": qv, "text": q["problem"], "weights": {NOTE: 1.0, NOTE_BM25: 2.0}}),
                           ("hybrid_densex2", {"note": qv, "text": q["problem"], "weights": {NOTE: 2.0, NOTE_BM25: 1.0}})):
                 t = time.perf_counter()

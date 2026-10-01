@@ -40,7 +40,7 @@ from typing import Any, Callable, Iterator, Mapping, Sequence
 from qdrant_edge import (Bm25, Bm25Config, CountRequest, Distance, EdgeConfig, EdgeOptimizersConfig, EdgeShard,
                          EdgeSparseVectorParams, ScalarQuantizationConfig, ScalarType, VectorStorageDatatype,
                          EdgeVectorParams, FacetRequest, FieldCondition, Filter, Fusion, MatchAny, MatchValue,
-                         Modifier, PayloadSchemaType, Point, PointVectors, Prefetch, Query, QueryRequest, RangeFloat,
+                         Modifier, PayloadSchemaType, PayloadSelector, Point, PointVectors, Prefetch, Query, QueryRequest, RangeFloat,
                          ScrollRequest, SparseVector, UpdateMode, UpdateOperation)
 
 from edge.fingerprint import DIM as FP_DIM, FP_VERSION
@@ -129,6 +129,11 @@ class Hit:
 def canonical_id(pid: str | uuid.UUID) -> str:
     """Edge ids are UUIDs (or u64; we only use UUIDs). Raises ValueError on anything else."""
     return str(pid if isinstance(pid, uuid.UUID) else uuid.UUID(str(pid)))
+
+
+def _with_payload(fields: Sequence[str] | None) -> Any:
+    """None = whole payload; a list = only those keys (the query types below ask for just what they show)."""
+    return True if fields is None else PayloadSelector.Include(list(fields))
 
 
 def build_filter(spec: Mapping[str, Any] | None) -> Filter | None:
@@ -434,11 +439,14 @@ class EdgeStore:
         r = self.retrieve([pid], with_vectors=with_vectors)
         return r[0] if r else None
 
-    def nearest(self, vib: Sequence[float], *, filter: Mapping[str, Any] | None = None, limit: int = 1) -> list[Hit]:
-        """Nearest points by fingerprint. score = Euclidean distance (ascending)."""
+    def nearest(self, vib: Sequence[float], *, filter: Mapping[str, Any] | None = None, limit: int = 1,
+                payload: Sequence[str] | None = None) -> list[Hit]:
+        """Nearest points by fingerprint. score = Euclidean distance (ascending). Vectors are never returned;
+        payload=None returns the whole payload, a list returns only those keys."""
         q = Query.Nearest(_check_vector(VIB, vib, self.meta["vib_dim"]), using=VIB)
         with self._lock:
-            res = self._shard.query(QueryRequest(limit=limit, query=q, filter=build_filter(filter), with_payload=True))
+            res = self._shard.query(QueryRequest(limit=limit, query=q, filter=build_filter(filter),
+                                                 with_payload=_with_payload(payload), with_vector=False))
         return [Hit(canonical_id(r.id), float(r.score), dict(r.payload)) for r in res]
 
     def _legs(self, vib, note, text, image=None) -> dict[str, Any]:
@@ -476,7 +484,7 @@ class EdgeStore:
                text: str | None = None, image: Sequence[float] | None = None,
                filter: Mapping[str, Any] | None = None, limit: int = 10,
                prefetch_limit: int = 50, weights: Mapping[str, float] | None = None,
-               explain: bool = False) -> list[Hit]:
+               explain: bool = False, payload: Sequence[str] | None = None, fusion: str = "rrf") -> list[Hit]:
         """Hybrid search in ONE Edge request: a prefetch per supplied leg, fused with reciprocal rank fusion.
         score = RRF score (rank-based; not comparable across queries, so never threshold it).
         explain=True additionally runs each leg alone and reports each hit's rank in that leg."""
@@ -485,7 +493,10 @@ class EdgeStore:
             raise ValueError("search needs at least one of vib, note, text, image")
         flt = build_filter(filter)
         w = [float(weights.get(k, 1.0)) for k in legs] if weights else None
-        req = QueryRequest(limit=limit, with_payload=True, filter=flt, query=Fusion.Rrf(RRF_K, w),
+        if fusion not in ("rrf", "dbsf"):
+            raise ValueError("fusion must be 'rrf' or 'dbsf'")
+        fused = Fusion.Rrf(RRF_K, w) if fusion == "rrf" else Fusion.Dbsf()
+        req = QueryRequest(limit=limit, with_payload=_with_payload(payload), with_vector=False, filter=flt, query=fused,
                            prefetches=[Prefetch(limit=prefetch_limit, query=q, filter=flt) for q in legs.values()])
         with self._lock:
             res = self._shard.query(req)
@@ -499,6 +510,40 @@ class EdgeStore:
             for h in hits:
                 h.legs = {name: ranks[name].get(h.id) for name in legs}
         return hits
+
+    # ---- the four query types the device runs (each = one Edge request, payload trimmed, no vectors) ----------
+    NOVELTY_FIELDS = ("type", "episode_id", "machine_id", "status")
+    RECALL_FIELDS = ("type", "episode_id", "machine_id", "component", "fault_class", "action_code", "outcome",
+                     "status", "occurrences", "note", "seq")
+    EVIDENCE_FIELDS = ("type", "case_id", "component", "fault_class", "action_code", "outcome", "site_id",
+                       "status", "flags", "note_redacted")
+
+    def novelty_gate(self, vib: Sequence[float], machine_id: str, *, limit: int = 5) -> list[Hit]:
+        """1. Is this window healthy, a known episode, or new? Nearest baseline/exemplar points of THIS machine."""
+        return self.nearest(vib, filter={"machine_id": machine_id, "type": ["baseline", "exemplar"]},
+                            limit=limit, payload=self.NOVELTY_FIELDS)
+
+    def same_machine_recall(self, vib: Sequence[float], machine_id: str, *, limit: int = 5) -> list[Hit]:
+        """2. Has THIS machine seen this before? Nearest past episodes of the same machine."""
+        return self.nearest(vib, filter={"machine_id": machine_id, "type": "episode"},
+                            limit=limit, payload=self.RECALL_FIELDS)
+
+    def technician_hybrid(self, *, note: Sequence[float] | None, text: str | None, vib: Sequence[float] | None = None,
+                          component: str | None = None, fault_class: str | None = None, limit: int = 10,
+                          fusion: str = "rrf") -> list[Hit]:
+        """3. A technician's question: dense + BM25 (+ vib as a tie-break leg), fused in one request, filtered by
+        component / fault class when known."""
+        flt = {k: v for k, v in (("component", component), ("fault_class", fault_class)) if v}
+        flt["type"] = "episode"
+        w = {VIB: 0.5} if vib is not None else None
+        return self.search(vib=vib, note=note, text=text, filter=flt, limit=limit, weights=w, fusion=fusion,
+                           payload=self.RECALL_FIELDS)
+
+    def fleet_evidence(self, *, note: Sequence[float] | None, text: str | None, component: str,
+                       fault_class: str, limit: int = 10, fusion: str = "rrf") -> list[Hit]:
+        """4. What did other sites find for this (component, fault class)? Run on the immutable fleet MIRROR shard."""
+        return self.search(note=note, text=text, limit=limit, fusion=fusion, payload=self.EVIDENCE_FIELDS,
+                           filter={"component": component, "fault_class": fault_class, "!status": "retracted"})
 
     def count(self, filter: Mapping[str, Any] | None = None) -> int:
         with self._lock:

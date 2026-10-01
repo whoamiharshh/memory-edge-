@@ -115,18 +115,20 @@ Disk bytes are equal because Qdrant Edge pre-allocates its storage pages; at thi
 honest growth measure (21k points/hour would keep growing; 78 points/hour of episodes would not).
 
 ## 9. Latency (`bench/latency.py`)
-Wall clock (`time.perf_counter`), warm-up excluded, p50 / p95 over n repetitions, machine otherwise idle (the demo's
-Qdrant Server running for the comparison). Points: random fingerprints + real logbook text (bge + BM25).
+Wall clock (`time.perf_counter`), warm-up excluded, p50 / p95 over n repetitions (n per row in
+`bench/results/latency.json`; the demo's Qdrant Server was running for the comparison). Points: random fingerprints +
+real logbook text (bge + BM25). Re-measured 2 Oct 2026; the first run (28 Sep) was faster on some rows (gate 0.21 ms,
+durable write 32 ms), so treat these as laptop-dependent figures, not constants.
 | Operation | p50 | p95 |
 |---|---|---|
-| fingerprint one window (4096 samples, DSP) | 2.3 ms | 4.6 ms |
-| embed one note (bge-small, CPU) | 6.1 ms | 7.1 ms |
-| gate decision per window (86 baseline points) | 0.21 ms | 0.27 ms |
-| durable write (upsert + `flush()`) | 32 ms | 36 ms |
-| hybrid query (vib + note + BM25, RRF) on Edge: 1k / 10k / **50k** points | 0.50 / 1.06 / **1.97** ms | 0.63 / 1.53 / 2.99 ms |
-| dense query on Edge: 1k / 10k / 50k | 0.30 / 0.35 / 0.24 ms | 0.48 / 0.53 / 0.40 ms |
-| same dense query on the **local** Qdrant Server over HTTP: 1k / 10k / 50k | 14.4 / 18.2 / 9.4 ms | 27.6 / 32.6 / 31.9 ms |
-| LLM evidence brief (Qwen2.5-1.5B Q4, CPU, 2 evidence items) | 2.6 s | 2.7 s |
+| fingerprint one window (4096 samples, DSP) | 2.3 ms | 3.3 ms |
+| embed one note (bge-small, CPU) | 15.6 ms | 34.7 ms |
+| gate decision per window (86 baseline points) | 0.76 ms | 0.96 ms |
+| durable write (upsert + `flush()`) | 60 ms | 75 ms |
+| hybrid query (vib + note + BM25, RRF) on Edge: 1k / 10k / **50k** points | 0.75 / 1.08 / **2.60** ms | 1.59 / 1.43 / 5.00 ms |
+| dense query on Edge: 1k / 10k / 50k | 0.38 / 0.22 / 0.45 ms | 0.66 / 0.35 / 0.75 ms |
+| same dense query on the **local** Qdrant Server over HTTP: 1k / 10k / 50k | 16.7 / 17.8 / 8.4 ms | 27.8 / 32.6 / 32.1 ms |
+| LLM evidence brief (Qwen2.5-1.5B Q4, CPU, 2 evidence items) | 2.9 s | 3.1 s |
 
 Bandwidth: one shared fix is **855 bytes** of JSON; the raw float32 signal it summarises (60 windows, ~10 s at
 12 kHz) is 499,712 bytes and never leaves the device (584×).
