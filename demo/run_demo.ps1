@@ -44,3 +44,12 @@ Write-Host "Device A UI    : http://127.0.0.1:8101/   operator token: operator-d
 Write-Host "Device B UI    : http://127.0.0.1:8102/   operator token: operator-devB"
 Write-Host "Device C UI    : http://127.0.0.1:8103/   operator token: operator-devC   (site 3: the disagreeing report)"
 Write-Host "Logs           : $logs      Stop everything: demo\stop_demo.ps1"
+# 4. Unified gateway
+$gw = Start-Process -FilePath $py -ArgumentList "-m","app.unified","--port","9000" -WorkingDirectory $root `
+     -RedirectStandardOutput "$logs\unified.out.log" -RedirectStandardError "$logs\unified.err.log" -WindowStyle Hidden -PassThru
+$gw.Id | Set-Content (Join-Path $root "runtime\unified_pid.txt")
+for ($i = 0; $i -lt 30; $i++) {
+    try { Invoke-RestMethod http://127.0.0.1:9000/health -TimeoutSec 1 | Out-Null; break }
+    catch { Start-Sleep -Milliseconds 500 }
+}
+Write-Host "Unified gateway : http://127.0.0.1:9000/   (pid $($gw.Id))"
