@@ -1,0 +1,1001 @@
+{
+ "summary": {
+  "should_answer": 103,
+  "right": 101,
+  "wrong": 0,
+  "declined_by_mistake": 2,
+  "should_decline": 20,
+  "declined_correctly": 20,
+  "answered_when_it_should_decline": 0,
+  "accuracy_pct": 100.0,
+  "coverage_pct": 98.1,
+  "latency_ms_median": 321,
+  "latency_ms_max": 12783
+ },
+ "rows": [
+  {
+   "kind": "define",
+   "q": "What is a robot?",
+   "ok": true,
+   "answered": true,
+   "titles": "robot",
+   "ms": 2146
+  },
+  {
+   "kind": "define",
+   "q": "What is an industrial robot?",
+   "ok": true,
+   "answered": true,
+   "titles": "industrial robot",
+   "ms": 356
+  },
+  {
+   "kind": "define",
+   "q": "What is a collaborative robot?",
+   "ok": true,
+   "answered": true,
+   "titles": "cobot",
+   "ms": 396
+  },
+  {
+   "kind": "define",
+   "q": "What is an end effector?",
+   "ok": true,
+   "answered": true,
+   "titles": "robot end effector",
+   "ms": 306
+  },
+  {
+   "kind": "define",
+   "q": "What is a degree of freedom?",
+   "ok": true,
+   "answered": true,
+   "titles": "degrees of freedom (mechanics)",
+   "ms": 267
+  },
+  {
+   "kind": "define",
+   "q": "What is a SCARA robot?",
+   "ok": true,
+   "answered": true,
+   "titles": "scara",
+   "ms": 273
+  },
+  {
+   "kind": "define",
+   "q": "How does a delta robot work?",
+   "ok": true,
+   "answered": true,
+   "titles": "delta robot",
+   "ms": 279
+  },
+  {
+   "kind": "define",
+   "q": "What is a servo motor?",
+   "ok": true,
+   "answered": true,
+   "titles": "servomotor",
+   "ms": 1815
+  },
+  {
+   "kind": "define",
+   "q": "What is backlash?",
+   "ok": true,
+   "answered": true,
+   "titles": "backlash (engineering)",
+   "ms": 665
+  },
+  {
+   "kind": "define",
+   "q": "What is forward kinematics?",
+   "ok": true,
+   "answered": true,
+   "titles": "forward kinematics",
+   "ms": 276
+  },
+  {
+   "kind": "define",
+   "q": "What is inverse kinematics?",
+   "ok": true,
+   "answered": true,
+   "titles": "inverse kinematics",
+   "ms": 279
+  },
+  {
+   "kind": "define",
+   "q": "What is a Jacobian?",
+   "ok": true,
+   "answered": true,
+   "titles": "jacobian matrix and determinant",
+   "ms": 286
+  },
+  {
+   "kind": "define",
+   "q": "What are Euler angles?",
+   "ok": true,
+   "answered": true,
+   "titles": "euler angles",
+   "ms": 267
+  },
+  {
+   "kind": "define",
+   "q": "What is gimbal lock?",
+   "ok": true,
+   "answered": true,
+   "titles": "gimbal lock",
+   "ms": 263
+  },
+  {
+   "kind": "define",
+   "q": "What is PID control?",
+   "ok": true,
+   "answered": true,
+   "titles": "pid controller",
+   "ms": 1054
+  },
+  {
+   "kind": "define",
+   "q": "What is a Kalman filter?",
+   "ok": true,
+   "answered": true,
+   "titles": "kalman filter",
+   "ms": 386
+  },
+  {
+   "kind": "define",
+   "q": "What is SLAM?",
+   "ok": true,
+   "answered": true,
+   "titles": "simultaneous localization and mapping",
+   "ms": 281
+  },
+  {
+   "kind": "define",
+   "q": "What is an encoder?",
+   "ok": true,
+   "answered": true,
+   "titles": "rotary encoder",
+   "ms": 241
+  },
+  {
+   "kind": "define",
+   "q": "What is an IMU?",
+   "ok": true,
+   "answered": true,
+   "titles": "inertial measurement unit",
+   "ms": 237
+  },
+  {
+   "kind": "define",
+   "q": "How does LiDAR work?",
+   "ok": true,
+   "answered": true,
+   "titles": "lidar",
+   "ms": 239
+  },
+  {
+   "kind": "define",
+   "q": "What is a resolver?",
+   "ok": true,
+   "answered": true,
+   "titles": "resolver (electrical)",
+   "ms": 243
+  },
+  {
+   "kind": "define",
+   "q": "What is sensor fusion?",
+   "ok": true,
+   "answered": true,
+   "titles": "sensor fusion | ",
+   "ms": 12783
+  },
+  {
+   "kind": "define",
+   "q": "What is machine vision?",
+   "ok": true,
+   "answered": true,
+   "titles": "machine vision |  | ",
+   "ms": 10135
+  },
+  {
+   "kind": "define",
+   "q": "What is a PLC?",
+   "ok": true,
+   "answered": true,
+   "titles": "programmable logic controller",
+   "ms": 326
+  },
+  {
+   "kind": "define",
+   "q": "What is SCADA?",
+   "ok": true,
+   "answered": true,
+   "titles": "scada",
+   "ms": 312
+  },
+  {
+   "kind": "define",
+   "q": "What is OEE?",
+   "ok": true,
+   "answered": true,
+   "titles": "overall equipment effectiveness",
+   "ms": 276
+  },
+  {
+   "kind": "define",
+   "q": "What is ladder logic?",
+   "ok": true,
+   "answered": true,
+   "titles": "ladder logic",
+   "ms": 321
+  },
+  {
+   "kind": "define",
+   "q": "What is a watchdog timer?",
+   "ok": true,
+   "answered": true,
+   "titles": "watchdog timer",
+   "ms": 356
+  },
+  {
+   "kind": "define",
+   "q": "What is OPC UA?",
+   "ok": true,
+   "answered": true,
+   "titles": "opc unified architecture",
+   "ms": 303
+  },
+  {
+   "kind": "define",
+   "q": "What is MQTT?",
+   "ok": true,
+   "answered": true,
+   "titles": "mqtt",
+   "ms": 339
+  },
+  {
+   "kind": "define",
+   "q": "What is Modbus?",
+   "ok": true,
+   "answered": true,
+   "titles": "modbus",
+   "ms": 395
+  },
+  {
+   "kind": "define",
+   "q": "What is EtherCAT?",
+   "ok": true,
+   "answered": true,
+   "titles": "ethercat",
+   "ms": 297
+  },
+  {
+   "kind": "define",
+   "q": "What is PROFINET?",
+   "ok": true,
+   "answered": true,
+   "titles": "profinet",
+   "ms": 302
+  },
+  {
+   "kind": "define",
+   "q": "What is CANopen?",
+   "ok": true,
+   "answered": true,
+   "titles": "canopen",
+   "ms": 338
+  },
+  {
+   "kind": "define",
+   "q": "What is a VFD?",
+   "ok": true,
+   "answered": true,
+   "titles": "variable-frequency drive",
+   "ms": 323
+  },
+  {
+   "kind": "define",
+   "q": "What is a contactor?",
+   "ok": true,
+   "answered": true,
+   "titles": "contactor",
+   "ms": 327
+  },
+  {
+   "kind": "define",
+   "q": "What is a solenoid valve?",
+   "ok": true,
+   "answered": true,
+   "titles": "solenoid valve",
+   "ms": 320
+  },
+  {
+   "kind": "define",
+   "q": "What is a digital twin?",
+   "ok": true,
+   "answered": true,
+   "titles": "digital twin",
+   "ms": 292
+  },
+  {
+   "kind": "define",
+   "q": "What is Industry 4.0?",
+   "ok": true,
+   "answered": true,
+   "titles": "fourth industrial revolution",
+   "ms": 311
+  },
+  {
+   "kind": "define",
+   "q": "What is IIoT?",
+   "ok": true,
+   "answered": true,
+   "titles": "industrial internet of things",
+   "ms": 318
+  },
+  {
+   "kind": "define",
+   "q": "What is lockout/tagout?",
+   "ok": true,
+   "answered": true,
+   "titles": "lockout–tagout",
+   "ms": 335
+  },
+  {
+   "kind": "define",
+   "q": "What is functional safety?",
+   "ok": true,
+   "answered": true,
+   "titles": "functional safety",
+   "ms": 290
+  },
+  {
+   "kind": "define",
+   "q": "What is ISO 26262?",
+   "ok": true,
+   "answered": true,
+   "titles": "iso 26262",
+   "ms": 317
+  },
+  {
+   "kind": "define",
+   "q": "What is a safety integrity level?",
+   "ok": true,
+   "answered": true,
+   "titles": "safety integrity level",
+   "ms": 298
+  },
+  {
+   "kind": "define",
+   "q": "What is zero trust?",
+   "ok": true,
+   "answered": true,
+   "titles": "zero trust architecture",
+   "ms": 311
+  },
+  {
+   "kind": "define",
+   "q": "What is ransomware?",
+   "ok": true,
+   "answered": true,
+   "titles": "ransomware",
+   "ms": 441
+  },
+  {
+   "kind": "define",
+   "q": "What is a man-in-the-middle attack?",
+   "ok": true,
+   "answered": true,
+   "titles": "man-in-the-middle attack",
+   "ms": 325
+  },
+  {
+   "kind": "define",
+   "q": "What is a hardware security module?",
+   "ok": true,
+   "answered": true,
+   "titles": "hardware security module",
+   "ms": 319
+  },
+  {
+   "kind": "define",
+   "q": "What is TLS?",
+   "ok": true,
+   "answered": true,
+   "titles": "transport layer security",
+   "ms": 313
+  },
+  {
+   "kind": "define",
+   "q": "What is a kiosk?",
+   "ok": true,
+   "answered": true,
+   "titles": "interactive kiosk",
+   "ms": 338
+  },
+  {
+   "kind": "define",
+   "q": "What is EMV?",
+   "ok": true,
+   "answered": true,
+   "titles": "emv",
+   "ms": 301
+  },
+  {
+   "kind": "define",
+   "q": "What is idempotency?",
+   "ok": true,
+   "answered": true,
+   "titles": "idempotence",
+   "ms": 317
+  },
+  {
+   "kind": "define",
+   "q": "What is an ECU?",
+   "ok": true,
+   "answered": true,
+   "titles": "electronic control unit",
+   "ms": 343
+  },
+  {
+   "kind": "define",
+   "q": "What is CAN bus?",
+   "ok": true,
+   "answered": true,
+   "titles": "can bus",
+   "ms": 326
+  },
+  {
+   "kind": "define",
+   "q": "What is FlexRay?",
+   "ok": true,
+   "answered": true,
+   "titles": "flexray",
+   "ms": 339
+  },
+  {
+   "kind": "define",
+   "q": "What is UDS?",
+   "ok": true,
+   "answered": true,
+   "titles": "unified diagnostic services",
+   "ms": 338
+  },
+  {
+   "kind": "define",
+   "q": "What is OBD?",
+   "ok": true,
+   "answered": true,
+   "titles": "on-board diagnostics",
+   "ms": 299
+  },
+  {
+   "kind": "define",
+   "q": "What is V2X?",
+   "ok": true,
+   "answered": true,
+   "titles": "vehicle-to-everything",
+   "ms": 299
+  },
+  {
+   "kind": "define",
+   "q": "What is a battery management system?",
+   "ok": true,
+   "answered": true,
+   "titles": "battery management system",
+   "ms": 328
+  },
+  {
+   "kind": "define",
+   "q": "What is thermal runaway?",
+   "ok": true,
+   "answered": true,
+   "titles": "thermal runaway",
+   "ms": 335
+  },
+  {
+   "kind": "define",
+   "q": "What is SOC in a battery?",
+   "ok": false,
+   "answered": false,
+   "titles": "",
+   "ms": 1006
+  },
+  {
+   "kind": "define",
+   "q": "What is ADAS?",
+   "ok": true,
+   "answered": true,
+   "titles": "advanced driver-assistance system",
+   "ms": 365
+  },
+  {
+   "kind": "define",
+   "q": "What is adaptive cruise control?",
+   "ok": true,
+   "answered": true,
+   "titles": "adaptive cruise control",
+   "ms": 366
+  },
+  {
+   "kind": "define",
+   "q": "What is AUTOSAR?",
+   "ok": true,
+   "answered": true,
+   "titles": "autosar",
+   "ms": 284
+  },
+  {
+   "kind": "define",
+   "q": "What is an inverter?",
+   "ok": true,
+   "answered": true,
+   "titles": "power inverter",
+   "ms": 306
+  },
+  {
+   "kind": "define",
+   "q": "What is regenerative braking?",
+   "ok": true,
+   "answered": true,
+   "titles": "regenerative braking",
+   "ms": 300
+  },
+  {
+   "kind": "define",
+   "q": "What is an SoC?",
+   "ok": false,
+   "answered": false,
+   "titles": "",
+   "ms": 5423
+  },
+  {
+   "kind": "define",
+   "q": "What is an NPU?",
+   "ok": true,
+   "answered": true,
+   "titles": "neural processing unit",
+   "ms": 368
+  },
+  {
+   "kind": "define",
+   "q": "What is eSIM?",
+   "ok": true,
+   "answered": true,
+   "titles": "esim",
+   "ms": 324
+  },
+  {
+   "kind": "define",
+   "q": "What is OLED?",
+   "ok": true,
+   "answered": true,
+   "titles": "oled",
+   "ms": 345
+  },
+  {
+   "kind": "define",
+   "q": "What is Bluetooth Low Energy?",
+   "ok": true,
+   "answered": true,
+   "titles": "bluetooth low energy",
+   "ms": 355
+  },
+  {
+   "kind": "define",
+   "q": "What is NFC?",
+   "ok": true,
+   "answered": true,
+   "titles": "near-field communication",
+   "ms": 422
+  },
+  {
+   "kind": "define",
+   "q": "What is MIMO?",
+   "ok": true,
+   "answered": true,
+   "titles": "mimo",
+   "ms": 327
+  },
+  {
+   "kind": "define",
+   "q": "What is beamforming?",
+   "ok": true,
+   "answered": true,
+   "titles": "beamforming",
+   "ms": 317
+  },
+  {
+   "kind": "define",
+   "q": "What is an eigenvalue?",
+   "ok": true,
+   "answered": true,
+   "titles": "eigenvalues and eigenvectors",
+   "ms": 335
+  },
+  {
+   "kind": "define",
+   "q": "What is the Laplace transform?",
+   "ok": true,
+   "answered": true,
+   "titles": "laplace transform",
+   "ms": 286
+  },
+  {
+   "kind": "define",
+   "q": "What is a transfer function?",
+   "ok": true,
+   "answered": true,
+   "titles": "transfer function",
+   "ms": 336
+  },
+  {
+   "kind": "define",
+   "q": "What is aliasing?",
+   "ok": true,
+   "answered": true,
+   "titles": "aliasing",
+   "ms": 353
+  },
+  {
+   "kind": "define",
+   "q": "What is a MOSFET?",
+   "ok": true,
+   "answered": true,
+   "titles": "mosfet",
+   "ms": 368
+  },
+  {
+   "kind": "define",
+   "q": "What is an IGBT?",
+   "ok": true,
+   "answered": true,
+   "titles": "insulated-gate bipolar transistor",
+   "ms": 316
+  },
+  {
+   "kind": "define",
+   "q": "What is a buck converter?",
+   "ok": true,
+   "answered": true,
+   "titles": "buck converter",
+   "ms": 337
+  },
+  {
+   "kind": "define",
+   "q": "What is an operational amplifier?",
+   "ok": true,
+   "answered": true,
+   "titles": "operational amplifier",
+   "ms": 328
+  },
+  {
+   "kind": "define",
+   "q": "What is an RTOS?",
+   "ok": true,
+   "answered": true,
+   "titles": "real-time operating system",
+   "ms": 345
+  },
+  {
+   "kind": "define",
+   "q": "What is priority inversion?",
+   "ok": true,
+   "answered": true,
+   "titles": "priority inversion",
+   "ms": 398
+  },
+  {
+   "kind": "define",
+   "q": "What is DMA?",
+   "ok": true,
+   "answered": true,
+   "titles": "direct memory access",
+   "ms": 295
+  },
+  {
+   "kind": "define",
+   "q": "What is JTAG?",
+   "ok": true,
+   "answered": true,
+   "titles": "jtag",
+   "ms": 296
+  },
+  {
+   "kind": "define",
+   "q": "What is a mutex?",
+   "ok": true,
+   "answered": true,
+   "titles": "lock (computer science)",
+   "ms": 309
+  },
+  {
+   "kind": "define",
+   "q": "What is overfitting?",
+   "ok": true,
+   "answered": true,
+   "titles": "overfitting",
+   "ms": 346
+  },
+  {
+   "kind": "define",
+   "q": "What is a confusion matrix?",
+   "ok": true,
+   "answered": true,
+   "titles": "confusion matrix",
+   "ms": 321
+  },
+  {
+   "kind": "define",
+   "q": "What is reinforcement learning?",
+   "ok": true,
+   "answered": true,
+   "titles": "reinforcement learning",
+   "ms": 349
+  },
+  {
+   "kind": "define",
+   "q": "What is edge computing?",
+   "ok": true,
+   "answered": true,
+   "titles": "edge computing",
+   "ms": 328
+  },
+  {
+   "kind": "define",
+   "q": "What is MTBF?",
+   "ok": true,
+   "answered": true,
+   "titles": "mean time between failures",
+   "ms": 308
+  },
+  {
+   "kind": "define",
+   "q": "What is FMEA?",
+   "ok": true,
+   "answered": true,
+   "titles": "failure mode and effects analysis",
+   "ms": 381
+  },
+  {
+   "kind": "define",
+   "q": "What is predictive maintenance?",
+   "ok": true,
+   "answered": true,
+   "titles": "predictive maintenance",
+   "ms": 325
+  },
+  {
+   "kind": "define",
+   "q": "What is a bathtub curve?",
+   "ok": true,
+   "answered": true,
+   "titles": "bathtub curve",
+   "ms": 315
+  },
+  {
+   "kind": "define",
+   "q": "What is Six Sigma?",
+   "ok": true,
+   "answered": true,
+   "titles": "six sigma",
+   "ms": 311
+  },
+  {
+   "kind": "define",
+   "q": "What is an IP rating?",
+   "ok": true,
+   "answered": true,
+   "titles": "ip code",
+   "ms": 344
+  },
+  {
+   "kind": "compare",
+   "q": "PLC vs DCS?",
+   "ok": true,
+   "answered": true,
+   "titles": "distributed control system | programmable logic controller",
+   "ms": 363
+  },
+  {
+   "kind": "compare",
+   "q": "TCP vs UDP?",
+   "ok": true,
+   "answered": true,
+   "titles": "transmission control protocol | user datagram protocol",
+   "ms": 340
+  },
+  {
+   "kind": "compare",
+   "q": "Servo vs stepper motor?",
+   "ok": true,
+   "answered": true,
+   "titles": "stepper motor | servomotor",
+   "ms": 783
+  },
+  {
+   "kind": "compare",
+   "q": "LiDAR vs radar?",
+   "ok": true,
+   "answered": true,
+   "titles": "lidar | radar",
+   "ms": 483
+  },
+  {
+   "kind": "compare",
+   "q": "Bluetooth vs NFC?",
+   "ok": true,
+   "answered": true,
+   "titles": "bluetooth | near-field communication",
+   "ms": 396
+  },
+  {
+   "kind": "compare",
+   "q": "OLED vs LCD?",
+   "ok": true,
+   "answered": true,
+   "titles": "oled | liquid-crystal display",
+   "ms": 382
+  },
+  {
+   "kind": "decline",
+   "q": "Design a robot cell that safely works beside humans.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 346
+  },
+  {
+   "kind": "decline",
+   "q": "Design a PLC-controlled packaging line.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 284
+  },
+  {
+   "kind": "decline",
+   "q": "Design a kiosk capable of operating during internet outages.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 317
+  },
+  {
+   "kind": "decline",
+   "q": "Design an EV battery-management system.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 311
+  },
+  {
+   "kind": "decline",
+   "q": "How would you design redundancy without doubling the cost?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 295
+  },
+  {
+   "kind": "decline",
+   "q": "How would you detect an actuator that is slowly degrading?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 480
+  },
+  {
+   "kind": "decline",
+   "q": "What if the PLC loses power?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 287
+  },
+  {
+   "kind": "decline",
+   "q": "What if a kiosk loses internet?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 294
+  },
+  {
+   "kind": "decline",
+   "q": "What happens if the network disappears?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 270
+  },
+  {
+   "kind": "decline",
+   "q": "What happens if two sensors disagree?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 293
+  },
+  {
+   "kind": "decline",
+   "q": "Calculate robot joint torque.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 280
+  },
+  {
+   "kind": "decline",
+   "q": "Calculate OEE for a line running 7 hours.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 303
+  },
+  {
+   "kind": "decline",
+   "q": "Calculate EV charging time.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 314
+  },
+  {
+   "kind": "decline",
+   "q": "Diagnose a robot that suddenly stops.",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answer",
+   "ms": 363
+  },
+  {
+   "kind": "decline",
+   "q": "Why use PID?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 280
+  },
+  {
+   "kind": "decline",
+   "q": "Why do robots use feedback?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 284
+  },
+  {
+   "kind": "decline",
+   "q": "Which is better, SCARA or delta, for high-speed sorting?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 295
+  },
+  {
+   "kind": "decline",
+   "q": "How do you prove a design is safe?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 287
+  },
+  {
+   "kind": "decline",
+   "q": "How do you reduce cost by 30 percent?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 330
+  },
+  {
+   "kind": "decline",
+   "q": "How would you redesign it from scratch?",
+   "ok": true,
+   "answered": false,
+   "titles": "Needs internet connection for this.",
+   "ms": 368
+  }
+ ]
+}

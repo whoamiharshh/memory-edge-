@@ -32,7 +32,7 @@ def _seed_in_background(dev: Device) -> None:
     before it, so the UI is usable at once; what is already loaded is skipped, and a stop half-way resumes."""
     from edge import seed
     try:
-        todo = [p for p in seed.AUTO if p not in seed.seeded(dev)]
+        todo = seed.refresh_if_stale(dev)       # a library fix that shipped since this device last loaded it
         if not todo:
             return
         print(f"[{dev.cfg.device_id}] loading the offline library in the background: {', '.join(todo)}", flush=True)

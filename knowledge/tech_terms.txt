@@ -1,0 +1,1157 @@
+# Concept terms the offline technical library should define. One per line: `term` or `term => Wikipedia article title`.
+# The term is what a person types ("PLC"); the title is the English Wikipedia article whose opening paragraph is quoted.
+# Lines starting with # are comments. tools/build_tech_pack.py fetches each lead, refuses disambiguation pages, and
+# prints the title each term resolved to so the mapping can be audited.
+
+# ---- robotics fundamentals / types / mechanics
+Robot
+Industrial robot
+Service robot
+Mobile robot
+Collaborative robot
+Cobot => Collaborative robot
+Autonomous robot
+Teleoperation
+Humanoid robot
+Manipulator => Robot manipulator
+Robotic arm
+End effector => Robot end effector
+Work envelope => Workspace
+Workspace
+Degrees of freedom => Degrees of freedom (mechanics)
+Degree of freedom => Degrees of freedom (mechanics)
+Revolute joint
+Prismatic joint
+Payload
+Repeatability => Accuracy and precision
+Accuracy => Accuracy and precision
+Robot singularity => Kinematic singularity
+Singularity => Kinematic singularity
+Configuration space => Configuration space (physics)
+Cartesian robot => Cartesian coordinate robot
+Cylindrical robot => Cylindrical coordinate robot
+SCARA
+Delta robot
+Articulated robot
+Parallel manipulator
+Serial manipulator => Robot manipulator
+AGV => Automated guided vehicle
+Automated guided vehicle
+AMR => Autonomous mobile robot
+Autonomous mobile robot
+Servo motor => Servomotor
+Servomotor
+Stepper motor
+Gearbox => Gear train
+Harmonic drive => Strain wave gearing
+Strain wave gearing
+Backlash => Backlash (engineering)
+Torque
+Inertia
+Moment of inertia
+Counterbalance => Counterweight
+Brake
+Bearing => Bearing (mechanical)
+Vibration
+Stiffness
+Tool center point
+Gripper
+Vacuum gripper => Suction cup
+Tool changer
+Visual servoing
+Hand-eye calibration => Eye–hand coordination
+
+# ---- kinematics, dynamics, control
+Forward kinematics
+Inverse kinematics
+Homogeneous coordinates
+Rotation matrix
+Transformation matrix
+Coordinate transformation => Coordinate system
+Denavit–Hartenberg parameters
+DH parameters => Denavit–Hartenberg parameters
+Euler angles
+Quaternion => Quaternions and spatial rotation
+Quaternions => Quaternions and spatial rotation
+Gimbal lock
+Jacobian => Jacobian matrix and determinant
+Jacobian matrix => Jacobian matrix and determinant
+Redundancy => Kinematic redundancy
+Robot dynamics => Dynamics (mechanics)
+Newton-Euler => Newton–Euler equations
+Lagrangian mechanics
+Impedance control
+Admittance control => Impedance control
+PID => PID controller
+PID controller
+Proportional control
+Integral windup
+Overshoot => Overshoot (signal)
+Open-loop control => Open-loop controller
+Closed-loop control => Control theory
+Feedforward => Feed forward (control)
+Feedback
+Control theory
+Trajectory planning => Trajectory optimization
+Motion planning
+Path planning => Motion planning
+Jerk => Jerk (physics)
+Interpolation
+Model predictive control
+Kalman filter
+Extended Kalman filter
+Unscented Kalman filter
+Particle filter
+Bayesian filtering => Recursive Bayesian estimation
+State estimation => State observer
+Sensor fusion
+Multi-object tracking => Video tracking
+
+# ---- sensors
+Sensor
+Encoder => Rotary encoder
+Rotary encoder
+Incremental encoder => Rotary encoder
+Absolute encoder => Rotary encoder
+Resolver => Resolver (electrical)
+Torque sensor
+Force sensor => Load cell
+Load cell
+IMU => Inertial measurement unit
+Inertial measurement unit
+Accelerometer
+Gyroscope
+Magnetometer
+Barometer
+Proximity sensor
+Inductive sensor
+Capacitive sensor => Capacitive sensing
+Photoelectric sensor
+Ultrasonic sensor => Ultrasonic transducer
+LiDAR
+Radar
+Camera
+Depth sensing => Range imaging
+Stereo vision => Computer stereo vision
+Tactile sensor
+Pressure sensor
+Temperature sensor
+Thermocouple
+RTD => Resistance thermometer
+Flow sensor => Flow measurement
+Level sensor
+Hall-effect sensor => Hall effect sensor
+Signal conditioning
+Hysteresis
+Sensor drift => Drift (telecommunication)
+Calibration
+4-20 mA => Current loop
+4–20 mA => Current loop
+HART protocol => Highway Addressable Remote Transducer Protocol
+Time of flight => Time-of-flight camera
+Event camera
+Solid-state lidar => Lidar
+
+SOC => State of charge
+IP rating => IP code
+Servo => Servomotor
+Stepper => Stepper motor
+Encoder resolution => Rotary encoder
+
+# ---- machine vision / computer vision
+Machine vision
+Image segmentation
+Object detection
+Pose estimation => 3D pose estimation
+Optical character recognition
+OCR => Optical character recognition
+Computer vision
+CMOS => Active-pixel sensor
+CCD => Charge-coupled device
+Rolling shutter
+Global shutter => Shutter (photography)
+Lens distortion => Distortion (optics)
+Focal length
+Field of view
+Aperture
+Depth of field
+Exposure => Exposure (photography)
+ISO => Film speed
+White balance
+Image noise
+Camera calibration => Camera resection
+Epipolar geometry
+Triangulation => Triangulation (computer vision)
+Depth map
+Optical flow
+Feature detection => Feature detection (computer vision)
+Homography => Homography (computer vision)
+Image registration
+Visual odometry
+Visual SLAM => Simultaneous localization and mapping
+SLAM => Simultaneous localization and mapping
+Motion blur
+High dynamic range => High-dynamic-range imaging
+HDR => High-dynamic-range imaging
+Bayer filter
+Demosaicing
+Autofocus
+Image stabilization
+Computational photography
+Image processor
+ISP => Image processor
+
+# ---- mobile robotics
+Obstacle avoidance
+Dead reckoning
+Odometry
+Differential drive => Differential wheeled robot
+Omnidirectional drive => Omni wheel
+Ackermann steering => Ackermann steering geometry
+Ackermann geometry => Ackermann steering geometry
+Occupancy grid => Occupancy grid mapping
+Costmap => Occupancy grid mapping
+A* => A* search algorithm
+Dijkstra => Dijkstra's algorithm
+RRT => Rapidly exploring random tree
+Dynamic window approach
+Nonholonomic system
+AprilTag
+Fiducial marker
+UWB => Ultra-wideband
+Ultra-wideband
+
+# ---- industrial automation, PLC, HMI, SCADA
+Industrial automation => Automation
+Automation
+Industry 4.0
+IIoT => Industrial internet of things
+Industrial internet of things
+Smart manufacturing
+Cyber-physical system
+Digital twin
+MES => Manufacturing execution system
+Manufacturing execution system
+SCADA
+DCS => Distributed control system
+Distributed control system
+PLC => Programmable logic controller
+Programmable logic controller
+Industrial PC
+Microcontroller
+Industrial control system
+Production line => Assembly line
+Takt time
+Cycle time
+OEE => Overall equipment effectiveness
+Overall equipment effectiveness
+Bottleneck => Bottleneck (production)
+Ladder logic
+Function block diagram
+Structured text
+Sequential function chart
+Instruction list
+IEC 61131-3
+Scan cycle => Scan time
+Watchdog timer
+Interlock => Interlock (engineering)
+Latch => Latch (electronics)
+State machine => Finite-state machine
+Finite-state machine
+Timer
+Counter => Counter (digital)
+Sinking and sourcing
+Human-machine interface => User interface
+HMI => User interface
+Alarm management
+Historian => Operational historian
+OPC UA => OPC Unified Architecture
+OPC Unified Architecture
+MQTT
+Modbus
+Modbus TCP => Modbus
+Modbus RTU => Modbus
+Industrial Ethernet
+EtherNet/IP
+PROFINET
+EtherCAT
+CANopen
+PROFIBUS
+DeviceNet
+CAN bus
+CAN FD
+J1939 => SAE J1939
+TCP => Transmission Control Protocol
+UDP => User Datagram Protocol
+Jitter
+Latency => Latency (engineering)
+Network topology
+Ring network
+Star network
+Virtual LAN
+VLAN
+Network switch
+Industrial firewall => Firewall (computing)
+Wireshark
+Time-Sensitive Networking
+TSN => Time-Sensitive Networking
+Precision Time Protocol
+IEEE 1588 => Precision Time Protocol
+Publish–subscribe pattern
+Data Distribution Service
+DDS => Data Distribution Service
+
+# ---- actuators, drives, motors
+Actuator
+Pneumatic actuator
+Hydraulic actuator => Hydraulic cylinder
+Hydraulic cylinder
+Pneumatic cylinder
+Solenoid valve
+Variable-frequency drive
+VFD => Variable-frequency drive
+Contactor
+Relay
+Motor starter => Motor soft starter
+Soft starter => Motor soft starter
+Regenerative braking
+Dynamic braking
+DC motor => Brushed DC electric motor
+Brushless DC electric motor
+BLDC => Brushless DC electric motor
+Induction motor
+Servo drive
+Back-EMF => Counter-electromotive force
+Back EMF => Counter-electromotive force
+Commutation => Commutator (electric)
+Field-oriented control
+Vector control => Vector control (motor)
+Direct torque control
+Inrush current
+Stall torque
+Duty cycle
+Derating
+Pneumatic artificial muscle => Pneumatic artificial muscles
+Soft robotics
+Continuum robot
+
+# ---- safety engineering
+Safety relay
+Emergency stop
+Safety light curtain => Light curtain
+Light curtain
+Safety interlock => Interlock (engineering)
+Lockout–tagout
+Lockout/tagout => Lockout–tagout
+Risk assessment
+Hazard
+Risk
+Fail-safe
+Fault tolerance
+Safety integrity level
+SIL => Safety integrity level
+Safe torque off
+Functional safety
+ISO 26262
+ASIL => Automotive Safety Integrity Level
+Automotive Safety Integrity Level
+SOTIF => Safety of the intended functionality
+Safety of the intended functionality
+ISO 10218
+IEC 62443 => ISA/IEC 62443
+IEC 61508
+Machinery directive => Machinery Directive
+CE marking
+Hazard analysis
+Safety case
+Operational design domain
+Common-cause failure => Common cause and special cause
+Single point of failure
+Graceful degradation
+Diagnostic coverage
+Lockstep => Lockstep (computing)
+ECC memory => Error correction code memory
+Human error
+Ergonomics => Human factors and ergonomics
+Alarm fatigue
+Automation bias
+Explainable artificial intelligence
+
+# ---- OT / IT cybersecurity
+Operational technology
+Air gap => Air gap (networking)
+Network segmentation
+DMZ => DMZ (computing)
+Zero trust security model
+Zero trust => Zero trust security model
+Principle of least privilege
+Ransomware
+Firmware
+Authentication
+Authorization
+Encryption
+Patch management => Patch (computing)
+Vulnerability management => Vulnerability (computing)
+Threat model
+Attack surface
+Penetration test
+Fuzzing
+Reverse engineering
+Intrusion detection system
+Intrusion prevention system
+Supply chain attack
+Denial-of-service attack
+Spoofing attack
+Replay attack
+Man-in-the-middle attack
+Privilege escalation
+SQL injection
+Code injection
+CIA triad => Information security
+Information security
+Hashing => Hash function
+Hash function
+Digital signature
+Public key infrastructure
+Public-key certificate => Public key certificate
+Symmetric-key algorithm
+Public-key cryptography
+Advanced Encryption Standard
+AES => Advanced Encryption Standard
+RSA => RSA (cryptosystem)
+Elliptic-curve cryptography
+ECC => Elliptic-curve cryptography
+Transport Layer Security
+TLS => Transport Layer Security
+Hardware security module
+Trusted Platform Module
+TPM => Trusted Platform Module
+Root of trust => Hardware root of trust
+Hardware root of trust
+Trusted execution environment
+TEE => Trusted execution environment
+CVE => Common Vulnerabilities and Exposures
+Common Vulnerability Scoring System
+CVSS => Common Vulnerability Scoring System
+Incident response => Computer security incident management
+Vulnerability disclosure => Coordinated vulnerability disclosure
+Phishing
+Malware
+SIM swapping => SIM swap scam
+End-to-end encryption
+Biometrics
+Facial recognition system
+Mobile device management
+MDM => Mobile device management
+Digital forensics
+Forensics => Digital forensics
+UNECE => United Nations Economic Commission for Europe
+UN R155 => UN Regulation No. 155
+UN R156 => UN Regulation No. 156
+Over-the-air update => Over-the-air programming
+OTA update => Over-the-air programming
+Intrusion detection => Intrusion detection system
+
+# ---- kiosks
+Kiosk => Interactive kiosk
+Interactive kiosk
+Self-checkout
+Touchscreen
+Capacitive sensing
+Resistive touchscreen
+Thermal printing
+Thermal printer => Thermal printing
+Barcode
+Barcode reader
+QR code
+Near-field communication
+NFC => Near-field communication
+EMV
+Contactless payment
+Card reader
+Tamper resistance
+Idempotence
+Idempotency => Idempotence
+Chargeback
+Payment gateway
+Point of sale
+Accessibility
+Web Content Accessibility Guidelines
+Digital signage
+Vending machine
+Automated teller machine
+ATM => Automated teller machine
+Charging station
+Fraud detection => Fraud
+Data retention
+Privacy
+General Data Protection Regulation
+PCI DSS => Payment Card Industry Data Security Standard
+Payment Card Industry Data Security Standard
+
+# ---- vehicles
+Electronic control unit
+ECU => Electronic control unit
+Vehicle bus
+LIN => Local Interconnect Network
+Local Interconnect Network
+FlexRay
+Unified Diagnostic Services
+UDS => Unified Diagnostic Services
+On-board diagnostics
+OBD => On-board diagnostics
+Telematics
+Vehicle-to-everything
+V2X => Vehicle-to-everything
+Vehicle-to-grid
+V2G => Vehicle-to-grid
+Body control module
+Engine control unit
+Transmission control unit
+Battery management system
+Inverter => Power inverter
+Power inverter
+Fast charging => Fast charging (electric vehicle)
+DC fast charging => Fast charging (electric vehicle)
+Electric power steering => Power steering
+Drive by wire
+Brake by wire
+Electric vehicle
+Hybrid vehicle
+Plug-in hybrid
+Internal combustion engine
+Traction battery => Electric-vehicle battery
+Electric-vehicle battery
+Lithium-ion battery
+State of charge
+State of health
+Cell balancing => Battery balancing
+Battery balancing
+Thermal runaway
+Open-circuit voltage
+Energy density
+Specific energy
+Internal resistance
+Lithium iron phosphate battery
+LFP => Lithium iron phosphate battery
+Lithium nickel manganese cobalt oxides
+NMC => Lithium nickel manganese cobalt oxides
+Lithium nickel cobalt aluminum oxides
+NCA => Lithium nickel cobalt aluminum oxides
+Lithium-titanate battery
+LTO => Lithium-titanate battery
+Solid-state battery
+Battery recycling
+Rechargeable battery
+Advanced driver-assistance systems
+ADAS => Advanced driver-assistance systems
+Adaptive cruise control
+Autonomous emergency braking => Collision avoidance system
+Lane departure warning system
+Lane keeping assist => Lane departure warning system
+Blind spot monitor
+Traffic-sign recognition
+Parking assist => Parking sensor
+Driver monitoring system
+Self-driving car
+Autonomous vehicle => Self-driving car
+HD map
+High-definition map => HD map
+GNSS => Satellite navigation
+Global Positioning System
+GPS => Global Positioning System
+Satellite navigation
+Hardware-in-the-loop simulation
+Vehicle dynamics
+Slip ratio => Slip (vehicle dynamics)
+Slip angle
+Understeer => Understeer and oversteer
+Oversteer => Understeer and oversteer
+Electronic stability control
+ABS => Anti-lock braking system
+Anti-lock braking system
+Traction control system
+Differential => Differential (mechanical device)
+Suspension => Suspension (vehicle)
+Active suspension
+Braking distance
+Aerodynamics
+Drag coefficient
+Downforce
+Rolling resistance
+Tire-pressure monitoring system
+Four-stroke engine
+Compression ratio
+Fuel injection
+Turbocharger
+Supercharger
+Catalytic converter
+Transmission => Transmission (mechanical device)
+Manual transmission
+Automatic transmission
+Continuously variable transmission
+Dual-clutch transmission
+All-wheel drive
+Front-wheel drive
+Rear-wheel drive
+Hybrid electric vehicle
+AUTOSAR
+SOME/IP
+Diagnostics over IP
+DoIP => Diagnostics over IP
+Hypervisor
+Software-defined vehicle
+Euro NCAP
+
+# ---- mobile devices
+Smartphone
+System on a chip
+SoC => System on a chip
+CPU => Central processing unit
+Central processing unit
+GPU => Graphics processing unit
+Graphics processing unit
+NPU => AI accelerator
+AI accelerator
+Random-access memory
+RAM => Random-access memory
+Flash memory
+Universal Flash Storage
+UFS => Universal Flash Storage
+Modem
+Radio-frequency front-end
+Antenna => Antenna (radio)
+SIM card
+ESIM
+OLED
+LCD => Liquid-crystal display
+Refresh rate
+Haptic technology
+Haptic feedback => Haptic technology
+Optical image stabilization => Image stabilization
+Electronic image stabilization => Image stabilization
+Cellular network
+4G
+5G
+LTE => LTE (telecommunication)
+5G NR
+Wi-Fi
+Bluetooth
+Bluetooth Low Energy
+BLE => Bluetooth Low Energy
+Handover
+Roaming
+Received signal strength indicator
+RSSI => Received signal strength indicator
+Bandwidth => Bandwidth (computing)
+Assisted GNSS
+Android => Android (operating system)
+IOS
+Operating system
+Sandbox => Sandbox (computer security)
+Application programming interface
+API => Application programming interface
+Software development kit
+SDK => Software development kit
+Inter-process communication
+Push notification
+Garbage collection => Garbage collection (computer science)
+Thermal throttling => Dynamic frequency scaling
+Dynamic voltage scaling
+Dynamic frequency scaling
+Wireless charging => Inductive charging
+Kernel => Kernel (operating system)
+Virtual memory
+Memory protection
+File system
+Device driver
+Hardware abstraction layer
+System call
+Scheduler => Scheduling (computing)
+Radio spectrum
+Frequency
+Wavelength
+Modulation
+Quadrature amplitude modulation
+QAM => Quadrature amplitude modulation
+Orthogonal frequency-division multiplexing
+OFDM => Orthogonal frequency-division multiplexing
+MIMO
+Beamforming
+Massive MIMO
+Carrier aggregation
+Millimeter wave
+mmWave => Extremely high frequency
+IP Multimedia Subsystem
+IMS => IP Multimedia Subsystem
+Voice over LTE
+VoLTE => Voice over LTE
+Specific absorption rate
+SAR => Specific absorption rate
+Baseband processor
+Time-division multiple access
+
+# ---- mathematics
+Scalar => Scalar (mathematics)
+Vector => Euclidean vector
+Matrix => Matrix (mathematics)
+Matrix multiplication
+Invertible matrix
+Determinant
+Eigenvalues and eigenvectors
+Eigenvalue => Eigenvalues and eigenvectors
+Eigenvector => Eigenvalues and eigenvectors
+Polar coordinate system
+Cylindrical coordinate system
+Spherical coordinate system
+Cartesian coordinate system
+Complex number
+Differential equation
+Ordinary differential equation
+Partial differential equation
+Laplace transform
+Fourier transform
+Z-transform
+Transfer function
+State-space representation
+Linear system
+Nonlinear system
+Nyquist–Shannon sampling theorem
+Sampling theorem => Nyquist–Shannon sampling theorem
+Aliasing
+Quantization => Quantization (signal processing)
+Numerical integration
+Numerical differentiation
+Probability distribution
+Mean
+Variance
+Standard deviation
+Covariance
+Correlation
+Bayesian inference
+Conditional probability
+Confidence interval
+Statistical hypothesis testing
+Hypothesis testing => Statistical hypothesis testing
+Monte Carlo method
+Mathematical optimization
+Optimization => Mathematical optimization
+Linear programming
+Nonlinear programming
+Gradient descent
+Convex optimization
+Weibull distribution
+Statistical process control
+Control chart
+Process capability index
+
+# ---- physics
+Newton's laws of motion
+Force
+Work => Work (physics)
+Energy
+Power => Power (physics)
+Momentum
+Angular momentum
+Friction
+Static friction => Friction
+Kinetic friction => Friction
+Center of mass
+Mechanical equilibrium
+Resonance
+Damping
+Natural frequency
+Thermal conduction
+Convection
+Thermal radiation
+Heat capacity
+Thermal resistance
+Electric potential
+Electric current
+Electrical resistance and conductance
+Resistance => Electrical resistance and conductance
+Capacitance
+Inductance
+Electrical impedance
+Impedance => Electrical impedance
+Alternating current
+Direct current
+AC => Alternating current
+DC => Direct current
+Electromagnetic induction
+Magnetic field
+Semiconductor
+P–n junction
+PN junction => P–n junction
+Diode
+Transistor
+MOSFET
+Insulated-gate bipolar transistor
+IGBT => Insulated-gate bipolar transistor
+Silicon carbide
+Gallium nitride
+Gate driver
+Pulse-width modulation
+PWM => Pulse-width modulation
+Space vector modulation
+Rectifier
+Switched-mode power supply
+SMPS => Switched-mode power supply
+Linear regulator
+Buck converter
+Boost converter
+Buck–boost converter
+DC-to-DC converter
+Power factor correction
+Multilevel converter
+
+# ---- electronics
+Analog electronics
+Digital electronics
+Logic gate
+Boolean algebra
+Flip-flop => Flip-flop (electronics)
+Register => Processor register
+Multiplexer
+Demultiplexer => Multiplexer
+Analog-to-digital converter
+ADC => Analog-to-digital converter
+Digital-to-analog converter
+DAC => Digital-to-analog converter
+Sampling rate => Sampling (signal processing)
+Signal-to-noise ratio
+Operational amplifier
+Comparator
+Voltage regulator
+Electromagnetic interference
+EMI => Electromagnetic interference
+Electromagnetic compatibility
+EMC => Electromagnetic compatibility
+Ground => Ground (electricity)
+Grounding => Ground (electricity)
+Earthing => Ground (electricity)
+Electromagnetic shielding
+Shielding => Electromagnetic shielding
+Galvanic isolation
+Optocoupler => Opto-isolator
+Current sensing => Current sensor
+Printed circuit board
+PCB => Printed circuit board
+Electrostatic discharge
+ESD => Electrostatic discharge
+Surge protector
+Fuse => Fuse (electrical)
+Thermal management => Thermal management of electronic devices and systems
+
+# ---- embedded and real-time systems
+Embedded system
+Microprocessor
+ARM architecture family
+ARM => ARM architecture family
+Reduced instruction set computer
+RISC => Reduced instruction set computer
+Complex instruction set computer
+CISC => Complex instruction set computer
+Instruction pipelining
+Interrupt
+Interrupt latency
+Direct memory access
+DMA => Direct memory access
+Memory-mapped I/O
+General-purpose input/output
+GPIO => General-purpose input/output
+Universal asynchronous receiver-transmitter
+UART => Universal asynchronous receiver-transmitter
+Serial Peripheral Interface
+SPI => Serial Peripheral Interface
+I²C
+I2C => I²C
+JTAG
+Watchdog => Watchdog timer
+Real-time clock
+RTC => Real-time clock
+Real-time operating system
+RTOS => Real-time operating system
+Thread => Thread (computing)
+Task => Task (computing)
+Mutual exclusion
+Mutex => Lock (computer science)
+Semaphore => Semaphore (programming)
+Queue => Queue (abstract data type)
+Deadlock => Deadlock (computer science)
+Race condition
+Priority inversion
+Preemption => Preemption (computing)
+Cooperative multitasking
+Real-time computing
+Worst-case execution time
+Rate-monotonic scheduling
+Earliest deadline first scheduling
+Starvation => Starvation (computer science)
+Memory fragmentation => Fragmentation (computing)
+Stack overflow
+Heap => Memory management
+Bootloader => Booting
+Mechatronics
+Tolerance stack-up => Tolerance analysis
+Precision engineering
+
+# ---- software engineering and data
+Software architecture
+Monolithic application
+Microservices
+Event-driven architecture
+REST => REST
+Remote procedure call
+RPC => Remote procedure call
+Serialization
+JSON
+XML
+Protocol Buffers
+Database
+SQL
+NoSQL
+Database transaction
+ACID
+Caching => Cache (computing)
+Message queue
+Logging => Logging (software)
+Observability => Observability (software)
+Version control
+Git
+Continuous integration
+CI/CD
+Unit testing
+Integration testing
+System testing
+Regression testing
+Static program analysis
+Code review
+Software configuration management
+Requirements traceability
+Backward compatibility
+Rollback => Rollback (data management)
+Feature toggle
+Time series database
+Stream processing
+Complex event processing
+Edge computing
+Fog computing
+Cloud computing
+Telemetry
+Cloud robotics
+Robot Operating System
+ROS => Robot Operating System
+URDF => Unified Robot Description Format
+Reinforcement learning
+Imitation learning
+Sim-to-real => Sim-to-real transfer
+Catastrophic interference
+
+# ---- AI / ML
+Artificial intelligence
+Machine learning
+Deep learning
+Supervised learning
+Unsupervised learning
+Classification => Statistical classification
+Statistical classification
+Regression => Regression analysis
+Regression analysis
+Cluster analysis
+Clustering => Cluster analysis
+Artificial neural network
+Neural network => Artificial neural network
+Convolutional neural network
+CNN => Convolutional neural network
+Recurrent neural network
+RNN => Recurrent neural network
+Transformer => Transformer (deep learning architecture)
+Attention => Attention (machine learning)
+Word embedding
+Embedding => Word embedding
+Semantic segmentation => Image segmentation
+Instance segmentation => Image segmentation
+Data augmentation
+Overfitting
+Underfitting => Overfitting
+Bias–variance tradeoff
+Precision and recall
+Precision => Precision and recall
+Recall => Precision and recall
+F-score
+F1 score => F-score
+Receiver operating characteristic
+ROC => Receiver operating characteristic
+AUC => Receiver operating characteristic
+Confusion matrix
+Type I and type II errors
+False positive => Type I and type II errors
+False negative => Type I and type II errors
+Concept drift
+Anomaly detection
+Edge AI => Edge computing
+TinyML
+Knowledge distillation
+Model compression => Knowledge distillation
+Federated learning
+Large language model
+Hallucination => Hallucination (artificial intelligence)
+Foundation model
+Neuromorphic engineering
+Silicon photonics
+Imaging radar
+
+# ---- manufacturing, quality, reliability, maintenance
+CNC => Numerical control
+Numerical control
+Machining
+Milling => Milling (machining)
+Turning
+Grinding => Grinding (abrasive cutting)
+Drilling
+Casting
+Forging
+Injection moulding
+Sheet metal
+Welding
+Laser cutting
+Additive manufacturing
+3D printing
+Assembly line
+Heat treating
+Engineering tolerance
+Geometric dimensioning and tolerancing
+GD&T => Geometric dimensioning and tolerancing
+Surface roughness
+Materials selection
+Quality control
+Quality assurance
+Six Sigma
+Lean manufacturing
+Kaizen
+Poka-yoke
+Root cause analysis
+Five whys
+Ishikawa diagram
+Failure mode and effects analysis
+FMEA => Failure mode and effects analysis
+Failure mode, effects, and criticality analysis
+FMECA => Failure mode, effects, and criticality analysis
+Process capability
+Cp => Process capability index
+Cpk => Process capability index
+Measurement systems analysis
+Traceability
+Yield => Yield (engineering)
+First pass yield => Yield (engineering)
+Reliability engineering
+Accelerated life testing
+Burn-in
+Highly accelerated life test
+HALT => Highly accelerated life test
+Mean time between failures
+MTBF => Mean time between failures
+Mean time to repair
+MTTR => Mean time to repair
+Availability
+Failure rate
+Bathtub curve
+Predictive maintenance
+Corrective maintenance
+Condition monitoring
+Motor current signature analysis
+Remaining useful life
+Prognostics
+Fault tree analysis
+Lubrication
+Spare part
+Total cost of ownership
+Return on investment
+Payback period
+Capital expenditure
+Operating expense
+
+# ---- testing, validation, environment, documentation, product development
+Verification and validation
+Acceptance testing
+Stress testing
+Load testing
+Soak testing
+Environmental stress screening
+Fault injection
+Boundary-value analysis
+Fuzz testing => Fuzzing
+Operating temperature
+Humidity
+Condensation
+Ingress protection => IP code
+IP code
+Corrosion
+Salt spray test
+Requirements analysis
+System requirements specification => Software requirements specification
+Interface control document
+Wiring diagram
+Schematic => Circuit diagram
+Piping and instrumentation diagram
+P&ID => Piping and instrumentation diagram
+Bill of materials
+BOM => Bill of materials
+Technical drawing
+Engineering change order
+Configuration management
+Minimum viable product
+Design for manufacturability
+Design for assembly
+Component obsolescence => Obsolescence
+Approved vendor list => Approved Vendor List
+Lead time
+Minimum order quantity
+Supply chain risk management
+Semiconductor shortage => Global chip shortage
+
+# ---- standards, regulation, ethics, and the other robot families
+International Organization for Standardization
+ISO => International Organization for Standardization
+International Electrotechnical Commission
+IEC => International Electrotechnical Commission
+IEEE => Institute of Electrical and Electronics Engineers
+SAE International
+Bureau of Indian Standards
+BIS => Bureau of Indian Standards
+FCC => Federal Communications Commission
+Algorithmic bias
+Informed consent
+Human–robot interaction
+Human–computer interaction
+Swarm robotics
+Multi-agent system
+Embodied agent
+Zero moment point
+Bipedalism
+Exoskeleton => Powered exoskeleton
+Prosthesis
+Surgical robot => Robot-assisted surgery
+Robot-assisted surgery
+Image-guided surgery
+Sterilization => Sterilization (microbiology)
+Biocompatibility
+Unmanned aerial vehicle
+UAV => Unmanned aerial vehicle
+Quadcopter
+Multirotor
+Fixed-wing aircraft
+Flight controller
+Electronic speed control
+ESC => Electronic speed control
+Geo-fence
+Remotely operated underwater vehicle
+ROV => Remotely operated underwater vehicle
+Autonomous underwater vehicle
+AUV => Autonomous underwater vehicle
+Sonar
+Buoyancy
+Thruster
+Agricultural robot
+Telepresence

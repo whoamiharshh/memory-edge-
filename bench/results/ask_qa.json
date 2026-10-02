@@ -1,0 +1,639 @@
+{
+ "summary": {
+  "answered": 36,
+  "correct": 35,
+  "wrong": 1,
+  "traps_answered": 1,
+  "traps": 13,
+  "accuracy_pct": 94.6,
+  "coverage_pct": 80.0,
+  "latency_ms_median_by_mode": {
+   "quoted": 311,
+   "no_evidence": 1780,
+   "model_unverified": 3140,
+   "llm": 8396
+  },
+  "latency_ms_max_by_mode": {
+   "quoted": 1137,
+   "no_evidence": 4587,
+   "model_unverified": 4781,
+   "llm": 8396
+  }
+ },
+ "rows": [
+  {
+   "q": "Who wrote Pride and Prejudice?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 977,
+   "answer": "Pride and Prejudice: Pride and Prejudice is a book by Jane Austen. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Canada?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 378,
+   "answer": "The capital of Canada is Ottawa. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the chemical symbol for sodium?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1369,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who painted Starry Night?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2526,
+   "answer": "[Unverified] Vincent van Gogh",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the largest mammal?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 2775,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "How many sides does a hexagon have?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2994,
+   "answer": "[Unverified] A hexagon has six sides.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the speed of light in kilometres per second?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 3216,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Which planet is closest to the sun?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2000,
+   "answer": "[Unverified] Mercury",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who discovered gravity?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2824,
+   "answer": "[Unverified] Sir Isaac Newton discovered gravity.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Brazil?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 309,
+   "answer": "The capital of Brazil is Brasília. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who wrote the Odyssey?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 2135,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the largest hot desert in the world?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 3413,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the capital of Egypt?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 313,
+   "answer": "The capital of Egypt is Cairo. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who was the first president of the United States?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3983,
+   "answer": "[Unverified] George Washington was the first president of the United States.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "In which year did World War II end?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 1035,
+   "answer": "It began in 1941 with Operation Barbarossa and ended in 1945 by the Soviet soldiers capturing Berlin. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the chemical formula of water?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 950,
+   "answer": "Water: Water is a simple chemical compound made of two hydrogen atoms and one oxygen atom. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "How many bones are in the adult human body?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2767,
+   "answer": "[Unverified] 206 bones.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Kenya?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 296,
+   "answer": "The capital of Kenya is Nairobi. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who composed the Moonlight Sonata?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 1137,
+   "answer": "2, popularly known as the Moonlight Sonata, is a piano sonata by Ludwig van Beethoven. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the tallest animal?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3167,
+   "answer": "[Unverified] The tallest animal is the giraffe.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who is known as the father of computers?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3303,
+   "answer": "[Unverified] Charles Babbage is known as the father of computers.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Turkey?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 298,
+   "answer": "The capital of Turkey is Ankara. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Which element has atomic number 1?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2408,
+   "answer": "[Unverified] Hydrogen",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who wrote Romeo and Juliet?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 1074,
+   "answer": "Romeo and Juliet: Romeo and Juliet is a play written by William Shakespeare. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the longest river in South America?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3113,
+   "answer": "[Unverified] The Amazon River.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of South Korea?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 301,
+   "answer": "The capital of South Korea is Seoul. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who invented the light bulb?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3047,
+   "answer": "[Unverified] Thomas Edison invented the light bulb.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the currency of the United Kingdom?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 3694,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "How many players of one team are on the field in football (soccer)?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2771,
+   "answer": "[Unverified] 11 players.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the smallest country in the world?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 2142,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who was the first woman to win a Nobel Prize?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 4781,
+   "answer": "[Unverified] Marie Curie was the first woman to win a Nobel Prize.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Argentina?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 372,
+   "answer": "The capital of Argentina is Buenos Aires. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the most common gas in Earth's atmosphere?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 2266,
+   "answer": "[Unverified] Nitrogen.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who painted the ceiling of the Sistine Chapel?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 4155,
+   "answer": "[Unverified] Michelangelo painted the ceiling of the Sistine Chapel.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Nigeria?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 290,
+   "answer": "The capital of Nigeria is Abuja. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "In which country is the Taj Mahal?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 299,
+   "answer": "The Taj Mahal is a Mughal Historical Site, mosque and tomb in India. It was built in the 17th century by Mughal Emperor Shah Jahan as a mausoleum in memory of his wife, Mumtaz Mahal. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the largest organ of the human body?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3498,
+   "answer": "[Unverified] The largest organ of the human body is the skin.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who wrote Nineteen Eighty-Four?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 4249,
+   "answer": "[Unverified] George Orwell wrote Nineteen Eighty-Four.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "How many minutes are in a day?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3252,
+   "answer": "[Unverified] 1440 minutes.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the capital of Pakistan?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 310,
+   "answer": "The capitals of Pakistan are Islamabad and Rawalpindi. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Which metal is liquid at room temperature?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3510,
+   "answer": "[Unverified] Mercury is liquid at room temperature.",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "Who was the first Mughal emperor?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 2050,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who wrote the Indian national anthem?",
+   "kind": "known",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 4142,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the capital of Bangladesh?",
+   "kind": "known",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "ms": 306,
+   "answer": "The capital of Bangladesh is Dhaka. [E1]",
+   "answered": true,
+   "correct": true
+  },
+  {
+   "q": "What is the national animal of India?",
+   "kind": "known",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 3722,
+   "answer": "[Unverified] The national animal of India is the Indian elephant.",
+   "answered": true,
+   "correct": false
+  },
+  {
+   "q": "Who is the mayor of Tromso?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1780,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What did I eat for breakfast yesterday?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1035,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who won the 2031 World Cup?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 366,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who was the 15th president of Mars?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 856,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the phone number of the nearest pharmacy?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1112,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "How many people are in this room?",
+   "kind": "trap",
+   "mode": "llm",
+   "sources": [
+    "device"
+   ],
+   "ms": 8396,
+   "answer": "The room can carry more than 3 people [E1].",
+   "answered": true,
+   "correct": false
+  },
+  {
+   "q": "What is the name of Albert Einstein's third cousin?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 4587,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who wrote the novel The Silent Zxqv Lantern?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 3005,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the exact weight of the moon rock on my desk?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1003,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "Who won the Ballon d'Or in 2041?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 419,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What is the wifi password of the Pentagon?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1059,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What was the temperature in Delhi at noon yesterday?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1004,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
+  },
+  {
+   "q": "What colour is the fourth unicorn born in 1800?",
+   "kind": "trap",
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 552,
+   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "answered": false,
+   "correct": false
+  }
+ ]
+}

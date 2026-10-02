@@ -1642,6 +1642,303 @@
    ]
   },
   {
+   "id": "india:Q1159",
+   "title": "Capital of Andhra Pradesh",
+   "text": "The capital of Andhra Pradesh, a state of India, is Amaravati.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1159"
+   ]
+  },
+  {
+   "id": "india:Q1162",
+   "title": "Capital of Arunachal Pradesh",
+   "text": "The capital of Arunachal Pradesh, a state of India, is Itanagar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1162"
+   ]
+  },
+  {
+   "id": "india:Q1164",
+   "title": "Capital of Assam",
+   "text": "The capital of Assam, a state of India, is Dispur.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1164"
+   ]
+  },
+  {
+   "id": "india:Q1165",
+   "title": "Capital of Bihar",
+   "text": "The capital of Bihar, a state of India, is Patna.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1165"
+   ]
+  },
+  {
+   "id": "india:Q1168",
+   "title": "Capital of Chhattisgarh",
+   "text": "The capital of Chhattisgarh, a state of India, is Raipur.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1168"
+   ]
+  },
+  {
+   "id": "india:Q1171",
+   "title": "Capital of Goa",
+   "text": "The capital of Goa, a state of India, is Panaji.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1171"
+   ]
+  },
+  {
+   "id": "india:Q1061",
+   "title": "Capital of Gujarat",
+   "text": "The capital of Gujarat, a state of India, is Gandhinagar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1061"
+   ]
+  },
+  {
+   "id": "india:Q1174",
+   "title": "Capital of Haryana",
+   "text": "The capital of Haryana, a state of India, is Chandigarh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1174"
+   ]
+  },
+  {
+   "id": "india:Q1177",
+   "title": "Capital of Himachal Pradesh",
+   "text": "The capital of Himachal Pradesh, a state of India, is Shimla.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1177"
+   ]
+  },
+  {
+   "id": "india:Q1184",
+   "title": "Capital of Jharkhand",
+   "text": "The capital of Jharkhand, a state of India, is Ranchi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1184"
+   ]
+  },
+  {
+   "id": "india:Q1185",
+   "title": "Capital of Karnataka",
+   "text": "The capitals of Karnataka, a state of India, are Belgaum and Bengaluru.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1185"
+   ]
+  },
+  {
+   "id": "india:Q1186",
+   "title": "Capital of Kerala",
+   "text": "The capital of Kerala, a state of India, is Thiruvananthapuram.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1186"
+   ]
+  },
+  {
+   "id": "india:Q1188",
+   "title": "Capital of Madhya Pradesh",
+   "text": "The capital of Madhya Pradesh, a state of India, is Bhopal.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1188"
+   ]
+  },
+  {
+   "id": "india:Q1191",
+   "title": "Capital of Maharashtra",
+   "text": "The capitals of Maharashtra, a state of India, are Mumbai and Nagpur.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1191"
+   ]
+  },
+  {
+   "id": "india:Q1193",
+   "title": "Capital of Manipur",
+   "text": "The capital of Manipur, a state of India, is Imphal.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1193"
+   ]
+  },
+  {
+   "id": "india:Q1195",
+   "title": "Capital of Meghalaya",
+   "text": "The capital of Meghalaya, a state of India, is Shillong.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1195"
+   ]
+  },
+  {
+   "id": "india:Q1502",
+   "title": "Capital of Mizoram",
+   "text": "The capital of Mizoram, a state of India, is Aizawl.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1502"
+   ]
+  },
+  {
+   "id": "india:Q1599",
+   "title": "Capital of Nagaland",
+   "text": "The capital of Nagaland, a state of India, is Kohima.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1599"
+   ]
+  },
+  {
+   "id": "india:Q22048",
+   "title": "Capital of Odisha",
+   "text": "The capital of Odisha, a state of India, is Bhubaneswar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q22048"
+   ]
+  },
+  {
+   "id": "india:Q22424",
+   "title": "Capital of Punjab",
+   "text": "The capital of Punjab, a state of India, is Chandigarh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q22424"
+   ]
+  },
+  {
+   "id": "india:Q1437",
+   "title": "Capital of Rajasthan",
+   "text": "The capital of Rajasthan, a state of India, is Jaipur.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1437"
+   ]
+  },
+  {
+   "id": "india:Q1505",
+   "title": "Capital of Sikkim",
+   "text": "The capital of Sikkim, a state of India, is Gangtok.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1505"
+   ]
+  },
+  {
+   "id": "india:Q1445",
+   "title": "Capital of Tamil Nadu",
+   "text": "The capital of Tamil Nadu, a state of India, is Chennai.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1445"
+   ]
+  },
+  {
+   "id": "india:Q677037",
+   "title": "Capital of Telangana",
+   "text": "The capital of Telangana, a state of India, is Hyderabad.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q677037"
+   ]
+  },
+  {
+   "id": "india:Q1363",
+   "title": "Capital of Tripura",
+   "text": "The capital of Tripura, a state of India, is Agartala.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1363"
+   ]
+  },
+  {
+   "id": "india:Q1498",
+   "title": "Capital of Uttar Pradesh",
+   "text": "The capital of Uttar Pradesh, a state of India, is Lucknow.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1498"
+   ]
+  },
+  {
+   "id": "india:Q1499",
+   "title": "Capital of Uttarakhand",
+   "text": "The capitals of Uttarakhand, a state of India, are Dehradun and Gairsain.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1499"
+   ]
+  },
+  {
+   "id": "india:Q1356",
+   "title": "Capital of West Bengal",
+   "text": "The capital of West Bengal, a state of India, is Kolkata.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1356"
+   ]
+  },
+  {
+   "id": "india:Q40888",
+   "title": "Capital of Andaman and Nicobar Islands",
+   "text": "The capital of Andaman and Nicobar Islands, a union territory of India, is Srivijayapuram.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q40888"
+   ]
+  },
+  {
+   "id": "india:Q120971341",
+   "title": "Capital of Chandigarh",
+   "text": "The capital of Chandigarh, a union territory of India, is Chandigarh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q120971341"
+   ]
+  },
+  {
+   "id": "india:Q77997266",
+   "title": "Capital of Dadra and Nagar Haveli and Daman and Diu",
+   "text": "The capital of Dadra and Nagar Haveli and Daman and Diu, a union territory of India, is Daman.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q77997266"
+   ]
+  },
+  {
+   "id": "india:Q66278313",
+   "title": "Capital of Jammu and Kashmir",
+   "text": "The capitals of Jammu and Kashmir, a union territory of India, are Jammu and Srinagar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q66278313"
+   ]
+  },
+  {
+   "id": "india:Q200667",
+   "title": "Capital of Ladakh",
+   "text": "The capitals of Ladakh, a union territory of India, are Kargil and Leh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q200667"
+   ]
+  },
+  {
+   "id": "india:Q26927",
+   "title": "Capital of Lakshadweep",
+   "text": "The capital of Lakshadweep, a union territory of India, is Kavaratti.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q26927"
+   ]
+  },
+  {
+   "id": "india:Q9357528",
+   "title": "Capital of National Capital Territory of Delhi",
+   "text": "The capital of National Capital Territory of Delhi, a union territory of India, is New Delhi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q9357528"
+   ]
+  },
+  {
+   "id": "india:Q66743",
+   "title": "Capital of Puducherry",
+   "text": "The capital of Puducherry, a union territory of India, is Pondicherry.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q66743"
+   ]
+  },
+  {
+   "id": "india:count",
+   "title": "Number of states and union territories of India",
+   "text": "India has 28 states and 8 union territories.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q12443800",
+    "https://www.wikidata.org/wiki/Q467745"
+   ]
+  },
+  {
    "id": "si:metre",
    "title": "SI base unit of length",
    "text": "The SI base unit of length is the metre (symbol m).",

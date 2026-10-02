@@ -1,0 +1,304 @@
+[
+ {
+  "model": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  "known": 45,
+  "right": 33,
+  "wrong": 2,
+  "idk": 10,
+  "traps": 13,
+  "trap_hallucinated": 1,
+  "seconds_per_question": 3.2,
+  "rows": [
+   {
+    "q": "Who wrote Pride and Prejudice?",
+    "a": "Jane Austen wrote Pride and Prejudice.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Canada?",
+    "a": "Ottawa",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the chemical symbol for sodium?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "Who painted Starry Night?",
+    "a": "Vincent van Gogh",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the largest mammal?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "How many sides does a hexagon have?",
+    "a": "A hexagon has six sides.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the speed of light in kilometres per second?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "Which planet is closest to the sun?",
+    "a": "Mercury",
+    "verdict": "right"
+   },
+   {
+    "q": "Who discovered gravity?",
+    "a": "Sir Isaac Newton discovered gravity.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Brazil?",
+    "a": "Brasília.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who wrote the Odyssey?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "What is the largest hot desert in the world?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "What is the capital of Egypt?",
+    "a": "Cairo.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who was the first president of the United States?",
+    "a": "George Washington was the first president of the United States.",
+    "verdict": "right"
+   },
+   {
+    "q": "In which year did World War II end?",
+    "a": "World War II ended in 1945.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the chemical formula of water?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "How many bones are in the adult human body?",
+    "a": "206 bones.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Kenya?",
+    "a": "The capital of Kenya is Nairobi.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who composed the Moonlight Sonata?",
+    "a": "Ludwig van Beethoven composed the Moonlight Sonata.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the tallest animal?",
+    "a": "The tallest animal is the giraffe.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who is known as the father of computers?",
+    "a": "Charles Babbage is known as the father of computers.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Turkey?",
+    "a": "Istanbul.",
+    "verdict": "wrong"
+   },
+   {
+    "q": "Which element has atomic number 1?",
+    "a": "Hydrogen",
+    "verdict": "right"
+   },
+   {
+    "q": "Who wrote Romeo and Juliet?",
+    "a": "William Shakespeare wrote Romeo and Juliet.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the longest river in South America?",
+    "a": "The Amazon River.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of South Korea?",
+    "a": "Seoul.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who invented the light bulb?",
+    "a": "Thomas Edison invented the light bulb.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the currency of the United Kingdom?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "How many players of one team are on the field in football (soccer)?",
+    "a": "11 players.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the smallest country in the world?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "Who was the first woman to win a Nobel Prize?",
+    "a": "Marie Curie was the first woman to win a Nobel Prize.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Argentina?",
+    "a": "Buenos Aires.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the most common gas in Earth's atmosphere?",
+    "a": "Nitrogen.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who painted the ceiling of the Sistine Chapel?",
+    "a": "Michelangelo painted the ceiling of the Sistine Chapel.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Nigeria?",
+    "a": "Abuja",
+    "verdict": "right"
+   },
+   {
+    "q": "In which country is the Taj Mahal?",
+    "a": "India.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the largest organ of the human body?",
+    "a": "The largest organ of the human body is the skin.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who wrote Nineteen Eighty-Four?",
+    "a": "George Orwell wrote Nineteen Eighty-Four.",
+    "verdict": "right"
+   },
+   {
+    "q": "How many minutes are in a day?",
+    "a": "1440 minutes.",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the capital of Pakistan?",
+    "a": "Islamabad",
+    "verdict": "right"
+   },
+   {
+    "q": "Which metal is liquid at room temperature?",
+    "a": "Mercury is liquid at room temperature.",
+    "verdict": "right"
+   },
+   {
+    "q": "Who was the first Mughal emperor?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "Who wrote the Indian national anthem?",
+    "a": null,
+    "verdict": "idk"
+   },
+   {
+    "q": "What is the capital of Bangladesh?",
+    "a": "Dhaka",
+    "verdict": "right"
+   },
+   {
+    "q": "What is the national animal of India?",
+    "a": "The national animal of India is the Indian elephant.",
+    "verdict": "wrong"
+   },
+   {
+    "q": "Who is the mayor of Tromso?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What did I eat for breakfast yesterday?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "Who won the 2031 World Cup?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "Who was the 15th president of Mars?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What is the phone number of the nearest pharmacy?",
+    "a": "911.",
+    "verdict": "trap-answered (hallucination)"
+   },
+   {
+    "q": "How many people are in this room?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What is the name of Albert Einstein's third cousin?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "Who wrote the novel The Silent Zxqv Lantern?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What is the exact weight of the moon rock on my desk?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "Who won the Ballon d'Or in 2041?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What is the wifi password of the Pentagon?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What was the temperature in Delhi at noon yesterday?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   },
+   {
+    "q": "What colour is the fourth unicorn born in 1800?",
+    "a": null,
+    "verdict": "trap-idk (correct)"
+   }
+  ]
+ }
+]

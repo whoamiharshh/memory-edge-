@@ -502,6 +502,7 @@ details.sources[open] summary::before{content:"\25BE  "}
 .conv-q{font-size:13px;font-weight:600;margin-top:10px}
 .conv-a{font-size:13px;color:var(--mut);line-height:1.6;margin-top:3px}
 .offer{margin-top:10px}
+.unverified{margin-top:10px;padding:9px 12px;border-radius:var(--r);background:var(--warn-bg);color:var(--warn);font-size:13px;line-height:1.45}
 .replay-note{font-size:11.5px;color:var(--dim);margin-top:8px}
 .num{font-variant-numeric:tabular-nums}
 .f{flex:1}

@@ -136,7 +136,7 @@ def test_a_library_entry_covering_little_of_the_question_is_not_evidence(dev, mo
 
 def test_nothing_found_and_model_fails_is_the_honest_message(dev):
     out = dev.ask("Who painted the ceiling of the zxqv chapel?", Quote(raises=True))
-    assert _shape(out) == ("no_evidence", False, [], []) and "Nothing on this device" in out["answer"]
+    assert _shape(out) == ("no_evidence", False, [], []) and out["answer"].startswith("Needs internet connection for this.")
 
 
 def test_model_failure_with_evidence_still_cites_the_evidence(dev):
@@ -172,7 +172,7 @@ def test_switch_says_online_but_the_network_is_dead_reports_offline(make_device,
     d, _ = make_device("solo", "site1")                        # the online switch is ON
     out = d.ask("what is a quokka", None)
     assert out["web_reason"] == "offline" and out["needs_internet"] is True
-    assert "offline" in out["answer"]
+    assert out["answer"].startswith("Needs internet connection for this.")
 
 
 @pytest.mark.parametrize("switch,mode", [(False, "auto"), (True, "local")])

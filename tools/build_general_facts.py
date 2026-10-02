@@ -50,8 +50,49 @@ def si_units() -> list[dict]:
             for n, s, q in SI]
 
 
+def _sparql(query: str) -> list[dict]:
+    req = urllib.request.Request("https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(query),
+                                 headers={"User-Agent": "machine-memory-edge/0.1 (local build)"})
+    return json.load(urllib.request.urlopen(req, timeout=60))["results"]["bindings"]
+
+
+# Q12443800 = "state of India", Q467745 = "union territory of India" (checked against Tamil Nadu's own P31)
+INDIA = (("Q12443800", "state"), ("Q467745", "union territory"))
+
+
+def india() -> list[dict]:
+    """Capital of every Indian state and union territory, and how many of each there are (Wikidata, CC0). The
+    counts are computed from the same rows, so they cannot disagree with the capitals listed beside them."""
+    facts, count = [], {}
+    for cls, kind in INDIA:
+        rows = _sparql(f'SELECT ?s ?sLabel ?kLabel WHERE {{ ?s wdt:P31 wd:{cls}. FILTER NOT EXISTS {{ ?s wdt:P576 [] }} '
+                       f'OPTIONAL {{ ?s wdt:P36 ?k }} SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }} }}')
+        by: dict[str, dict] = {}
+        for r in rows:
+            qid, name = r["s"]["value"].rsplit("/", 1)[1], r["sLabel"]["value"]
+            if _unlabelled(name):
+                continue
+            e = by.setdefault(qid, {"name": name, "caps": set()})
+            if r.get("kLabel") and not _unlabelled(r["kLabel"]["value"]):
+                e["caps"].add(r["kLabel"]["value"])
+        count[kind] = len(by)
+        for qid, e in sorted(by.items(), key=lambda kv: kv[1]["name"]):
+            caps = sorted(e["caps"])
+            if not caps:
+                continue
+            text = (f"The capital of {e['name']}, a {kind} of India, is {caps[0]}." if len(caps) == 1 else
+                    f"The capitals of {e['name']}, a {kind} of India, are {', '.join(caps[:-1])} and {caps[-1]}.")
+            facts.append({"id": f"india:{qid}", "title": f"Capital of {e['name']}", "text": text,
+                          "sources": [f"https://www.wikidata.org/wiki/{qid}"]})
+    src = ["https://www.wikidata.org/wiki/Q12443800", "https://www.wikidata.org/wiki/Q467745"]
+    facts.append({"id": "india:count", "title": "Number of states and union territories of India",
+                  "text": f"India has {count['state']} states and {count['union territory']} union territories.",
+                  "sources": src})
+    return facts
+
+
 def main() -> None:
-    facts = capitals() + si_units()
+    facts = capitals() + india() + si_units()
     OUT.write_text(json.dumps({"licence": "Wikidata CC0; SI Brochure (BIPM) for the base units",
                                "facts": facts}, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"wrote {len(facts)} facts to {OUT}")

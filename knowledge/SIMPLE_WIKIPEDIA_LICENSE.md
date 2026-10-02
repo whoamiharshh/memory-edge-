@@ -16,3 +16,19 @@
 - **ShareAlike:** this file and the vectors derived from it stay under CC BY-SA 4.0. The rest of this repository is
   Apache-2.0 (see `LICENSE`); the two licences apply to their own files and do not change each other.
 - `general_facts.json` (capitals, SI units) is built from Wikidata (CC0) and the BIPM SI Brochure.
+
+## Technical library (`technical_wikipedia.jsonl.gz`, `technical_wikipedia.vec.npz`)
+
+About 860 opening paragraphs of **English Wikipedia** (https://en.wikipedia.org) for engineering concepts (robots, PLCs,
+vehicles, phones, mathematics, electronics ...), fetched on 3 October 2026 through the MediaWiki API by
+`tools/build_tech_pack.py` from the terms in `tech_terms.txt`. Licence, authorship and the one-URL-per-record rule are
+exactly as above: Creative Commons Attribution-ShareAlike 4.0; every record carries the URL of its article. Changes: only
+the opening paragraph is kept, whitespace is collapsed, it is cut at a sentence end, and empty pronunciation brackets are
+removed. A term that mapped to a disambiguation page, to a wrong article, or to an article shared by two aliases was left
+out rather than guessed.
+
+## Answer-reader model (not in this repository)
+
+`tools/fetch_qa_model.py` downloads **deepset/roberta-base-squad2** (Creative Commons Attribution 4.0, trained on SQuAD 2.0)
+as an ONNX int8 build published by `onnx-community`, into `models_cache/` (git-ignored). It only reads text the device
+already holds and returns a span of that text; it adds no facts of its own.

@@ -408,6 +408,10 @@ async function send() {
     const b = bubble("bot", r.answer, sourcesBlock(r.used));
     const strip = photoStrip(r.pictures);
     if (strip) b.querySelector(".bubble").append(strip);
+    if (r.unverified) {
+      // a model-written answer has no source behind it, so the page says so on the answer itself
+      b.querySelector(".bubble").append(el("div", { class: "unverified" }, r.label || "Unverified answer from the on-device model."));
+    }
     if (!r.grounded) {
       const act = el("div", { class: "offer" },
         el("button", { class: "btn small", on: { click: () => openTeach(q) } }, "Teach it about this"));
@@ -430,6 +434,7 @@ async function send() {
     const src = r.sources || [];
     const origin = src.length ? "answered from " + src.map(s => NAMES[s] || s).join(" + ")
         + (r.from_learned ? " (some learned earlier)" : "")
+      : r.unverified ? "answered by the local model · UNVERIFIED, no source"
       : "no evidence found";
     if (r.memory_failed?.length) toast("Searching " + r.memory_failed.join(" and ") + " failed on this device.");
     $("composerNote").textContent =

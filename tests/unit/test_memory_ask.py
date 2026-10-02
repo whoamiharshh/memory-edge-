@@ -33,7 +33,7 @@ def test_unknown_question_is_answered_with_i_do_not_know(make_device):
     out = d.ask("what is the capital of Peru")
     assert out["grounded"] is False
     assert out["used"] == []
-    assert "Nothing on this device relates" in out["answer"]
+    assert out["answer"].startswith("Needs internet connection for this.")
 
 
 def test_it_distinguishes_a_near_miss_from_something_it_could_never_know(make_device):
@@ -45,15 +45,16 @@ def test_it_distinguishes_a_near_miss_from_something_it_could_never_know(make_de
 
     far = d.ask("who won the world cup in 1998")
     assert far["needs_internet"] is True
-    assert "Nothing on this device relates to that" in far["answer"]
+    assert far["answer"].startswith("Needs internet connection for this.")
     # and it says WHICH reason it could not look it up, rather than implying it never could. Under test
     # the provider is forced off (conftest), so that is the reason reported here.
     assert far["web_reason"] == "no web search configured"
     assert "no web search is configured" in far["answer"].lower()
 
     near = d.ask("how big is plot 91")           # shares "plot" with a stored record, but not that plot
-    assert near["needs_internet"] is False
-    assert "nothing close enough" in near["answer"]
+    assert near["answer"].startswith("Needs internet connection for this.")
+    assert "touch on some of those words" in near["answer"]       # and it says what to try, unlike the far case
+    assert "touch on some" not in far["answer"]
 
 
 def test_known_question_is_grounded_in_the_stored_fact(make_device):

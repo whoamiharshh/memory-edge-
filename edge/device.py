@@ -14,6 +14,7 @@ from __future__ import annotations
 import collections
 import datetime as dt
 import json
+import math
 import pathlib
 import re
 import threading
@@ -132,7 +133,106 @@ def _content_words(s: str) -> set[str]:
             if len(w) > 2 and w not in _STOPWORDS}
 
 
+def _stem(w: str) -> str:
+    """Plural-insensitive: "states" must match "state". Deliberately nothing smarter - a real stemmer would also
+    merge words that mean different things."""
+    return w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w
+
+
+def _covered(qw: set[str], text: str, plural: bool = True) -> set[str]:
+    """Which of the question's content words does this text contain? Compound-aware: "tamilnadu" is covered by
+    "Tamil Nadu", because people type place names both ways and the text only ever holds one of them. `plural`
+    also lets "states" meet "state"; it is off for what people typed in, where one loose word is already enough."""
+    f = _stem if plural else (lambda w: w)
+    toks = [t for t in re.findall(r"[a-z0-9]+", (text or "").lower())]
+    have = {f(t) for t in toks}
+    have |= {f(a + b) for a, b in zip(toks, toks[1:])}
+    return {w for w in qw if f(w) in have}
+
+
+def _trim_reference(items: list[dict], n_words: int) -> list[dict]:
+    """Choose which library entries to show. The library always has something that shares a word with the question,
+    so showing every hit gave "capital of France" a second answer about a region called Nouvelle-Aquitaine.
+
+    An entry whose TITLE is what the question names wins outright (asking "what is DNA" wants the DNA article, not
+    the ones that merely mention it). Otherwise only the best-covering entries are kept. A fact and an article with
+    the same title are one answer, and the curated fact is the one kept."""
+    def score(c: dict) -> float:
+        cov = len(c["overlap"]) / max(1, n_words)
+        in_title = len(_covered(set(c["overlap"]), c.get("title") or "")) / max(1, n_words)
+        return (cov + 0.4 * in_title + (0.5 if c.get("title_hit") else 0)
+                + (0.25 if c.get("topic") == "general knowledge" else 0))
+    ranked = sorted(items, key=lambda c: -score(c))
+    if not ranked:
+        return []
+    named = [c for c in ranked if c.get("title_hit")]
+    if not named and ranked[0].get("topic") == "general knowledge":
+        return ranked[:1]                  # a curated fact is the whole answer; its look-alikes are not
+    pool = named or [c for c in ranked if score(c) >= score(ranked[0]) - 0.15]
+    out, seen = [], set()
+    for c in pool:
+        t = (c.get("title") or c["id"]).lower()
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(c)
+    return out[:2]
+
+
+# What counts as a SIMPLE general-knowledge question for the local model. Anything about machines, faults, repairs
+# or this device is excluded no matter how it is phrased: a 1.5B model has no business guessing at those.
+_GENERAL_START = re.compile(r"^(what|who|whom|when|where|which|how (?:many|much|far|old|tall|long|big|large|high|deep)"
+                            r"|define|meaning of|capital of|full form of)\b", re.I)
+_MACHINE_STEMS = ("machin", "bearing", "motor", "pump", "fault", "vibrat", "repair", "fix", "sensor", "devic", "episod",
+                  "fleet", "engine", "gearbox", "shaft", "fan", "compress", "turbin", "mainten", "technic", "torque",
+                  "rpm", "spindle", "coolant", "lubric", "misalign", "unbalanc", "imbalanc", "symptom", "diagnos",
+                  "brake", "clutch", "error", "dtc", "obd", "vehicle", "truck", "robot", "calibrat", "taught",
+                  "teach", "record", "plant", "site", "signal", "baseline", "novelty", "verif", "cloud", "sync",
+                  "mirror", "qdrant", "valve", "gasket", "piston", "cylinder", "hydraul", "pneumat", "conveyor",
+                  "weld", "install", "replac", "overheat", "leak", "noise", "wear", "crack", "plc", "scada", "kiosk",
+                  "ecu", "batter", "charg", "autonom", "lidar", "radar", "firmware", "protocol", "network", "hmi",
+                  "servo", "actuat", "encoder", "kinemat", "cyber", "secur", "safety", "reliab", "phone", "mobile",
+                  "circuit", "voltage", "current", "transistor", "inverter", "controller", "automat", "industrial")
+_PERSONAL = frozenset("my our your mine we i me us this these those here".split())
+# Facts that depend on where or when the question is asked (or are private) cannot come from training at all. The
+# benchmark showed the model inventing "911" for "phone number of the nearest pharmacy".
+_RELATIVE = re.compile(r"\b(nearest|nearby|near me|yesterday|today|tomorrow|tonight|currently|right now|latest|current"
+                       r"|this (?:week|month|year|morning|evening)|password|phone number|address|email|price of|weather"
+                       r"|temperature in|score)\b", re.I)
+
+
+def _simple_general(q: str) -> bool:
+    """Is this a short factual question about the world, and nothing to do with machines or this device?"""
+    words = re.findall(r"[a-z0-9']+", (q or "").lower())
+    if not 2 <= len(words) <= 16 or not _GENERAL_START.match((q or "").strip()):
+        return False
+    if _identifiers(q) or _PERSONAL.intersection(words) or _RELATIVE.search(q) or _OPEN_ENDED.match(q):
+        return False
+    return not any(w.startswith(_MACHINE_STEMS) for w in words)
+
+
+_ENCYCLOPEDIC = ("Simple English Wikipedia", "Technical concepts (Wikipedia)")
+# Questions that ask for a design, a calculation, a diagnosis or a judgment have no passage to quote: a lead paragraph
+# about the same topic would be a confident non-answer. They are answered from the device's own notes and procedures, or
+# not at all ("Needs internet connection for this.").
+_OPEN_ENDED = re.compile(
+    r"^\s*(?:design|calculate|compute|derive|diagnose|troubleshoot|redesign|explain why"
+    r"|how (?:would|should|could|can) (?:you|we|i|one)\b"
+    r"|how do (?:you|we) (?:design|diagnose|prove|test|reduce|increase|choose|select|size|calculate|implement|handle"
+    r"|detect|secure|validate|verify|decide|optimi[sz]e|build|distinguish|quantify|estimate|measure)\b"
+    r"|what (?:if|happens|would|should)\b"
+    r"|why (?:can|could|would|should|did|do|does|is|are|was|use|not)\b"
+    r"|which\b.*\b(?:better|best|worse|superior|suitable)\b"
+    r"|when (?:is|would|should|does) .*\b(?:better|best|worse|superior)\b"
+    r"|where should\b)", re.I)
+_COMPARE = re.compile(r"\b(?:vs\.?|versus)\b|\bdifference between\b|\bcompare\b", re.I)
+_DEFINITIONAL = re.compile(r"^\s*(?:what (?:is|are|was|were) (?:an? |the )?|who (?:is|was|are|were) |define |"
+                           r"tell me about |explain |how (?:does|do) (?:an? |the )?.+ work)", re.I)
+_SOFT_WORDS = frozenset("city name called country place town work works working robot robots motor sensor "
+                        "system device protocol network algorithm".split())    # filler a curated fact need not repeat
+
 CHAT_CONTEXT_TURNS = 3
+NEEDS_INTERNET = "Needs internet connection for this."
 
 # words that point at something already said instead of naming it. Question words ("how", "why", "what")
 # are deliberately NOT here: "how big is plot 91" is a complete question, and treating it as a follow-up
@@ -140,6 +240,7 @@ CHAT_CONTEXT_TURNS = 3
 _REFERRING = frozenset("""
 it its that this these those they them their he she him her there
 """.split())
+_DEMONSTRATIVE = frozenset("this these those there".split())
 
 
 # Where a piece of evidence came from, in the four words the UI uses. The local model is never one of them:
@@ -179,7 +280,13 @@ def _is_follow_up(q: str) -> bool:
     words = re.findall(r"[a-z']+", (q or "").lower())
     if not words:
         return False
-    return bool(_REFERRING.intersection(words)) or not _content_words(q)
+    # "it", "they", "he" point back at something. "this/these/those/there" only do when the question has nothing of
+    # its own to say ("how does this work?"): "what is wrong with this device?" is a complete question, and treating
+    # it as a follow-up made it inherit "2x" from the previous question and answer with a misalignment procedure.
+    own = len(_content_words(q))
+    if _REFERRING.difference(_DEMONSTRATIVE).intersection(words):
+        return True
+    return not own or (own <= 1 and bool(_DEMONSTRATIVE.intersection(words)))
 
 
 def _carry_context(history: list[dict]) -> tuple[str, set[str], set[str]]:
@@ -241,7 +348,9 @@ def _identifiers(s: str) -> set[str]:
     overlap alone happily answers a question about one with the record for the other — which is worse
     than saying nothing, because it looks like an answer.
     """
-    return {t for t in re.findall(r"[a-z]*\d[a-z0-9]*", (s or "").lower()) if t not in _STOPWORDS}
+    # a lone digit ("atomic number 1", "step 2") names nothing; two digits or a letter-digit mix ("91", "p0301") does
+    return {t for t in re.findall(r"[a-z]*\d[a-z0-9]*", (s or "").lower())
+            if t not in _STOPWORDS and (len(t) > 1 or not t.isdigit())}
 
 
 # Questions about the device's record as a whole, rather than about any one thing in it.
@@ -1321,12 +1430,11 @@ class Device:
 
     def reference_by_id(self, ref_ids: list[str]) -> list[dict]:
         """Exact lookup by reference id, e.g. `dtc:P0420`."""
-        out = []
-        for rid in ref_ids[:5]:
-            hits = self.store.scroll(filter={"type": "reference", "ref_id": rid,
-                                             "device_id": self.cfg.device_id})
-            out += [self._plain(h.payload) | {"id": h.id, "score": 1.0} for h in hits]
-        return out
+        # Point ids are deterministic (edge/seed.py: make_id("reference", device, ref_id)), so this is a direct read.
+        # Filtering on ref_id instead scanned all 30,000 library records per lookup - about a second per question.
+        want = [ids.make_id("reference", self.cfg.device_id, rid) for rid in ref_ids[:6]]
+        return [self._plain(r.payload) | {"id": r.id, "score": 1.0} for r in self.store.retrieve(want)
+                if r.payload.get("type") == "reference"]
 
     def recall_reference(self, text: str, limit: int = 5) -> list[dict]:
         """Search the reference packs loaded at first boot (edge/seed.py).
@@ -1337,12 +1445,21 @@ class Device:
         questions that describe a symptom instead of naming a code.
         """
         exact = self.reference_by_id([f"dtc:{t.upper()}" for t in _identifiers(text)])
-        seen = {e["id"] for e in exact}
+        # An entry whose title the question names ("what is dna", "capital of tamilnadu") is looked up by that
+        # title. Similarity search alone buries it: any article that merely mentions DNA scores about as well.
+        from edge import seed
+        try:
+            named = self.reference_by_id([rid for rid, _ in seed.title_ref_ids(text)])
+        except Exception:                          # the shortcut failing must never cost the ordinary search
+            named = []
+        for n in named:
+            n["title_hit"] = True
+        seen = {e["id"] for e in exact} | {n["id"] for n in named}
         hits = self.store.search(note=self.embedder.embed_query(text), text=text, limit=limit,
                                  filter={"type": "reference", "device_id": self.cfg.device_id})
         fuzzy = [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload)
                  for h in hits if h.id not in seen]
-        return (exact + fuzzy)[:max(limit, len(exact))]
+        return (exact + named + fuzzy)[:max(limit, len(exact) + len(named))]
 
     def recall_shared(self, text: str, limit: int = 5) -> list[dict]:
         """Search knowledge published by other devices that this one was allowed to receive."""
@@ -1516,6 +1633,58 @@ class Device:
             lead += f" The {len(used)} most recent:"
         return used, lead + "\n\n" + "\n\n".join(f"{c['text']} [E{i}]" for i, c in enumerate(used, 1))
 
+    @staticmethod
+    def _as_question(q: str) -> str:
+        """Phrase a bare topic ("capital of tamilnadu") as the question the reader was trained on. The same fact
+        scores about 6 as a fragment and about 11 as "What is the capital of ...?"."""
+        t = q.strip().rstrip("?.! ")
+        if re.match(r"(?i)^(what|who|whom|whose|which|when|where|why|how|is|are|was|were|do|does|did|can|could|"
+                    r"will|would|should|has|have)", t):
+            return t + "?"
+        return f"What is the {t}?" if re.match(r"(?i)^(capital|population|meaning|definition|full form|currency|"
+                                               r"area|height|length|speed|symbol|formula)", t) else f"What is {t}?"
+
+    QA_MARGIN = 6.0     # how much better than "no answer" a span must score (calibrated in bench/ask_qa.py, D49)
+
+    def _read_wiki(self, q: str, qw: set[str], cands: list[dict], qa) -> list[dict]:
+        """The Wikipedia/technical lead that really answers `q`, read by the offline extractive model; [] if none does.
+        Title matches are read first; at most 8 candidates are read (about 80 ms each)."""
+        named = [c for c in cands if c.get("title_hit")]
+        if _COMPARE.search(q):
+            # "PLC vs DCS": the library holds each definition, not a comparison. Showing both, labelled as what they
+            # are, is true; inventing a side-by-side would not be.
+            seen, out = set(), []
+            for c in named:
+                if c.get("title") not in seen:
+                    seen.add(c.get("title"))
+                    out.append(c)
+            if len(out) >= 2:
+                for c in out[:2]:
+                    c["compare"] = True
+                return out[:2]
+        if _OPEN_ENDED.match(q):
+            return []                              # nothing to quote for a design / calculation / diagnosis
+        order = sorted(cands, key=lambda c: (-bool(c.get("title_hit")), -len(c["overlap"])))[:8]
+        best = None
+        rest = qw - _SOFT_WORDS
+        for c in order:
+            # the question names this entry and nothing else ("what is a PLC", "how does an encoder work"): the lead IS
+            # the answer. The entry may be known by several names, so every alias counts.
+            names = [c.get("title") or ""] + list(c.get("aliases") or [])
+            if c.get("title_hit") and any(_covered(rest, n) == rest for n in names) and rest:
+                return [c]
+            try:
+                r = qa.answer(self._as_question(q), c["text"])
+            except Exception:                      # a broken reader must not cost the answer
+                continue
+            if r and r["margin"] >= self.QA_MARGIN and (best is None or r["margin"] > best[0]):
+                best = (r["margin"], c, r)
+        if not best:
+            return []
+        _, c, r = best
+        c["reader_answer"], c["answer_sentence"], c["margin"] = r["text"], r["sentence"], r["margin"]
+        return [c]
+
     def ask(self, text: str, llm=None, use_fleet: bool = True, limit: int = 5) -> dict:
         """One conversational turn over everything this device remembers.
 
@@ -1580,7 +1749,8 @@ class Device:
         for rf in _safe("offline library", self.recall_reference, query, limit):
             cands.append({"source": "reference", "id": rf["id"], "kind": "reference",
                           "text": rf.get("note_text", ""), "title": rf.get("title"),
-                          "sources": rf.get("sources") or []})
+                          "sources": rf.get("sources") or [], "title_hit": bool(rf.get("title_hit")),
+                          "topic": rf.get("topic"), "aliases": rf.get("aliases") or []})
         try:
             res = self.search(text=query, use_fleet=use_fleet, limit=limit)
         except Exception:                          # memory-only questions must work with no baseline yet
@@ -1598,25 +1768,57 @@ class Device:
         own_ids = _identifiers(q)
         q_ids = own_ids or (ctx_ids if follow_up else set())
         for c in cands:
-            c["overlap"] = sorted(qw & _content_words(c["text"]))
+            c["overlap"] = sorted(_covered(qw, c["text"], plural=c["source"] in ("reference", "learned")))
+            if c.get("title_hit"):               # the entry was asked for BY NAME, and the name may not be in its text
+                c["overlap"] = sorted(set(c["overlap"]) | _covered(qw, " ".join([c.get("title") or ""] + list(c.get("aliases") or []))))
             c["ids"] = sorted(q_ids & _identifiers(c["text"]))
         # when the question names a specific thing, only records naming the same thing count
         # One shared word is enough for a note somebody typed in, but not for the offline library: with tens
         # of thousands of articles, some article always shares a word with any question, so "who painted the
         # ceiling of the zxqv chapel" matched Dante and the Sistine Chapel and got answered from them. A
         # library entry has to cover most of what was asked (at least 60 %, and at least two words).
-        need_words = 1 if len(qw) < 2 else max(2, -(-len(qw) * 6 // 10))
+        from shared import qa as _qa
+        qa_on = _qa.available()                    # the offline reader that decides whether a passage answers
 
         def _relevant(c: dict) -> bool:
             if q_ids:
                 return bool(c["ids"])
-            if c["source"] == "reference":
-                return len(c["overlap"]) >= need_words
+            # Text nobody on this tenant wrote - the library, a page cached from the web - has to cover most of the
+            # question. Notes people typed in (here or on another device of the fleet) and this device's own sensor
+            # records may match on a single word. Without this a cached page about the Great Wall of China answered
+            # "how many states does India have?" because both contain "states".
+            if c["source"] in ("reference", "learned"):
+                if len(qw) < 2:
+                    return bool(c["overlap"])
+                # A curated fact answers one narrow question, so it must cover EVERY meaningful word of it (filler
+                # such as "city" or "name" excepted): "national animal of India" matched the fact about the capital
+                # of the National Capital Territory on two of its three words and answered with that. An article
+                # whose title is what was asked can be looser; anything else needs three words in four.
+                if c.get("topic") == "general knowledge":
+                    return len(qw - _SOFT_WORDS - set(c["overlap"])) == 0
+                if qa_on and c.get("topic") in _ENCYCLOPEDIC:
+                    return bool(c["overlap"])      # topic is enough to be READ; the reader decides whether it answers
+                ratio = 0.6 if c.get("title_hit") else 0.75
+                return len(c["overlap"]) >= max(2, math.ceil(len(qw) * ratio - 1e-9))
             return bool(c["overlap"])
         used = [c for c in cands if _relevant(c)]
         # A record that IS the thing asked about must outrank one that merely mentions it: the entry for
         # P0305 says "same family as P0301", so asking about P0301 otherwise answers with P0305.
         used.sort(key=lambda c: (-_names_it(c["text"], c["ids"]), -len(c["ids"]), -len(c["overlap"])))
+        # library entries are chosen as a group (title match first, best coverage next, no near-duplicates)
+        lib = [c for c in used if c["source"] == "reference"]
+        if lib:
+            wiki_all = [c for c in lib if c.get("topic") in _ENCYCLOPEDIC] if qa_on else []
+            keep = {id(c) for c in _trim_reference([c for c in lib if c not in wiki_all], len(qw))}
+            # A Wikipedia lead that shares the question's words is about the same TOPIC; that is not the same as
+            # answering it ("largest mammal" -> the article on elephants, "father of computers" -> a biography of
+            # Turing). So each candidate is READ by an extractive question-answering model (shared/qa.py): it returns
+            # the sentence that answers, made of the passage's own words, or declines. A curated fact, when there is
+            # one, is the answer and nothing is read. Only a question that IS a title ("what is DNA") skips the
+            # reading, because there the lead is the answer by definition.
+            if wiki_all and not any(c.get("topic") == "general knowledge" for c in lib if id(c) in keep):
+                keep |= {id(c) for c in self._read_wiki(q, qw, wiki_all, _qa)}
+            used = [c for c in used if c["source"] != "reference" or id(c) in keep]
         used = used[:6]
         for i, c in enumerate(used, 1):
             c["key"] = f"E{i}"
@@ -1680,7 +1882,8 @@ class Device:
             # retrieval always returns candidates, so "did it return anything" says nothing. The signal
             # is whether a single stored record shares even one word with the question: none at all means
             # the subject is outside this device's world, rather than a search that just missed.
-            searched_anything = any(c["overlap"] for c in cands)
+            # the library always shares a word with something, so only the device's own records count as a near miss
+            searched_anything = any(c["overlap"] for c in cands if c["source"] != "reference")
             # Saying "that would need an internet connection" when the device HAS one, and simply was not
             # allowed or able to use it, is the complaint this whole path exists to answer. Each reason
             # gets its own sentence, because each one needs something different from the person.
@@ -1694,26 +1897,46 @@ class Device:
                 "the internet returned nothing for this": "I searched the internet too and found nothing "
                                                           "that answers it.",
             }.get(web_reason, "")
-            if searched_anything:
+            needs_net = web_reason in ("offline", "set to this device only", "no web search configured")
+            if needs_net:
+                # The one sentence a person needs: this device does not know it and the internet could. The
+                # hints that follow say how to make the internet available when that is a setting, not a state.
+                answer = NEEDS_INTERNET + {"set to this device only": " Ask is set to search this device only. "
+                                           "Settings → Ask will let it use the internet as well.",
+                                           "no web search configured": " No web search is configured on this "
+                                           "device. Set EDGE_SEARCH_PROVIDER, or teach it."}.get(web_reason, "")
+                if searched_anything:              # a near miss: say what to try as well
+                    answer += (" This device holds records that touch on some of those words, but none of them "
+                               "answers the question: try naming the part, code or symptom directly, or teach it.")
+            elif searched_anything:
                 answer = ("I found nothing close enough to answer that. This device does hold records that "
                           "touch on some of those words, but none of them answer the question. Try naming "
-                          "the part, code or symptom directly, or teach it."
-                          + (" " + why if web_reason in ("offline", "set to this device only",
-                                                         "no web search configured") else ""))
+                          "the part, code or symptom directly, or teach it.")
             else:
                 answer = "Nothing on this device relates to that. " + (
                     why or "I searched the internet too and found nothing that answers it.")
             out = {"answer": answer, "grounded": False, "mode": "no_evidence", "used": [],
                    "model": None, "llm_ms": 0, "web_reason": web_reason,
-                   # only a question outside this device's world needs the internet. A near miss - words
-                   # it does hold, about a thing it does not - is a search that missed, and no connection
-                   # would have helped.
-                   "needs_internet": (not searched_anything)
-                   and web_reason in ("offline", "set to this device only", "no web search configured"),
-                   "sources": []}
-            # Nothing found anywhere. The local model is deliberately NOT asked to answer from its own
-            # training: a small model is sometimes confidently wrong, and an offline device that gives a wrong
-            # answer is worse than one that says it needs a connection. Only retrieved, cited text is an answer.
+                   "needs_internet": needs_net, "sources": []}
+            # Nothing found anywhere. The local model may answer ONLY a short, simple general-knowledge question
+            # (never anything about machines, faults, repairs or this device), only after agreeing with itself
+            # across three runs, and the answer is labelled unverified because no source backs it. When it is
+            # not sure it says it does not know. This is deliberately last: every sourced answer comes first.
+            if llm is not None and getattr(llm, "available", False) and _simple_general(q):
+                lt = time.perf_counter()
+                try:
+                    g = rag.general_answer(llm, q)
+                except Exception:                  # the optional model must never break the answer
+                    g = None
+                ms = round((time.perf_counter() - lt) * 1000)
+                if g:
+                    out = {"answer": f"{rag.UNVERIFIED_PREFIX} {g}", "grounded": False, "mode": "model_unverified",
+                           "unverified": True, "label": rag.UNVERIFIED_LABEL, "model": rag.MODEL_NAME, "llm_ms": ms,
+                           "used": [], "web_reason": web_reason, "needs_internet": False, "sources": []}
+                else:
+                    if not out.get("needs_internet"):
+                        out["answer"] = "I don't know. " + out["answer"]
+                    out["model_unsure"] = True
         else:
             kinds = {c["source"] for c in used}
             if kinds == {"reference"}:
@@ -1723,10 +1946,23 @@ class Device:
             # written as prose and cite where they came from, so this says so plainly instead of apologising
             # The lead has to match where the lines actually came from. "From what this device holds"
             # over a block of web snippets is the one sentence in the whole product that would be a lie.
-            lead = ("From the internet:" if kinds == {"web"} else
+            lead = ("The library holds each definition, not a side-by-side comparison:"
+                    if any(c.get("compare") for c in used) else
+                    "From the internet:" if kinds == {"web"} else
                     "From this device, and from the internet:" if "web" in kinds else
+                    "" if kinds == {"reference"} else            # the badge under the answer names the library
+                    "From the offline library, and from this device:" if "reference" in kinds else
+                    "From what this device looked up earlier:" if kinds == {"learned"} else
                     "From what this device holds:")
-            template = lead + "\n\n" + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used)
+
+            def _body(c: dict) -> str:
+                # library articles are stored as "Title: lead"; the title is already the heading of the source
+                # card, so repeating it in the sentence read as noise ("Tamil Nadu: Tamil Nadu is a state ...")
+                if c.get("answer_sentence"):
+                    return c["answer_sentence"]
+                t, ttl = c["text"], c.get("title") or ""
+                return t[len(ttl) + 2:] if ttl and c["source"] == "reference" and t.startswith(ttl + ": ") else t
+            template = (lead + "\n\n" if lead else "") + "\n\n".join(f"{_body(c)} [{c['key']}]" for c in used)
             # The offline library is third-party text. A paraphrase of it can be wrong while still carrying a
             # citation, so library-only answers are always the passage itself, word for word.
             if llm is not None and getattr(llm, "available", False) and kinds != {"reference"}:
@@ -1780,7 +2016,11 @@ class Device:
         # here reads one — so it is offered as "you also hold these" and a person decides what it shows.
         pics = []
         try:
-            if self.store.count({"type": "picture", "device_id": self.cfg.device_id}):
+            # Loading the image model for every question cost hundreds of milliseconds on any device holding a
+            # photo, and only a picture whose note shares a word with the question can be shown anyway - so the
+            # notes are compared first and the image model is only used when one could match.
+            if self.store.count({"type": "picture", "device_id": self.cfg.device_id}) and any(
+                    qw & _content_words(p.get("note_text", "")) for p in self.pictures(100)):
                 # nearest-neighbour always returns something, so the top hits include pictures with nothing
                 # to do with the question. Only those whose note actually shares words with it are shown:
                 # the answer presents these as matching, and a photograph offered under a question it has

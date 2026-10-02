@@ -31,18 +31,49 @@ _LINK = re.compile(r"\[\[(?:[^\]|]*\|)?([^\]]*)\]\]")
 _EXT = re.compile(r"\[https?://\S+(?: ([^\]]*))?\]")
 
 
+_MEDIA_OPEN = re.compile(r"\[\[\s*(?:File|Image|Category|Media)\s*:", re.I)
+
+
+def _strip_media(t: str) -> str:
+    """Remove [[File:...]] / [[Image:...]] with their captions. A caption can hold its own [[links]], so the end of
+    the tag is found by counting brackets: stopping at the first ']]' left the rest of the caption behind, and
+    for the article on DNA that fragment ("of DNA. The phosphate groups are yellow ...") became its lead."""
+    while True:
+        m = _MEDIA_OPEN.search(t)
+        if not m:
+            return t
+        depth, i = 0, m.start()
+        while i < len(t):
+            if t.startswith("[[", i):
+                depth, i = depth + 1, i + 2
+            elif t.startswith("]]", i):
+                depth, i = depth - 1, i + 2
+                if depth == 0:
+                    break
+            else:
+                i += 1
+        t = t[:m.start()] + t[i:]
+
+
+_GALLERY = re.compile(r"<gallery.*?</gallery>", re.S | re.I)
+_TABLE = re.compile(r"\{\|.*?\|\}", re.S)
+
+
 def clean(wikitext: str) -> str:
     """The first real paragraph of an article, as plain text ('' if there is none)."""
     t = _REF.sub("", wikitext)
+    t = _GALLERY.sub("", _TABLE.sub("", t))
     for _ in range(4):                                # templates nest
         t = _TEMPLATE.sub("", t)
+    t = _strip_media(t)
     t = _FILE.sub("", t)
     t = _LINK.sub(r"\1", t)
     t = _EXT.sub(lambda m: m.group(1) or "", t)
-    t = _TAG.sub("", t).replace("'''", "").replace("''", "")
+    t = _TAG.sub("", t).replace("'''", "").replace("''", "").replace("&nbsp;", " ")
     for para in t.split("\n"):
         p = para.strip()
-        if len(p) >= MIN_CHARS and not p.startswith(("{", "|", "!", "*", "#", "=", ":", ";", "[")):
+        if (len(p) >= MIN_CHARS and not p.startswith(("{", "|", "!", "*", "#", "=", ":", ";", "[", ".", ")", "]"))
+                and not re.search(r"\]\]|\[\[|\|\s*\w+\s*=|thumb\||upright", p[:300])):
             if len(p) > MAX_CHARS:
                 cut = p.rfind(". ", 0, MAX_CHARS)
                 p = p[:cut + 1] if cut > MIN_CHARS else p[:MAX_CHARS]

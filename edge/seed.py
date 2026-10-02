@@ -17,6 +17,7 @@ from __future__ import annotations
 import gzip
 import json
 import pathlib
+import re
 from typing import Iterator
 
 from edge.store_edge import StorePoint
@@ -117,6 +118,32 @@ def _wiki_core_from_repo(path: pathlib.Path) -> Iterator[dict]:
             yield rec
 
 
+def _technical() -> Iterator[dict]:
+    """~860 engineering concepts (robots, PLCs, vehicles, phones, maths, electronics ...): the opening paragraph of the
+    English Wikipedia article for each, verbatim, with its URL and the terms people type for it ("PLC" for "Programmable
+    logic controller"). Built by tools/build_tech_pack.py from knowledge/tech_terms.txt; vectors ship with it."""
+    path = KNOWLEDGE / "technical_wikipedia.jsonl.gz"
+    if not path.exists():
+        return
+    vecs, model = None, None
+    vec_path = path.with_name("technical_wikipedia.vec.npz")
+    if vec_path.exists():
+        try:
+            import numpy as np
+            blob = np.load(vec_path, allow_pickle=False)
+            vecs, model = blob["vecs"], str(blob["model"])
+        except Exception:
+            vecs = None
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        for i, line in enumerate(fh):
+            a = json.loads(line)
+            rec = {"ref_id": "tech:" + a["title"], "title": a["title"], "text": f"{a['title']}: {a['text']}",
+                   "sources": [a["url"]], "topic": "Technical concepts (Wikipedia)", "aliases": a.get("aliases") or []}
+            if vecs is not None and i < len(vecs):
+                rec |= {"vec": vecs[i], "vec_model": model}
+            yield rec
+
+
 def _simple_wikipedia() -> Iterator[dict]:
     core = KNOWLEDGE / "simple_wikipedia_core.jsonl.gz"
     return _wiki_core_from_repo(core) if core.exists() else _wiki(0, WIKI_CORE)
@@ -129,17 +156,106 @@ def _simple_wikipedia_rest() -> Iterator[dict]:
 # Loaded by itself on a device's first start (edge/main.py): the packs that ship with precomputed vectors or are
 # tiny, so a first start costs seconds, not minutes. The 9.5k vehicle codes (~16 minutes of CPU to embed) and the
 # long tail of Wikipedia stay opt-in, through POST /api/reference/load.
-AUTO = ("procedures", "general_facts", "simple_wikipedia")
+AUTO = ("procedures", "general_facts", "technical", "simple_wikipedia")
 
 # quick packs first, so the answers a person is most likely to ask for are searchable within a minute of a first
 # start; the 9.5k vehicle codes (about 7 minutes to embed) come last
-PACKS = {"procedures": _procedures, "general_facts": _general_facts, "simple_wikipedia": _simple_wikipedia,
+PACKS = {"procedures": _procedures, "general_facts": _general_facts, "technical": _technical,
+         "simple_wikipedia": _simple_wikipedia,
          "vehicle_codes": _vehicle_codes, "simple_wikipedia_rest": _simple_wikipedia_rest}
+
+
+_TITLES: dict[str, list[str]] | None = None
+
+
+def _compact(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _title_index() -> dict[str, list[str]]:
+    """Every shipped title -> the ref ids carrying it, keyed with spaces and punctuation removed, so "tamilnadu"
+    finds "Tamil Nadu" and "dna" finds "DNA". Built once from the files that ship in the repository (the 30,000
+    articles and the facts), which takes well under a second."""
+    global _TITLES
+    if _TITLES is None:
+        idx: dict[str, list[str]] = {}
+        for pack in ("general_facts", "technical", "simple_wikipedia"):
+            try:
+                for rec in PACKS[pack]():
+                    for name in {rec["title"], *(rec.get("aliases") or [])}:
+                        ids_ = idx.setdefault(_compact(name), [])
+                        if rec["ref_id"] not in ids_:
+                            ids_.append(rec["ref_id"])
+            except Exception:
+                continue                              # a missing pack costs the shortcut, never the answer
+        _TITLES = idx
+    return _TITLES
+
+
+def title_ref_ids(question: str, max_words: int = 6) -> list[tuple[str, int]]:
+    """Reference ids of the entries whose TITLE the question names, as (ref_id, words in the matched phrase).
+
+    "what is dna" names "DNA"; "capital of tamilnadu" names both "Capital of Tamil Nadu" and "Tamil Nadu". Only the
+    longest phrase wins where phrases overlap, so "capital" alone does not drag in an article called "Capital"
+    when "capital of tamilnadu" already matched as a whole."""
+    words = re.findall(r"[a-z0-9]+", (question or "").lower())
+    idx = _title_index()
+    hits: list[tuple[int, int, int, str]] = []        # (start, end, n_words, key)
+    for n in range(min(max_words, len(words)), 0, -1):
+        for i in range(len(words) - n + 1):
+            key = _compact("".join(words[i:i + n]))
+            if len(key) >= 3 and key in idx:
+                hits.append((i, i + n, n, key))
+    taken: list[tuple[int, int]] = []
+    out: list[tuple[str, int]] = []
+    for s, e, n, key in sorted(hits, key=lambda h: -h[2]):
+        if any(s >= a and e <= b for a, b in taken):
+            continue
+        taken.append((s, e))
+        out += [(rid, n) for rid in idx[key][:3]]
+    return out
 
 
 def available() -> dict[str, int]:
     """How many records each pack would contribute."""
     return {name: sum(1 for _ in fn()) for name, fn in PACKS.items()}
+
+
+VERSION_FLAG = "library_version"
+
+
+def library_version() -> str:
+    """A fingerprint of the library files that ship in the repository. When a fix to them lands (a repaired lead, new
+    facts), the fingerprint changes, and a device that loaded the old files reloads them instead of keeping the old
+    text forever behind its "already seeded" flag."""
+    import hashlib
+    h = hashlib.sha1()
+    for name in ("general_facts.json", "simple_wikipedia_core.jsonl.gz", "simple_wikipedia_core.vec.npz",
+                 "procedures.json", "technical_wikipedia.jsonl.gz", "technical_wikipedia.vec.npz"):
+        p = KNOWLEDGE / name
+        h.update(name.encode())
+        h.update(p.read_bytes() if p.exists() and p.stat().st_size < 4_000_000 else
+                 (f"{p.stat().st_size}".encode() if p.exists() else b"-"))
+    return h.hexdigest()[:16]
+
+
+def refresh_if_stale(device) -> list[str]:
+    """Drop the auto-loaded packs and their flags if the shipped library changed since this device loaded it, so the
+    normal loader reloads them. Returns the packs to load. Taught notes, sensor records and anything the person
+    opted into by hand (vehicle codes, the rest of Wikipedia) are left alone."""
+    now = library_version()
+    done = set(seeded(device))
+    stamp = device.outbox.kv_get(VERSION_FLAG, None)
+    if stamp == now or not (done & set(AUTO)):
+        device.outbox.kv_set(VERSION_FLAG, now)
+        return [p for p in AUTO if p not in done]
+    with device._lock:
+        for pack in AUTO:
+            device.store.delete_where({"type": "reference", "device_id": device.cfg.device_id, "source_pack": pack})
+    device.outbox.kv_set(SEED_FLAG, sorted(done - set(AUTO)))
+    device.outbox.kv_set(VERSION_FLAG, now)
+    device.outbox.log("memory", "the shipped offline library changed; reloading it")
+    return [p for p in AUTO if p not in set(seeded(device))]
 
 
 def seeded(device) -> list[str]:
@@ -191,6 +307,7 @@ def _flush(device, batch: list[dict]) -> int:
             ids.make_id("reference", device.cfg.device_id, r["ref_id"]),
             {"type": "reference", "ref_id": r["ref_id"], "title": r["title"], "note_text": r["text"],
              "topic": r["topic"], "source_pack": r["pack"], "sources": r["sources"][:4],
+             "aliases": r.get("aliases") or [],
              "device_id": device.cfg.device_id, "share_state": "local"},
             None, v, r["text"])
         for r, v in zip(batch, vecs)

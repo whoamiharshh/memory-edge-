@@ -137,6 +137,7 @@ def to_english(text: str, lang: str) -> str:
 # The device's own fixed sentences, written by hand. They are exact strings from Device.ask, so they never
 # need machine translation, and machine translation would only make them worse.
 FIXED_HI = {
+    "Needs internet connection for this.": "इसके लिए इंटरनेट कनेक्शन चाहिए।",
     "Nothing on this device relates to that.": "इस डिवाइस पर इससे जुड़ी कोई जानकारी नहीं है।",
     "This device is offline, so it cannot look it up.": "यह डिवाइस ऑफ़लाइन है, इसलिए इसे खोज नहीं सकता।",
     "Turn the network back on and ask again, or teach it with “Teach it something”.":

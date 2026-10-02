@@ -5,6 +5,54 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D49 · Library answers fixed; the local model may answer simple general questions, labelled unverified (3 Oct 2026)
+**What went wrong (user screenshots, 2 Oct night):** "capital of tamilnadu" found nothing (library says "Tamil Nadu");
+"what is dna" answered with Genome / RNA (the DNA article's lead was corrupt: the extractor cut image captions at the first
+`]]`); "how many states does India have" answered with a web-cached page about the Great Wall of China (the strict 60 %
+coverage rule covered only the library, so cached and shared text matched on the single word "states"); library answers
+were headed "From what this device holds" and carried an unrelated second item.
+**Fixes:** title lookup (`seed.title_ref_ids`, space-insensitive, longest phrase wins); compound- and plural-aware coverage
+(`_covered`); the strict coverage rule now applies to library, learned and shared text; library entries chosen as a group
+(`_trim_reference`: title match first, a curated fact is the whole answer, duplicates dropped); source-accurate lead (none for
+library-only answers); "this/these/those/there" no longer make a full question a follow-up; 37 Indian state / union-territory
+capital facts + the count from Wikidata; extractor fixed and `tools/repair_wikipedia_core.py` repaired 1,086 leads (6 dropped)
+re-embedding only those; `seed.refresh_if_stale` reloads the auto packs when the shipped files change (a fix now reaches devices
+that already loaded the old text).
+**Reversal of D48 rule 1, by the user's explicit request:** the local Qwen model may answer ONLY a short, simple
+general-knowledge question (`_simple_general`; anything about machines, faults, repairs, this device or an identifier is
+excluded), ONLY when no source anywhere had an answer, ONLY after agreeing with itself across three runs
+(`rag.general_answer`: greedy + 2 sampled, every new word and number must repeat), and the answer is labelled
+`[Unverified]` with `unverified: true`, `sources: []`. Unsure -> "I don't know." This lowers wrong answers; it cannot remove them.
+**Measured (scratchpad `qwen_eval.py`, 30 questions, 28 answerable + 2 unanswerable):** 24 right, 0 wrong, 6 "I don't know".
+Small sample: evidence the gate works, not proof it never fails.
+
+### D49a · A passage that is merely about the topic is not an answer: extractive reader + technical library (3 Oct 2026)
+**Measured problem:** end to end through the real app, general questions were only **66.7 %** accurate: "largest mammal"
+returned the article on elephants, "father of computers" returned Alan Turing's biography, "15th president of Mars" a Taiwan
+election. The library matched on topic, not on whether the passage answers.
+**Fix:** `shared/qa.py` runs deepset/roberta-base-squad2 (ONNX int8, ~80-120 ms per passage, no torch) over up to 8 candidate
+leads; it returns the sentence that answers, built only from the passage's words, or declines. `margin` (best span minus "no
+answer") must be >= 6.0 (`Device.QA_MARGIN`); a bare "capital of X" is first phrased as "What is the capital of X?" (the
+same fact scores ~6 as a fragment, ~11 as a question). A curated fact must cover EVERY question word (filler excepted);
+other entries 75 % (60 % when the title is what was asked). A question that IS an entry's name or alias ("what is a PLC",
+"how does an encoder work") skips the reading: the lead is the answer.
+**Technical library:** `knowledge/tech_terms.txt` (~1,100 terms from the user's question list) -> `tools/build_tech_pack.py`
+-> 862 cited English-Wikipedia leads with aliases ("PLC" -> Programmable logic controller). The audit removed 33 doubtful
+mappings (e.g. "Encryption at rest" -> "Digital data", "C-rate" -> "Battery charger") and the builder drops any alias that
+points at two articles (ISO, PID, SoC). "X vs Y" shows both definitions and says it is not a comparison. Design,
+calculation, what-if, diagnosis and "why use" questions are NOT answered with a lead (`_OPEN_ENDED`): they get
+"Needs internet connection for this." (user's wording, 3 Oct).
+**Also fixed:** library lookups scanned all 30,000 records (`ref_id` is not an indexed field) - now direct reads by the
+deterministic point id; the image model loaded for every question on a device holding a photo - now only when a picture's
+note shares a word with the question; a lone digit ("atomic number 1") is no longer an identifier; shared fleet notes and
+typed notes keep the lenient one-word rule (only the library and web-cached text are strict).
+**Measured (bench/ask_qa.py, 58 questions: 45 known + 13 impossible, real app): accuracy 94.6 % (35/37 answers), coverage
+80 %, library answers ~310 ms median.** The two misses: the model's recall "Indian elephant" for India's national animal
+(labelled [Unverified]) and the device's own taught note about a room. **(bench/tech_qa.py, 123 questions drawn from the
+user's list: 101 correct, 0 wrong entries, 20/20 design/what-if/calculation questions declined, 2 ambiguous aliases
+declined on purpose; median 321 ms.)** Selection bias: those questions use terms the library was built from. Not measured:
+questions outside both lists. "100 % on everything" is not claimed and cannot be.
+
 ### D48 · Offline answers come only from cited text; the model never answers from its own training (2 Oct 2026)
 Ask with no network and no matching memory used to say "nothing relates to that". A first attempt let the local Qwen
 model answer from its training instead; on the live device it answered a nonsense question ("the ceiling of the zxqv

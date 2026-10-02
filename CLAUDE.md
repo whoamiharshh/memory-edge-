@@ -12,9 +12,9 @@ headline differentiator). The cloud (Qdrant Server) groups fixes by fault signat
 evidence per site, **preserving disagreement** instead of overwriting it. Device B then benefits offline.
 The system shows evidence and never recommends an action.
 
-## Where we are now (snapshot: 2 Oct 2026, 22:40) — read this before anything else
+## Where we are now (snapshot: 3 Oct 2026, ~03:00) — read this before anything else
 
-**State:** a working, tested system. 428 tests pass (17 min). The live 9-step scenario (`python -m demo.scenario`)
+**State:** a working, tested system. Full suite on 3 Oct: **464 passed in 13 min**. The live 9-step scenario (`python -m demo.scenario`)
 passes. Everything is pushed to https://github.com/whoamiharshh/memory-edge- (`main` = `1bdb282`, a merge that keeps the
 complete `edge/device.py`; a teammate's commit `5751604` that truncated that file is kept in history, not in the tree).
 
@@ -24,23 +24,31 @@ complete `edge/device.py`; a teammate's commit `5751604` that truncated that fil
 - *Fleet cloud* (`cloud/`): Qdrant Server, case groups by (component, fault class), worked/failed tallies, DISPUTED /
   COMPETING / ALTERNATIVES flags, retraction tombstones, token auth, mTLS, audit chain.
 - *Sync*: outbox push (idempotent, per-event acks), mirror pull (snapshot / scroll, cheaper chosen by bytes).
-- *Ask* (the part rebuilt on 2 Oct): answers come **only from cited evidence**, in four separately named sources:
+- *Ask* (rebuilt 2 Oct, made accurate 3 Oct - see "3 Oct" below): answers come **only from cited evidence**, in four separately named sources:
   `device` (what was taught + sensor records + things learned online), `fleet` (mirror), `offline_kb` (the shipped
   library), `web` (DuckDuckGo/Wikipedia, only when online and allowed). Hindi in/out via offline translation models.
-- *Offline library* (ships in the repo, `knowledge/`): 212 Wikidata/SI facts + 30,000 Simple English Wikipedia leads with
+- *Offline library* (ships in the repo, `knowledge/`): 249 Wikidata/SI facts (incl. all 28 Indian states / 8 UTs) + **862 cited
+  technical concept leads** (`technical_wikipedia.*`, English Wikipedia, aliases like PLC) + 29,994 Simple English Wikipedia leads with
   precomputed bge-small vectors (CC BY-SA 4.0, notice in `knowledge/SIMPLE_WIKIPEDIA_LICENSE.md`). `edge.main` loads it in
   the background on first start (~30 s with the shipped vectors). Opt-in packs: vehicle codes (9.5k, ~16 min embed), the
   other ~197k Wikipedia articles (`simple_wikipedia_rest`, hours).
 
-**Rules the Ask path now obeys (do not weaken them; docs/DECISIONS.md D48)**
-1. The local model **never answers from its own training**. No match -> "needs an internet connection". (A first attempt
+**Rules the Ask path now obeys (do not weaken them; docs/DECISIONS.md D48, D49, D49a)**
+1. The local model **does not answer from its own training, with ONE user-requested exception (3 Oct, D49):** a short,
+   simple general-knowledge question (never machines/faults/repairs/this device) that no source answered, accepted only
+   if the model agrees with itself across 3 runs, labelled `[Unverified]`, `sources: []`; unsure -> "I don't know".
+   Everything else:  No match -> "needs an internet connection". (A first attempt
    did the opposite and answered "who painted the ceiling of the zxqv chapel?" as grounded; it was removed. `LocalLLM`
    has no `chat()` any more.)
-2. Library text is **quoted verbatim** with its link. A library entry must cover >= 60 % of the question's content words
-   (min. 2) to count as evidence (`need_words` in `Device.ask`).
+2. Library text is **quoted verbatim** with its link. A passage counts as evidence only if it ANSWERS: Wikipedia/technical
+   leads are read by the offline extractive model (`shared/qa.py`, margin >= `Device.QA_MARGIN` 6.0); a curated fact must cover
+   EVERY question word; an entry that is the question's name/alias skips the reading. Topic overlap alone is never an answer.
 3. For device/fleet/web evidence a model sentence may only use words found in the evidence it cites (`_supported`);
    otherwise the evidence is quoted. The grounding check also rejects uncited, prescriptive and wrong-number sentences.
 4. Every answer carries `sources` in {device, fleet, offline_kb, web} and each used item an `origin`. The model is never a source.
+4b. When it does not know and cannot look it up (offline / device-only / no search) the answer is exactly
+   `Needs internet connection for this.` (user's wording). Design / calculation / what-if / diagnosis / "why use" questions
+   (`_OPEN_ENDED`) are never answered with a lead: same sentence. Ambiguous aliases (ISO, PID, SoC) decline, never guess.
 5. A dead network with the online switch ON is reported as offline (`online.reachable()`); offline / "this device only"
    opens **no** socket (`tests/integration/test_source_separation.py` proves it).
 6. Each memory-search leg is isolated: a Qdrant failure returns an answer plus `memory_failed`, never a crash.
@@ -385,6 +393,36 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
     (`online.reachable()`); each Qdrant search leg is isolated (`memory_failed`). `rag.check_output` number bug fixed.
   - Verified: 428 tests pass; live scenario 9/9 (run on a backed-up, restored runtime); real dead-proxy network-cut test;
     fresh-device simulation (library in 29 s, 217 texts embedded). Not measured: wrong-but-cited retrieval.
+- [x] (3 Oct, night; docs/DECISIONS.md D49 + D49a) **Ask made accurate, technical library, "Needs internet" wording.** Why: the user
+  showed screenshots of wrong answers ("capital of tamilnadu" unanswered, "what is dna" -> Genome/RNA, "states of India" -> Great
+  Wall of China, library text labelled "From what this device holds"), then asked for >90-95 % accuracy on everything answerable
+  offline and for the engineering question list (robots, PLC, kiosks, vehicles, mobile, maths ...) to be answered.
+  - **Root causes found by reproducing through the real gateway** (`/proxy/device/ask` on :9000): no title / compound-word
+    matching; strict relevance covered the library only (web-cached "learned" text matched on one word); 604+ corrupted
+    Wikipedia leads (the extractor cut image captions at the first `]]`; fixed + `tools/repair_wikipedia_core.py` repaired 1,086,
+    dropped 6); and, measured end to end, **the library matched on topic, not on whether a passage answers (66.7 % accuracy)**.
+  - **Fixes:** title lookup incl. aliases (`seed.title_ref_ids`); `shared/qa.py` extractive reader (deepset/roberta-base-squad2,
+    ONNX int8, CC-BY-4.0, `tools/fetch_qa_model.py`, ~100 ms); curated-fact full-coverage rule; ambiguous-alias removal;
+    37 Indian state/UT capital facts + count (Wikidata); source-accurate leads (no "From what this device holds" over library
+    text); `seed.refresh_if_stale` reloads auto packs when shipped files change (fixes reach devices that already seeded);
+    follow-up detection no longer treats "this device" as a pronoun; lone digits are not identifiers.
+  - **Speed:** library answers back to ~300 ms median (they had regressed to ~1.5 s: ref_id scans over 30k records -> direct
+    reads by deterministic point id; CLIP no longer loaded per question). Model-recall answers take 3-5 s (3 runs).
+  - **Technical library:** `knowledge/tech_terms.txt` -> `tools/build_tech_pack.py` -> 862 cited English-Wikipedia leads (33
+    doubtful mappings removed after audit). "X vs Y" shows both definitions and says it is not a comparison.
+  - **Qwen (user-requested exception to the old "model never answers" rule):** only simple general questions, only when no
+    source answered, only if it agrees with itself over 3 runs (`rag.general_answer`), labelled `[Unverified]` (+ UI badge),
+    never for machines/faults/repairs/this device, anything time/place dependent or open-ended.
+  - **Measured on the real app:** `bench/ask_qa.py` (58 general questions): accuracy 94.6 % (35/37 answers), coverage 80 %;
+    `bench/tech_qa.py` (123 questions from the user's list): 101 correct, 0 wrong entries, 20/20 open-ended declined, median
+    321 ms; `bench/general_qa.py` (model alone, 58 q): 33/45 right, 2 wrong, 1/13 impossible answered (before the filters).
+    Known misses: the model's recall "Indian elephant" for India's national animal; the device's own taught note about a room.
+    Candidate models (Qwen2.5-7B, Gemma-2-9B, Llama-3.2-3B, Phi-3.5-mini) were NOT tested: a transient 53 KB/s link made the
+    downloads infeasible; the harness (`bench/general_qa.py <gguf>`) is ready (network was ~1 MB/s again later).
+  - **Not claimed:** "100 % on every question". The 1,500-question list has design / what-if / calculation / troubleshooting items
+    with no single correct short answer; the app declines them. Wikipedia leads can themselves be wrong or outdated.
+  - **User decisions pending:** `GATEGUARD_EXEMPT_GLOBS` for this project (the first-edit gate costs one retry per file; the
+    permission system refused me editing settings, user must do it); push to GitHub (not done); the room note in the live device.
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).
@@ -393,6 +431,11 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
+- Answer reader (needed for the accurate Wikipedia/technical path; once): `.venv\Scripts\python.exe -m tools.fetch_qa_model`
+- Accuracy / speed on the running app: `$env:PYTHONPATH="."; .venv\Scripts\python.exe -m bench.ask_qa` and `-m bench.tech_qa`
+  (the app must be running; they need the real library loaded). Model comparison: `-m bench.general_qa models_cache\llm\<file>.gguf`.
+- Rebuild the technical library after editing `knowledge/tech_terms.txt`: `-m tools.build_tech_pack` (needs internet; read the
+  "differs from the term" audit it prints). A changed library reloads itself on the next device start.
 - Tests: `.venv\Scripts\python.exe -m pytest` (428 tests, all passing, ~10-17 min on 2 Oct; some tests start `qdrant_server\qdrant.exe` themselves;
   pytest.ini already adds -q: do not add another -q or the summary line disappears)
 - Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →

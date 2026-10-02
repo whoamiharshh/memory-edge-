@@ -19,6 +19,13 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
    .venv\Scripts\python.exe -c "from huggingface_hub import hf_hub_download; hf_hub_download('Qwen/Qwen2.5-1.5B-Instruct-GGUF','qwen2.5-1.5b-instruct-q4_k_m.gguf', local_dir='models_cache/llm')"
    ```
    Without it, the evidence brief falls back to a deterministic template.
+5b. **Answer reader** (about 130 MB; deepset/roberta-base-squad2, CC-BY-4.0, ONNX int8, no torch). It reads each retrieved
+   Wikipedia/technical passage and either extracts the sentence that answers the question or declines, which is what keeps
+   Ask from quoting an article that is merely *about* the topic (docs/DECISIONS.md D49):
+   ```powershell
+   .venv\Scripts\python.exe -m tools.fetch_qa_model
+   ```
+   Without it Ask still runs, but falls back to a stricter word-coverage rule and answers fewer questions.
 6. **Qdrant Server**: `.venv\Scripts\python.exe -m tools.qdrant_local download` fetches the v1.19.1 release binary
    for this OS (Windows zip, Linux x86-64 / ARM64, macOS Intel / Apple Silicon) into `qdrant_server\`.
 7. **Run**:
