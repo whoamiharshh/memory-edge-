@@ -1617,274 +1617,172 @@ class Device:
                         c.setdefault("ids", [])
                 else:
                     web_reason = "the internet returned nothing for this"
-
         if intent:
-            out = {"answer": overview_answer, "grounded": bool(used), "mode": "overview",
-                   "model": None, "llm_ms": 0,
-                   "used": [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
-                             "title": None, "sources": [], "matched": []} for c in used]}
-        elif not used:
-            # Say which of the two it is. "Nothing matched" and "this device could never know that" feel
-            # identical from the outside but need different things from the person: one is a search that
-            # missed, the other needs teaching or a source this device does not have.
-            # retrieval always returns candidates, so "did it return anything" says nothing. The signal
-            # is whether a single stored record shares even one word with the question: none at all means
-            # the subject is outside this device's world, rather than a search that just missed.
-            searched_anything = any(c["overlap"] for c in cands)
-            # Saying "that would need an internet connection" when the device HAS one, and simply was not
-            # allowed or able to use it, is the complaint this whole path exists to answer. Each reason
-            # gets its own sentence, because each one needs something different from the person.
-            why = {
-                "offline": "This device is offline, so it cannot look it up. Turn the network back on and "
-                           "ask again, or teach it with “Teach it something”.",
-                "set to this device only": "Ask is set to search this device only. Settings → Ask will let "
-                                           "it use the internet as well.",
-                "no web search configured": "No web search is configured on this device, so it cannot look "
-                                            "it up. Set EDGE_SEARCH_PROVIDER, or teach it.",
-                "the internet returned nothing for this": "I searched the internet too and found nothing "
-                                                          "that answers it.",
-            }.get(web_reason, "")
-            if searched_anything:
-                answer = ("I found nothing close enough to answer that. This device does hold records that "
-                          "touch on some of those words, but none of them answer the question. Try naming "
-                          "the part, code or symptom directly, or teach it.")
-            else:
-                answer = "Nothing on this device relates to that. " + (
-                    why or "I searched the internet too and found nothing that answers it.")
-            out = {"answer": answer, "grounded": False, "mode": "no_evidence", "used": [],
-                   "model": None, "llm_ms": 0, "web_reason": web_reason,
-                   # only a question outside this device's world needs the internet. A near miss - words
-                   # it does hold, about a thing it does not - is a search that missed, and no connection
-                   # would have helped.
-                   "needs_internet": (not searched_anything)
-                   and web_reason in ("offline", "set to this device only", "no web search configured")}
-        else:
-            texts = {c["key"]: c["text"] for c in used}
-            # quoting the source verbatim is a fine answer, not a failure: the reference packs are already
-            # written as prose and cite where they came from, so this says so plainly instead of apologising
-            # The lead has to match where the lines actually came from. "From what this device holds"
-            # over a block of web snippets is the one sentence in the whole product that would be a lie.
-            kinds = {c["source"] for c in used}
-            lead = ("From the internet:" if kinds == {"web"} else
-                    "From this device, and from the internet:" if "web" in kinds else
-                    "From what this device holds:")
-            template = lead + "\n\n" + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used)
+            out = {
+                "answer": overview_answer,
+                "grounded": bool(used),
+                "mode": "overview",
+                "model": None,
+                "llm_ms": 0,
+                "used": [
+                    {
+                        "key": c["key"],
+                        "source": c["source"],
+                        "id": c["id"],
+                        "text": c["text"],
+                        "title": None,
+                        "sources": [],
+                        "matched": [],
+                    }
+                    for c in used
+                ],
+            }
+        elif not used:            # No device/fleet/web evidence matched the question.
+            #
+            # If the local Qwen model is available, give it a chance to answer
+            # from its pretrained knowledge. This answer is deliberately
+            # UNGROUNDED: it must never pretend that the answer came from
+            # device memory, fleet data, or the internet.
+            #
+            # If Qwen cannot answer, fall back to the existing honest
+            # no-evidence response.
+
             if llm is not None and getattr(llm, "available", False):
-                # the recent turns go in as conversation, never as citable evidence, so a pronoun can be
-                # resolved without the model being able to cite its own earlier answer back as a source
-                convo = ""
-                if follow_up and history:
-                    convo = "Earlier in this conversation:\n" + "\n".join(
-                        h.get("note_text", "") for h in history[-CHAT_CONTEXT_TURNS:]) + "\n\n"
-                # "Evidence:" exactly matches rag.EXAMPLE_USER: the one-shot example is what teaches the
-                # model to append [E1], and heading the block differently was enough to lose the citations,
-                # which then cost every sentence at the grounding check
-                prompt = (convo + "Evidence:\n" + "\n".join(f"[{k}] {v}" for k, v in texts.items())
-                          + f"\nQuestion: {q}"
-                          + "\nAnswer using only the evidence above. End EVERY sentence with its evidence "
-                            "id, like [E1].")
                 lt = time.perf_counter()
+
                 try:
-                    raw = llm.complete(prompt)
-                    if len(texts) == 1:
-                        raw = _attach_lone_citation(raw, next(iter(texts)))
-                    kept, _ = rag.check_output(raw, set(texts), texts)
-                    # a sentence that is nothing but its citation makes no claim, and on its own it
-                    # rendered as a bubble containing the single word "E1"
-                    kept = [k for k in kept if re.sub(r"\[E\d+\]", "", k).strip(" .")]
+                    fallback_system = (
+                        "You are an offline general-knowledge assistant running "
+                        "locally on a machine. Answer the user's question from "
+                        "your pretrained knowledge. Do not claim that the answer "
+                        "came from this device's memory, fleet data, or the "
+                        "internet. Do not invent sources or citations. Do not "
+                        "pretend to know current or real-time information. "
+                        "If you are uncertain, say you do not know. "
+                        "Give a concise, direct answer."
+                    )
+
+                    with llm._lock:
+                        model = llm._load()
+
+                        r = model.create_chat_completion(
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": fallback_system,
+                                },
+                                {
+                                    "role": "user",
+                                    "content": q,
+                                },
+                            ],
+                            max_tokens=180,
+                            temperature=0.0,
+                        )
+
+                    answer = r["choices"][0]["message"]["content"].strip()
                     ms = round((time.perf_counter() - lt) * 1000)
-                    out = ({"answer": " ".join(kept), "grounded": True, "mode": "llm",
-                            "model": rag.MODEL_NAME, "llm_ms": ms} if kept else
-                           {"answer": template, "grounded": True, "mode": "quoted",
-                            "model": rag.MODEL_NAME, "llm_ms": ms})
-                except Exception:                  # the optional model must never break the answer
-                    out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
+
+                    if answer:
+                        out = {
+                            "answer": answer,
+                            "grounded": False,
+                            "mode": "llm",
+                            "model": rag.MODEL_NAME,
+                            "llm_ms": ms,
+                            "sources": [],
+                            "from_learned": False,
+                            "used": [],
+                        }
+                    else:
+                        raise ValueError("local LLM returned an empty answer")
+
+                except Exception as e:
+                    # The optional local model must never break the normal
+                    # no-evidence path.
+                    print(f"[LOCAL LLM FALLBACK ERROR] {type(e).__name__}: {e}", flush=True)
+                    out = None
             else:
-                out = {"answer": template, "grounded": True, "mode": "quoted", "model": None, "llm_ms": 0}
-            # Where the answer actually came from. The person is promised different things by "this
-            # device knows" and "the internet says", so the answer carries which it was rather than
-            # leaving the UI to guess from the evidence list.
-            out["sources"] = sorted({"web" if c["source"] == "web" else "device" for c in used})
-            # answered offline from something it looked up before: worth saying, because it is the
-            # difference between "this device is useless without a network" and "it remembers"
-            out["from_learned"] = any(c["source"] == "learned" for c in used)
-            out["used"] = [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
-                            "url": c.get("url"),
-                            "title": c.get("title"), "sources": c.get("sources") or [],
-                            "matched": c["overlap"]} for c in used]
+                out = None
 
-        # Pictures ride alongside the answer, never inside it. A photograph supports no sentence — nothing
-        # here reads one — so it is offered as "you also hold these" and a person decides what it shows.
-        pics = []
-        try:
-            if self.store.count({"type": "picture", "device_id": self.cfg.device_id}):
-                # nearest-neighbour always returns something, so the top hits include pictures with nothing
-                # to do with the question. Only those whose note actually shares words with it are shown:
-                # the answer presents these as matching, and a photograph offered under a question it has
-                # no bearing on is worse than showing none. Searching pictures directly still uses the
-                # full CLIP ranking, because there the person is deliberately browsing images.
-                pics = [{"id": p["id"], "note": p.get("note_text", ""), "filename": p.get("filename"),
-                         "score": p.get("score")}
-                        for p in self.recall_images(text=q, limit=4)
-                        if qw & _content_words(p.get("note_text", ""))][:3]
-        except Exception:
-            pics = []                              # a missing CLIP model must never break a text answer
+            # If Qwen successfully answered, keep that answer.
+            # Otherwise use the original honest no-evidence response.
+            if out is None:
+                # Say which of the two it is. "Nothing matched" and "this
+                # device could never know that" feel identical from the
+                # outside but need different things from the person: one is
+                # a search that missed, the other needs teaching or a source
+                # this device does not have.
+                #
+                # Retrieval always returns candidates, so "did it return
+                # anything" says nothing. The signal is whether a single
+                # stored record shares even one word with the question:
+                # none at all means the subject is outside this device's
+                # world, rather than a search that just missed.
+                searched_anything = any(c["overlap"] for c in cands)
 
-        out.setdefault("sources", ["device"] if out.get("used") else [])
-        out.setdefault("web_reason", web_reason)
-        out["retrieval_mode"] = self.retrieval_mode()
+                # Saying "that would need an internet connection" when the
+                # device HAS one, and simply was not allowed or able to use
+                # it, is the complaint this whole path exists to answer.
+                # Each reason gets its own sentence, because each one needs
+                # something different from the person.
+                why = {
+                    "offline": (
+                        "This device is offline, so it cannot look it up. "
+                        "Turn the network back on and ask again, or teach it "
+                        "with “Teach it something”."
+                    ),
+                    "set to this device only": (
+                        "Ask is set to search this device only. Settings → Ask "
+                        "will let it use the internet as well."
+                    ),
+                    "no web search configured": (
+                        "No web search is configured on this device, so it "
+                        "cannot look it up. Set EDGE_SEARCH_PROVIDER, or "
+                        "teach it."
+                    ),
+                    "the internet returned nothing for this": (
+                        "I searched the internet too and found nothing that "
+                        "answers it."
+                    ),
+                }.get(web_reason, "")
 
-        answer_en = None
-        if translated:
-            answer_en = out["answer"]
-            try:
-                out["answer"] = translate.from_english(answer_en, "hi")
-            except Exception:
-                translated, answer_en = False, None   # say it in English rather than not at all
+                if searched_anything:
+                    answer = (
+                        "I found nothing close enough to answer that. This "
+                        "device does hold records that touch on some of those "
+                        "words, but none of them answer the question. Try "
+                        "naming the part, code or symptom directly, or teach it."
+                    )
+                else:
+                    answer = (
+                        "Nothing on this device relates to that. "
+                        + (
+                            why
+                            or "I searched the internet too and found nothing "
+                               "that answers it."
+                        )
+                    )
 
-        self.remember(f"Q: {original_q}\nA: {out['answer']}", kind="chat")
-        return {"question": original_q, **out, "language": lang, "translated": translated,
-                "answer_en": answer_en, "pictures": pics,
-                "retrieval": self._retrieval_report(cands, used, res, follow_up, query),
-                "latency_ms": round((time.perf_counter() - t0) * 1000, 2)}
+                out = {
+                    "answer": answer,
+                    "grounded": False,
+                    "mode": "no_evidence",
+                    "used": [],
+                    "model": None,
+                    "llm_ms": 0,
+                    "web_reason": web_reason,
 
-    # what Qdrant was actually asked, for the Qdrant screen. Reporting only — it recomputes nothing.
-    _SOURCE_LABELS = {
-        "memory":    ("Things you taught it", {"type": "memory", "kind": "fact"}),
-        "shared":    ("Shared with this device", {"type": "shared"}),
-        "reference": ("Built-in reference", {"type": "reference"}),
-        "record":    ("What the sensor noticed", {"type": "episode"}),
-        "fleet":     ("Fleet mirror (from the cloud)", None),
-    }
-
-    def _retrieval_report(self, cands: list[dict], used: list[dict], res: dict,
-                          follow_up: bool, query: str) -> dict:
-        by_source: dict[str, int] = {}
-        for c in cands:
-            by_source[c["source"]] = by_source.get(c["source"], 0) + 1
-        kept = {c["source"] for c in used}
-
-        searched = []
-        for src, (label, flt) in self._SOURCE_LABELS.items():
-            try:
-                held = (self.mirror.count() if src == "fleet"
-                        else self.store.count(dict(flt, device_id=self.cfg.device_id)
-                                              if "device_id" not in (flt or {}) else flt))
-            except Exception:
-                held = None
-            searched.append({"source": src, "label": label, "stored": held,
-                             "returned": by_source.get(src, 0),
-                             "kept": sum(1 for c in used if c["source"] == src)})
-
-        return {
-            "query_sent": query,
-            "follow_up": follow_up,
-            "where": "Qdrant Edge, on this device" + (" + fleet mirror" if res.get("fleet") else ""),
-            "searched": searched,
-            "vectors": [
-                {"name": "note", "kind": "dense text", "dim": self.store.meta.get("note_dim"),
-                 "model": self.embedder.name, "used": True},
-                {"name": "note_bm25", "kind": "sparse keyword (BM25)", "dim": None,
-                 "model": "built into Qdrant Edge", "used": True},
-                {"name": "vib", "kind": "vibration fingerprint", "dim": self.store.meta.get("vib_dim"),
-                 "model": self.profile.fp_version, "used": bool(res.get("local"))},
-                {"name": "image", "kind": "picture (CLIP)", "dim": self.store.meta.get("image_dim"),
-                 "model": "Qdrant/clip-ViT-B-32", "used": bool(self.store.meta.get("image_vector"))},
-            ],
-            "fusion": "reciprocal rank fusion of every leg, in one Qdrant Edge request",
-            "kept_sources": sorted(kept),
-            "total_points": sum(s["stored"] or 0 for s in searched),
-            "search_ms": round(res.get("latency_ms", 0), 2),
-        }
-
-    def search(self, text: str | None = None, episode_id: str | None = None, use_fleet: bool = True,
-               limit: int = 5) -> dict:
-        """Hybrid search. Local: this machine's episodes by fingerprint + note (dense) + note (BM25), fused with RRF.
-        Fleet (K2 decision): filtered by component and the episode's fault class (technician-confirmed, else the
-        physics hint), ranked by text; the fingerprint is only a low-weight tie-break across machines."""
-        t0 = time.perf_counter()
-        vib, fc, src = None, None, None
-        if episode_id:
-            rec = self.store.get(episode_id, with_vectors=True)
-            if rec is None:
-                raise KeyError(episode_id)
-            vib = rec.vectors.get("vib")
-            fc = rec.payload.get("fault_class") or (rec.payload.get("fault_hint") or {}).get("fault_class")
-            src = "technician" if rec.payload.get("fault_class") else "physics_hint"
-            if not text:
-                text = self._doc_text(rec.payload)
-        if not text and vib is None:
-            raise ValueError("give a text query or an episode")
-        note = self.embedder.embed_query(text) if text else None
-        local = self.store.search(vib=vib, note=note, text=text, limit=limit + 1, explain=True,
-                                  filter={"type": "episode", "machine_id": self.cfg.machine_id})
-        local = [h for h in local if h.id != episode_id][:limit]
-        fleet, fleet_filter, fleet_error = [], None, None
-        try:
-            if use_fleet and self.mirror.count():
-                fleet_filter = {"component": self.component, "!status": "retracted"}
-                if fc and fc != "unknown":
-                    fleet_filter["fault_class"] = fc
-                # the mirror's text vectors come from the cloud's model; a query vector from another model would
-                # compare meaningless numbers, so that leg is dropped and BM25 + fingerprint carry the fleet search
-                fleet_model = self.outbox.kv_get("fleet_text_model", FLEET_TEXT_MODEL)   # announced by the cloud
-                same_model = self.embedder.name == fleet_model
-                fleet = self.mirror.search(vib=vib, note=note if same_model else None, text=text, filter=fleet_filter,
-                                           limit=limit, weights={"vib": 0.25}, explain=True)
-                if not same_model:
-                    fleet_error = (f"fleet dense-text leg skipped: this device embeds with {self.embedder.name}, "
-                                   f"the fleet with {fleet_model}; BM25 + fingerprint used")
-        except Exception as e:              # a broken mirror must never take local memory down with it
-            fleet, fleet_error = [], f"fleet mirror unavailable ({type(e).__name__}); showing local memory only"
-        ms = (time.perf_counter() - t0) * 1000
-        self.search_ms.append(ms)
-        slim = lambda p: {k: v for k, v in p.items() if k not in ("hint_votes",)}
-        return {"query": {"text": text, "episode_id": episode_id, "fault_class": fc, "fault_class_source": src,
-                          "fleet_filter": fleet_filter},
-                "local": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "episode": slim(h.payload),
-                           "feedback": self.feedback_for(h.id, "local")} for h in local],
-                "fleet": [{"id": h.id, "rrf": round(h.score, 4), "legs": h.legs, "case": h.payload,
-                           "feedback": self.feedback_for(h.id, "fleet")} for h in fleet],
-                "fleet_error": fleet_error, "latency_ms": round(ms, 2)}
-
-    def set_share_state(self, event_id: str, state: str, episode_id: str) -> None:
-        with self._lock:
-            if self.store.get(episode_id) is not None:
-                self._set(episode_id, share_state=state)
-
-    def stats(self) -> dict:
-        g = list(self.gate_ms)
-        s = list(self.search_ms)
-        pct = lambda xs, q: round(float(np.percentile(xs, q)), 3) if xs else None
-        return {
-            "device_id": self.cfg.device_id, "site_id": self.cfg.site_id, "machine_id": self.cfg.machine_id,
-            "machine_class": self.cfg.machine_class, "component": self.component, "profile": self.profile.describe(),
-            "baseline_capture": self.capture_state(), "last_diagnosis": self.last_diagnosis,
-            "risk_hint": getattr(self, "risk_hint", None), "note_protection": self.note_protection,
-            "machine_card": self.card.to_dict() if self.card else None,
-            "fleet_hint_model": self._model_summary(), "hold_days": self.cfg.hold_days,
-            "clock": self.clock_status(),
-            "local_detector": ({k: v for k, v in (self.outbox.kv_get("local_detector") or {}).items()
-                                if k in ("trained_on", "cross_validated", "trained_at")} or None)
-            if self.profile.learned_detector else None,
-            "baseline_ready": self.gate is not None, "gate": self.gate.cfg.to_dict() if self.gate else None,
-            "windows": dict(self.counters), "last_gate": self.last_gate, "recent": list(self.recent),
-            "gate_ms": {"p50": pct(g, 50), "p95": pct(g, 95), "n": len(g)},
-            "search_ms": {"p50": pct(s, 50), "p95": pct(s, 95), "n": len(s)},
-            "local_points": self.store.facet("type"), "episodes_by_status": self.store.facet("status", filter={"type": "episode"}),
-            "share_states": self.store.facet("share_state", filter={"type": "episode"}),
-            "mirror_cases": self.mirror.count(), "outbox": self.outbox.counts(),
-            "raw_bytes_kept_local": int(self.counters["windows"] * 2048 * 4),
-            "embedder": self.embedder.name,
-        }
-
-    def _model_summary(self) -> dict | None:
-        m = self.fleet_model()
-        return None if m is None else {k: m.get(k) for k in ("classes", "trained_on", "unseen_device_accuracy",
-                                                             "unseen_device_cases", "trained_at")}
-
-    def close(self) -> None:
-        with self._lock:
-            self.store.close()
-            self.mirror.close()
-            self.outbox.close()
+                    # Only a question outside this device's world needs the
+                    # internet. A near miss - words it does hold, about a
+                    # thing it does not - is a search that missed, and no
+                    # connection would have helped.
+                    "needs_internet": (
+                        (not searched_anything)
+                        and web_reason in (
+                            "offline",
+                            "set to this device only",
+                            "no web search configured",
+                        )
+                    ),
+                }
