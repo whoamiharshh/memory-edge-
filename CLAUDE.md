@@ -12,6 +12,91 @@ headline differentiator). The cloud (Qdrant Server) groups fixes by fault signat
 evidence per site, **preserving disagreement** instead of overwriting it. Device B then benefits offline.
 The system shows evidence and never recommends an action.
 
+## Where we are now (snapshot: 2 Oct 2026, 22:40) — read this before anything else
+
+**State:** a working, tested system. 428 tests pass (17 min). The live 9-step scenario (`python -m demo.scenario`)
+passes. Everything is pushed to https://github.com/whoamiharshh/memory-edge- (`main` = `1bdb282`, a merge that keeps the
+complete `edge/device.py`; a teammate's commit `5751604` that truncated that file is kept in history, not in the tree).
+
+**What the product is, in practice**
+- *Edge device* (`edge/`): vibration/sensor memory on Qdrant Edge, novelty gate, outcome verifier, policy engine, SQLite
+  outbox, hybrid search, offline Ask (chat) with a local Qwen model. UI: `http://127.0.0.1:9000/` (current app, `app/`).
+- *Fleet cloud* (`cloud/`): Qdrant Server, case groups by (component, fault class), worked/failed tallies, DISPUTED /
+  COMPETING / ALTERNATIVES flags, retraction tombstones, token auth, mTLS, audit chain.
+- *Sync*: outbox push (idempotent, per-event acks), mirror pull (snapshot / scroll, cheaper chosen by bytes).
+- *Ask* (the part rebuilt on 2 Oct): answers come **only from cited evidence**, in four separately named sources:
+  `device` (what was taught + sensor records + things learned online), `fleet` (mirror), `offline_kb` (the shipped
+  library), `web` (DuckDuckGo/Wikipedia, only when online and allowed). Hindi in/out via offline translation models.
+- *Offline library* (ships in the repo, `knowledge/`): 212 Wikidata/SI facts + 30,000 Simple English Wikipedia leads with
+  precomputed bge-small vectors (CC BY-SA 4.0, notice in `knowledge/SIMPLE_WIKIPEDIA_LICENSE.md`). `edge.main` loads it in
+  the background on first start (~30 s with the shipped vectors). Opt-in packs: vehicle codes (9.5k, ~16 min embed), the
+  other ~197k Wikipedia articles (`simple_wikipedia_rest`, hours).
+
+**Rules the Ask path now obeys (do not weaken them; docs/DECISIONS.md D48)**
+1. The local model **never answers from its own training**. No match -> "needs an internet connection". (A first attempt
+   did the opposite and answered "who painted the ceiling of the zxqv chapel?" as grounded; it was removed. `LocalLLM`
+   has no `chat()` any more.)
+2. Library text is **quoted verbatim** with its link. A library entry must cover >= 60 % of the question's content words
+   (min. 2) to count as evidence (`need_words` in `Device.ask`).
+3. For device/fleet/web evidence a model sentence may only use words found in the evidence it cites (`_supported`);
+   otherwise the evidence is quoted. The grounding check also rejects uncited, prescriptive and wrong-number sentences.
+4. Every answer carries `sources` in {device, fleet, offline_kb, web} and each used item an `origin`. The model is never a source.
+5. A dead network with the online switch ON is reported as offline (`online.reachable()`); offline / "this device only"
+   opens **no** socket (`tests/integration/test_source_separation.py` proves it).
+6. Each memory-search leg is isolated: a Qdrant failure returns an answer plus `memory_failed`, never a crash.
+
+**What we did, by session (details further down this file and in docs/DECISIONS.md D1-D48, docs/BENCHMARKS.md)**
+- 27 Sep: Edge API spike, K4 flush finding, CWRU data, fingerprint, K2 benchmark (design change: fleet groups by confirmed
+  fault class, not vibration similarity), store/outbox/gate/verifier/policy, cloud, mirror, UIs, README, LLM brief.
+- 28 Sep: snapshot mirror, retention, profiles (bearing/rotating/lowrate/force-torque/events), physics, HUST held-out
+  machine, robots, vehicles, HTTPS/mTLS, phone sensor + microphone, notes encrypted at rest, Hindi-ready redactor, scale
+  tests to 5,000 devices, many security hardenings.
+- 1 Oct: launcher fixes, whole-record questions, Ask reaching the web + Settings (retrieval mode, themes).
+- 2 Oct: UI rebuild (sidebar, themes), Whisper dictation, Hindi answers, then the evening work: **offline library,
+  source separation, no model answers from training, offline detection, Qdrant-failure handling, first-start loading,
+  shipped Wikipedia vectors**, a `rag.check_output` number bug fix, and the safe live-scenario run (backup -> reset ->
+  scenario -> restore, verified identical).
+
+**Measured on 2 Oct (not guesses):** embedding ~10 passages/s on this CPU (30,000 took 3,097 s); a fresh device loads
+the shipped library in 29 s (217 texts embedded); the shipped vectors match the real model (cosine > 0.999 on a sample);
+real dead-proxy network-cut test -> `web_reason: offline`, no model answer.
+
+**Gotchas learned the hard way**
+- Never run `run_demo.ps1 -Reset` on the live runtime: it wipes the loaded library (50 min of work before the vectors
+  shipped). Back up `runtime\` first (the 2 Oct safe-run script did: robocopy, verify size + file count, restore, verify).
+- Qdrant Edge fails with "os error 3" on very long paths: use a short `--root` (e.g. `C:\Users\Sir\nc`) for scratch devices.
+- Windows PowerShell 5.1: no bash heredocs; a native command's stderr can abort a script under `-ErrorAction Stop`
+  (redirect inside `cmd /c`); never pipe the launcher's output.
+- `tests/conftest.py` sets `EDGE_SEARCH_PROVIDER=none` and `EDGE_NO_SEED=1`; tests must never touch the network or
+  start loading the library.
+- The model's citation goes before the full stop (`... [E1].`); `rag.check_output` splits sentences at ". ".
+- Another person pushes to the same GitHub repo: `git fetch` and read `origin/main` before every push.
+
+## Roadmap — future updates (PROPOSED unless marked; nothing here is built yet)
+Needs the user's yes before it starts; ordered by value to the finals demo (11 Oct 2026).
+1. **Real-world proof** (USER): `docs/FIELD_TEST.md` — fan + phone, a second PC, a technician. Highest value, not code.
+2. **Finals rehearsal on the demo machine:** clone, `setup.ps1`, start, confirm the library loads by itself (~30 s) and the
+   9-step scenario passes; record the backup video (`demo/record_backup.py`) on a *backed-up* runtime.
+3. **Measure wrong-but-cited retrieval:** build a small labelled question set (answerable / unanswerable) against the
+   library and device memory, report precision and false-evidence rate in `bench/` + BENCHMARKS.md. Today this limit is
+   stated but not measured.
+4. **Better recall without weakening safety:** "Who wrote Hamlet?" is unanswered because the article lead says "play by".
+   Options: question-word expansion, a dense-score floor as a second relevance signal, or a short answer-extraction step
+   whose output is checked against the passage. Must keep rule 1-3 above.
+5. **Show library loading in the UI** (progress / "ready" state) and a Settings switch for the optional packs
+   (vehicle codes, rest of Wikipedia).
+6. **Hindi library / evidence snippets** (translated evidence is not handled today); Hinglish and other languages.
+7. **CI:** run the new tests in `.github/workflows/tests.yml` (it has never run); decide how CI gets the shipped vectors
+   (they are in the repo, so it should just work) and the Qwen/Whisper models (it should skip those).
+8. **Per-device library choice:** a slimmer library for small devices (e.g. only `general_facts` + procedures) and a
+   quantised-vector option to shrink `simple_wikipedia_core.vec.npz` (20.3 MB).
+9. Carried over from before (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301); several cloud
+   processes beyond ~0.8 cores (shared token registry + sequence counter); microphone noise cancelling; hardware
+   attestation (needs TPM hardware). Android app: NOT built (user's choice).
+10. **USER-ONLY:** the LinkedIn post; the invalid `permissions.allow` rule in `C:\Users\Sir\.claude\settings.json`
+    (global config, needs their yes); tell the teammate that her `edge/device.py` change was not kept and why; delete the
+    4 GB backup `C:\Users\Sir\runtime_backup_0210` and the scratch folder `C:\Users\Sir\nc` once satisfied.
+
 ## Deadlines
 - Round 1 (GitHub + LinkedIn evaluation): **30 Sep 2026**. This date is from an earlier session and was not
   re-verified. The goal is a tested vertical slice with an honest README.
@@ -308,7 +393,7 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
-- Tests: `.venv\Scripts\python.exe -m pytest` (302 tests, all passing, ~9.5 min on 28 Sep; some tests start `qdrant_server\qdrant.exe` themselves;
+- Tests: `.venv\Scripts\python.exe -m pytest` (428 tests, all passing, ~10-17 min on 2 Oct; some tests start `qdrant_server\qdrant.exe` themselves;
   pytest.ini already adds -q: do not add another -q or the summary line disappears)
 - Backup video: after `run_demo.ps1 -Reset`, `.venv\Scripts\python.exe -m demo.record_backup` →
   `runtime\recording\backup_demo.webm`
