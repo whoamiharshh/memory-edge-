@@ -142,6 +142,29 @@ it its that this these those they them their he she him her there
 """.split())
 
 
+# Where a piece of evidence came from, in the four words the UI uses. The local model is never one of them:
+# it is not a source, so an answer written from its own training carries no origin at all.
+_ORIGINS = {"web": "web", "reference": "offline_kb", "fleet": "fleet"}
+
+
+def _origin(source: str) -> str:
+    return _ORIGINS.get(source, "device")
+
+
+def _supported(sentence: str, texts: dict[str, str], question: str) -> bool:
+    """Is every meaningful word of a model-written sentence found in the evidence it cites (or the question)?
+
+    The grounding check proves a sentence carries a citation, not that the citation says it. This is the cheap,
+    conservative proxy for "says it": a sentence that introduces a word the evidence never used is making a
+    claim of its own. Words are compared by their first five letters so "painted" matches "painting"."""
+    cited = {f"E{n}" for n in re.findall(r"\[E(\d+)\]", sentence)}
+    allowed = _content_words(question)
+    for k in cited:
+        allowed |= _content_words(texts.get(k, ""))
+    stems = {w[:5] for w in allowed}
+    return all(w[:5] in stems for w in _content_words(re.sub(r"\[E\d+\]", "", sentence)))
+
+
 def _is_follow_up(q: str) -> bool:
     """Does this question lean on the conversation instead of standing on its own?
 
@@ -1527,23 +1550,34 @@ class Device:
         qw = _content_words(q) | (ctx_words if follow_up else set())
 
         cands: list[dict] = []
+        # A failing store (a Qdrant error, a locked shard) must cost this answer its device memory, not the
+        # whole turn: each search leg is isolated, and the answer says which leg was lost so a missing
+        # result is never mistaken for "this device holds nothing about that".
+        memory_failed: list[str] = []
+
+        def _safe(label, fn, *args, **kw):
+            try:
+                return fn(*args, **kw)
+            except Exception:
+                memory_failed.append(label)
+                return []
         # only facts the user taught are evidence; past turns are conversational context, and quoting
         # them back would let the device cite its own earlier answer as if it were a source
-        for m in self.recall(query, limit, kind="fact"):
+        for m in _safe("memory", self.recall, query, limit, kind="fact"):
             cands.append({"source": "memory", "id": m["id"], "kind": "fact",
                           "text": m.get("note_text", "")})
         # What it has already looked up stays on the device and is searched like anything else. This is
         # the whole point of the product: a machine that reached the internet once should still know the
         # answer with the network off, instead of saying "this device is offline" about a thing it read
         # last week.
-        for m in self.recall(query, limit, kind="learned"):
+        for m in _safe("learned", self.recall, query, limit, kind="learned"):
             cands.append({"source": "learned", "id": m["id"], "kind": "learned",
                           "text": m.get("note_text", ""), "url": m.get("url"),
                           "title": m.get("title")})
-        for s in self.recall_shared(query, limit):
+        for s in _safe("shared", self.recall_shared, query, limit):
             cands.append({"source": "shared", "id": s["id"], "kind": "shared",
                           "text": s.get("note_text", ""), "from": s.get("author_device")})
-        for rf in self.recall_reference(query, limit):
+        for rf in _safe("offline library", self.recall_reference, query, limit):
             cands.append({"source": "reference", "id": rf["id"], "kind": "reference",
                           "text": rf.get("note_text", ""), "title": rf.get("title"),
                           "sources": rf.get("sources") or []})
@@ -1567,7 +1601,19 @@ class Device:
             c["overlap"] = sorted(qw & _content_words(c["text"]))
             c["ids"] = sorted(q_ids & _identifiers(c["text"]))
         # when the question names a specific thing, only records naming the same thing count
-        used = [c for c in cands if (c["ids"] if q_ids else c["overlap"])]
+        # One shared word is enough for a note somebody typed in, but not for the offline library: with tens
+        # of thousands of articles, some article always shares a word with any question, so "who painted the
+        # ceiling of the zxqv chapel" matched Dante and the Sistine Chapel and got answered from them. A
+        # library entry has to cover most of what was asked (at least 60 %, and at least two words).
+        need_words = 1 if len(qw) < 2 else max(2, -(-len(qw) * 6 // 10))
+
+        def _relevant(c: dict) -> bool:
+            if q_ids:
+                return bool(c["ids"])
+            if c["source"] == "reference":
+                return len(c["overlap"]) >= need_words
+            return bool(c["overlap"])
+        used = [c for c in cands if _relevant(c)]
         # A record that IS the thing asked about must outrank one that merely mentions it: the entry for
         # P0305 says "same family as P0301", so asking about P0301 otherwise answers with P0305.
         used.sort(key=lambda c: (-_names_it(c["text"], c["ids"]), -len(c["ids"]), -len(c["overlap"])))
@@ -1615,13 +1661,17 @@ class Device:
                         c["key"] = f"E{i}"
                         c.setdefault("overlap", [])
                         c.setdefault("ids", [])
+                elif not online.reachable():
+                    # the switch says online but nothing answered: that is offline, whatever the switch says
+                    web_reason = "offline"
                 else:
                     web_reason = "the internet returned nothing for this"
 
         if intent:
             out = {"answer": overview_answer, "grounded": bool(used), "mode": "overview",
                    "model": None, "llm_ms": 0,
-                   "used": [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
+                   "used": [{"key": c["key"], "source": c["source"], "origin": _origin(c["source"]),
+                             "id": c["id"], "text": c["text"],
                              "title": None, "sources": [], "matched": []} for c in used]}
         elif not used:
             # Say which of the two it is. "Nothing matched" and "this device could never know that" feel
@@ -1635,8 +1685,8 @@ class Device:
             # allowed or able to use it, is the complaint this whole path exists to answer. Each reason
             # gets its own sentence, because each one needs something different from the person.
             why = {
-                "offline": "This device is offline, so it cannot look it up. Turn the network back on and "
-                           "ask again, or teach it with “Teach it something”.",
+                "offline": "This needs an internet connection, and this device is offline, so it cannot look it "
+                           "up. Turn the network back on and ask again, or teach it with “Teach it something”.",
                 "set to this device only": "Ask is set to search this device only. Settings → Ask will let "
                                            "it use the internet as well.",
                 "no web search configured": "No web search is configured on this device, so it cannot look "
@@ -1647,7 +1697,9 @@ class Device:
             if searched_anything:
                 answer = ("I found nothing close enough to answer that. This device does hold records that "
                           "touch on some of those words, but none of them answer the question. Try naming "
-                          "the part, code or symptom directly, or teach it.")
+                          "the part, code or symptom directly, or teach it."
+                          + (" " + why if web_reason in ("offline", "set to this device only",
+                                                         "no web search configured") else ""))
             else:
                 answer = "Nothing on this device relates to that. " + (
                     why or "I searched the internet too and found nothing that answers it.")
@@ -1657,19 +1709,27 @@ class Device:
                    # it does hold, about a thing it does not - is a search that missed, and no connection
                    # would have helped.
                    "needs_internet": (not searched_anything)
-                   and web_reason in ("offline", "set to this device only", "no web search configured")}
+                   and web_reason in ("offline", "set to this device only", "no web search configured"),
+                   "sources": []}
+            # Nothing found anywhere. The local model is deliberately NOT asked to answer from its own
+            # training: a small model is sometimes confidently wrong, and an offline device that gives a wrong
+            # answer is worse than one that says it needs a connection. Only retrieved, cited text is an answer.
         else:
+            kinds = {c["source"] for c in used}
+            if kinds == {"reference"}:
+                used = used[:2]                    # the library is quoted, so show the best two, not six
             texts = {c["key"]: c["text"] for c in used}
             # quoting the source verbatim is a fine answer, not a failure: the reference packs are already
             # written as prose and cite where they came from, so this says so plainly instead of apologising
             # The lead has to match where the lines actually came from. "From what this device holds"
             # over a block of web snippets is the one sentence in the whole product that would be a lie.
-            kinds = {c["source"] for c in used}
             lead = ("From the internet:" if kinds == {"web"} else
                     "From this device, and from the internet:" if "web" in kinds else
                     "From what this device holds:")
             template = lead + "\n\n" + "\n\n".join(f"{c['text']} [{c['key']}]" for c in used)
-            if llm is not None and getattr(llm, "available", False):
+            # The offline library is third-party text. A paraphrase of it can be wrong while still carrying a
+            # citation, so library-only answers are always the passage itself, word for word.
+            if llm is not None and getattr(llm, "available", False) and kinds != {"reference"}:
                 # the recent turns go in as conversation, never as citable evidence, so a pronoun can be
                 # resolved without the model being able to cite its own earlier answer back as a source
                 convo = ""
@@ -1692,6 +1752,9 @@ class Device:
                     # a sentence that is nothing but its citation makes no claim, and on its own it
                     # rendered as a bubble containing the single word "E1"
                     kept = [k for k in kept if re.sub(r"\[E\d+\]", "", k).strip(" .")]
+                    # a model sentence may only use words that are in the evidence it cites (or in the
+                    # question); one that brings its own facts is dropped and the evidence is quoted instead
+                    kept = [k for k in kept if _supported(k, texts, q)]
                     ms = round((time.perf_counter() - lt) * 1000)
                     out = ({"answer": " ".join(kept), "grounded": True, "mode": "llm",
                             "model": rag.MODEL_NAME, "llm_ms": ms} if kept else
@@ -1704,12 +1767,12 @@ class Device:
             # Where the answer actually came from. The person is promised different things by "this
             # device knows" and "the internet says", so the answer carries which it was rather than
             # leaving the UI to guess from the evidence list.
-            out["sources"] = sorted({"web" if c["source"] == "web" else "device" for c in used})
+            out["sources"] = sorted({_origin(c["source"]) for c in used})
             # answered offline from something it looked up before: worth saying, because it is the
             # difference between "this device is useless without a network" and "it remembers"
             out["from_learned"] = any(c["source"] == "learned" for c in used)
-            out["used"] = [{"key": c["key"], "source": c["source"], "id": c["id"], "text": c["text"],
-                            "url": c.get("url"),
+            out["used"] = [{"key": c["key"], "source": c["source"], "origin": _origin(c["source"]),
+                            "id": c["id"], "text": c["text"], "url": c.get("url"),
                             "title": c.get("title"), "sources": c.get("sources") or [],
                             "matched": c["overlap"]} for c in used]
 
@@ -1732,6 +1795,10 @@ class Device:
 
         out.setdefault("sources", ["device"] if out.get("used") else [])
         out.setdefault("web_reason", web_reason)
+        out["memory_failed"] = memory_failed       # search legs that errored: the answer may be missing device evidence
+        if memory_failed and not out.get("used"):
+            out["answer"] = ("Searching " + " and ".join(memory_failed) + " on this device failed, so this "
+                             "answer may be missing what the device holds. ") + out["answer"]
         out["retrieval_mode"] = self.retrieval_mode()
 
         answer_en = None
@@ -1742,7 +1809,10 @@ class Device:
             except Exception:
                 translated, answer_en = False, None   # say it in English rather than not at all
 
-        self.remember(f"Q: {original_q}\nA: {out['answer']}", kind="chat")
+        try:
+            self.remember(f"Q: {original_q}\nA: {out['answer']}", kind="chat")
+        except Exception:
+            pass                                   # a store that cannot save the chat must not lose the answer
         return {"question": original_q, **out, "language": lang, "translated": translated,
                 "answer_en": answer_en, "pictures": pics,
                 "retrieval": self._retrieval_report(cands, used, res, follow_up, query),

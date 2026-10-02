@@ -1,0 +1,1701 @@
+{
+ "licence": "Wikidata CC0; SI Brochure (BIPM) for the base units",
+ "facts": [
+  {
+   "id": "capital:Q889",
+   "title": "Capital of Afghanistan",
+   "text": "The capital of Afghanistan is Kabul.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q889"
+   ]
+  },
+  {
+   "id": "capital:Q222",
+   "title": "Capital of Albania",
+   "text": "The capital of Albania is Tirana.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q222"
+   ]
+  },
+  {
+   "id": "capital:Q262",
+   "title": "Capital of Algeria",
+   "text": "The capital of Algeria is Algiers.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q262"
+   ]
+  },
+  {
+   "id": "capital:Q228",
+   "title": "Capital of Andorra",
+   "text": "The capital of Andorra is Andorra la Vella.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q228"
+   ]
+  },
+  {
+   "id": "capital:Q916",
+   "title": "Capital of Angola",
+   "text": "The capital of Angola is Luanda.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q916"
+   ]
+  },
+  {
+   "id": "capital:Q414",
+   "title": "Capital of Argentina",
+   "text": "The capital of Argentina is Buenos Aires.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q414"
+   ]
+  },
+  {
+   "id": "capital:Q399",
+   "title": "Capital of Armenia",
+   "text": "The capital of Armenia is Yerevan.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q399"
+   ]
+  },
+  {
+   "id": "capital:Q21203",
+   "title": "Capital of Aruba",
+   "text": "The capital of Aruba is Oranjestad.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q21203"
+   ]
+  },
+  {
+   "id": "capital:Q408",
+   "title": "Capital of Australia",
+   "text": "The capital of Australia is Canberra.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q408"
+   ]
+  },
+  {
+   "id": "capital:Q40",
+   "title": "Capital of Austria",
+   "text": "The capital of Austria is Vienna.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q40"
+   ]
+  },
+  {
+   "id": "capital:Q227",
+   "title": "Capital of Azerbaijan",
+   "text": "The capital of Azerbaijan is Baku.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q227"
+   ]
+  },
+  {
+   "id": "capital:Q398",
+   "title": "Capital of Bahrain",
+   "text": "The capital of Bahrain is Manama.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q398"
+   ]
+  },
+  {
+   "id": "capital:Q902",
+   "title": "Capital of Bangladesh",
+   "text": "The capital of Bangladesh is Dhaka.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q902"
+   ]
+  },
+  {
+   "id": "capital:Q244",
+   "title": "Capital of Barbados",
+   "text": "The capital of Barbados is Bridgetown.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q244"
+   ]
+  },
+  {
+   "id": "capital:Q184",
+   "title": "Capital of Belarus",
+   "text": "The capital of Belarus is Minsk.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q184"
+   ]
+  },
+  {
+   "id": "capital:Q31",
+   "title": "Capital of Belgium",
+   "text": "The capital of Belgium is Brussels.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q31"
+   ]
+  },
+  {
+   "id": "capital:Q242",
+   "title": "Capital of Belize",
+   "text": "The capital of Belize is Belmopan.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q242"
+   ]
+  },
+  {
+   "id": "capital:Q962",
+   "title": "Capital of Benin",
+   "text": "The capital of Benin is Porto-Novo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q962"
+   ]
+  },
+  {
+   "id": "capital:Q917",
+   "title": "Capital of Bhutan",
+   "text": "The capital of Bhutan is Thimphu.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q917"
+   ]
+  },
+  {
+   "id": "capital:Q750",
+   "title": "Capital of Bolivia",
+   "text": "The capitals of Bolivia are La Paz and Sucre.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q750"
+   ]
+  },
+  {
+   "id": "capital:Q225",
+   "title": "Capital of Bosnia and Herzegovina",
+   "text": "The capital of Bosnia and Herzegovina is Sarajevo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q225"
+   ]
+  },
+  {
+   "id": "capital:Q963",
+   "title": "Capital of Botswana",
+   "text": "The capital of Botswana is Gaborone.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q963"
+   ]
+  },
+  {
+   "id": "capital:Q155",
+   "title": "Capital of Brazil",
+   "text": "The capital of Brazil is Brasília.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q155"
+   ]
+  },
+  {
+   "id": "capital:Q921",
+   "title": "Capital of Brunei",
+   "text": "The capital of Brunei is Bandar Seri Begawan.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q921"
+   ]
+  },
+  {
+   "id": "capital:Q219",
+   "title": "Capital of Bulgaria",
+   "text": "The capital of Bulgaria is Sofia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q219"
+   ]
+  },
+  {
+   "id": "capital:Q965",
+   "title": "Capital of Burkina Faso",
+   "text": "The capital of Burkina Faso is Ouagadougou.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q965"
+   ]
+  },
+  {
+   "id": "capital:Q967",
+   "title": "Capital of Burundi",
+   "text": "The capital of Burundi is Gitega.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q967"
+   ]
+  },
+  {
+   "id": "capital:Q424",
+   "title": "Capital of Cambodia",
+   "text": "The capital of Cambodia is Phnom Penh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q424"
+   ]
+  },
+  {
+   "id": "capital:Q1009",
+   "title": "Capital of Cameroon",
+   "text": "The capital of Cameroon is Yaoundé.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1009"
+   ]
+  },
+  {
+   "id": "capital:Q16",
+   "title": "Capital of Canada",
+   "text": "The capital of Canada is Ottawa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q16"
+   ]
+  },
+  {
+   "id": "capital:Q1011",
+   "title": "Capital of Cape Verde",
+   "text": "The capital of Cape Verde is Praia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1011"
+   ]
+  },
+  {
+   "id": "capital:Q929",
+   "title": "Capital of Central African Republic",
+   "text": "The capital of Central African Republic is Bangui.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q929"
+   ]
+  },
+  {
+   "id": "capital:Q657",
+   "title": "Capital of Chad",
+   "text": "The capital of Chad is N'Djamena.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q657"
+   ]
+  },
+  {
+   "id": "capital:Q298",
+   "title": "Capital of Chile",
+   "text": "The capital of Chile is Santiago.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q298"
+   ]
+  },
+  {
+   "id": "capital:Q739",
+   "title": "Capital of Colombia",
+   "text": "The capital of Colombia is Bogotá.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q739"
+   ]
+  },
+  {
+   "id": "capital:Q970",
+   "title": "Capital of Comoros",
+   "text": "The capital of Comoros is Moroni.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q970"
+   ]
+  },
+  {
+   "id": "capital:Q26988",
+   "title": "Capital of Cook Islands",
+   "text": "The capital of Cook Islands is Avarua.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q26988"
+   ]
+  },
+  {
+   "id": "capital:Q800",
+   "title": "Capital of Costa Rica",
+   "text": "The capital of Costa Rica is San José.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q800"
+   ]
+  },
+  {
+   "id": "capital:Q224",
+   "title": "Capital of Croatia",
+   "text": "The capital of Croatia is Zagreb.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q224"
+   ]
+  },
+  {
+   "id": "capital:Q241",
+   "title": "Capital of Cuba",
+   "text": "The capital of Cuba is Havana.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q241"
+   ]
+  },
+  {
+   "id": "capital:Q25279",
+   "title": "Capital of Curaçao",
+   "text": "The capital of Curaçao is Willemstad.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q25279"
+   ]
+  },
+  {
+   "id": "capital:Q229",
+   "title": "Capital of Cyprus",
+   "text": "The capital of Cyprus is Nicosia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q229"
+   ]
+  },
+  {
+   "id": "capital:Q213",
+   "title": "Capital of Czech Republic",
+   "text": "The capital of Czech Republic is Prague.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q213"
+   ]
+  },
+  {
+   "id": "capital:Q974",
+   "title": "Capital of Democratic Republic of the Congo",
+   "text": "The capital of Democratic Republic of the Congo is Kinshasa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q974"
+   ]
+  },
+  {
+   "id": "capital:Q35",
+   "title": "Capital of Denmark",
+   "text": "The capital of Denmark is Copenhagen.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q35"
+   ]
+  },
+  {
+   "id": "capital:Q977",
+   "title": "Capital of Djibouti",
+   "text": "The capital of Djibouti is Djibouti.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q977"
+   ]
+  },
+  {
+   "id": "capital:Q784",
+   "title": "Capital of Dominica",
+   "text": "The capital of Dominica is Roseau.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q784"
+   ]
+  },
+  {
+   "id": "capital:Q786",
+   "title": "Capital of Dominican Republic",
+   "text": "The capital of Dominican Republic is Santo Domingo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q786"
+   ]
+  },
+  {
+   "id": "capital:Q736",
+   "title": "Capital of Ecuador",
+   "text": "The capital of Ecuador is Quito.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q736"
+   ]
+  },
+  {
+   "id": "capital:Q79",
+   "title": "Capital of Egypt",
+   "text": "The capital of Egypt is Cairo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q79"
+   ]
+  },
+  {
+   "id": "capital:Q792",
+   "title": "Capital of El Salvador",
+   "text": "The capital of El Salvador is San Salvador.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q792"
+   ]
+  },
+  {
+   "id": "capital:Q983",
+   "title": "Capital of Equatorial Guinea",
+   "text": "The capital of Equatorial Guinea is Ciudad de la Paz.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q983"
+   ]
+  },
+  {
+   "id": "capital:Q986",
+   "title": "Capital of Eritrea",
+   "text": "The capital of Eritrea is Asmara.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q986"
+   ]
+  },
+  {
+   "id": "capital:Q191",
+   "title": "Capital of Estonia",
+   "text": "The capital of Estonia is Tallinn.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q191"
+   ]
+  },
+  {
+   "id": "capital:Q1050",
+   "title": "Capital of Eswatini",
+   "text": "The capitals of Eswatini are Lobamba and Mbabane.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1050"
+   ]
+  },
+  {
+   "id": "capital:Q115",
+   "title": "Capital of Ethiopia",
+   "text": "The capital of Ethiopia is Addis Ababa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q115"
+   ]
+  },
+  {
+   "id": "capital:Q702",
+   "title": "Capital of Federated States of Micronesia",
+   "text": "The capital of Federated States of Micronesia is Palikir.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q702"
+   ]
+  },
+  {
+   "id": "capital:Q712",
+   "title": "Capital of Fiji",
+   "text": "The capital of Fiji is Suva.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q712"
+   ]
+  },
+  {
+   "id": "capital:Q33",
+   "title": "Capital of Finland",
+   "text": "The capital of Finland is Helsinki.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q33"
+   ]
+  },
+  {
+   "id": "capital:Q142",
+   "title": "Capital of France",
+   "text": "The capital of France is Paris.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q142"
+   ]
+  },
+  {
+   "id": "capital:Q1000",
+   "title": "Capital of Gabon",
+   "text": "The capital of Gabon is Libreville.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1000"
+   ]
+  },
+  {
+   "id": "capital:Q230",
+   "title": "Capital of Georgia",
+   "text": "The capital of Georgia is Tbilisi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q230"
+   ]
+  },
+  {
+   "id": "capital:Q183",
+   "title": "Capital of Germany",
+   "text": "The capital of Germany is Berlin.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q183"
+   ]
+  },
+  {
+   "id": "capital:Q117",
+   "title": "Capital of Ghana",
+   "text": "The capital of Ghana is Accra.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q117"
+   ]
+  },
+  {
+   "id": "capital:Q41",
+   "title": "Capital of Greece",
+   "text": "The capital of Greece is Athens.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q41"
+   ]
+  },
+  {
+   "id": "capital:Q223",
+   "title": "Capital of Greenland",
+   "text": "The capital of Greenland is Nuuk.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q223"
+   ]
+  },
+  {
+   "id": "capital:Q769",
+   "title": "Capital of Grenada",
+   "text": "The capital of Grenada is St. George's.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q769"
+   ]
+  },
+  {
+   "id": "capital:Q774",
+   "title": "Capital of Guatemala",
+   "text": "The capital of Guatemala is Guatemala City.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q774"
+   ]
+  },
+  {
+   "id": "capital:Q1006",
+   "title": "Capital of Guinea",
+   "text": "The capital of Guinea is Conakry.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1006"
+   ]
+  },
+  {
+   "id": "capital:Q1007",
+   "title": "Capital of Guinea-Bissau",
+   "text": "The capital of Guinea-Bissau is Bissau.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1007"
+   ]
+  },
+  {
+   "id": "capital:Q734",
+   "title": "Capital of Guyana",
+   "text": "The capital of Guyana is Georgetown.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q734"
+   ]
+  },
+  {
+   "id": "capital:Q790",
+   "title": "Capital of Haiti",
+   "text": "The capital of Haiti is Port-au-Prince.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q790"
+   ]
+  },
+  {
+   "id": "capital:Q783",
+   "title": "Capital of Honduras",
+   "text": "The capital of Honduras is Tegucigalpa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q783"
+   ]
+  },
+  {
+   "id": "capital:Q28",
+   "title": "Capital of Hungary",
+   "text": "The capital of Hungary is Budapest.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q28"
+   ]
+  },
+  {
+   "id": "capital:Q189",
+   "title": "Capital of Iceland",
+   "text": "The capital of Iceland is Reykjavík.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q189"
+   ]
+  },
+  {
+   "id": "capital:Q668",
+   "title": "Capital of India",
+   "text": "The capital of India is New Delhi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q668"
+   ]
+  },
+  {
+   "id": "capital:Q252",
+   "title": "Capital of Indonesia",
+   "text": "The capital of Indonesia is Jakarta.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q252"
+   ]
+  },
+  {
+   "id": "capital:Q794",
+   "title": "Capital of Iran",
+   "text": "The capital of Iran is Tehran.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q794"
+   ]
+  },
+  {
+   "id": "capital:Q796",
+   "title": "Capital of Iraq",
+   "text": "The capital of Iraq is Baghdad.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q796"
+   ]
+  },
+  {
+   "id": "capital:Q27",
+   "title": "Capital of Ireland",
+   "text": "The capital of Ireland is Dublin.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q27"
+   ]
+  },
+  {
+   "id": "capital:Q801",
+   "title": "Capital of Israel",
+   "text": "The capital of Israel is Jerusalem.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q801"
+   ]
+  },
+  {
+   "id": "capital:Q38",
+   "title": "Capital of Italy",
+   "text": "The capital of Italy is Rome.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q38"
+   ]
+  },
+  {
+   "id": "capital:Q1008",
+   "title": "Capital of Ivory Coast",
+   "text": "The capital of Ivory Coast is Yamoussoukro.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1008"
+   ]
+  },
+  {
+   "id": "capital:Q766",
+   "title": "Capital of Jamaica",
+   "text": "The capital of Jamaica is Kingston.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q766"
+   ]
+  },
+  {
+   "id": "capital:Q17",
+   "title": "Capital of Japan",
+   "text": "The capital of Japan is Tokyo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q17"
+   ]
+  },
+  {
+   "id": "capital:Q810",
+   "title": "Capital of Jordan",
+   "text": "The capital of Jordan is Amman.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q810"
+   ]
+  },
+  {
+   "id": "capital:Q232",
+   "title": "Capital of Kazakhstan",
+   "text": "The capital of Kazakhstan is Astana.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q232"
+   ]
+  },
+  {
+   "id": "capital:Q114",
+   "title": "Capital of Kenya",
+   "text": "The capital of Kenya is Nairobi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q114"
+   ]
+  },
+  {
+   "id": "capital:Q756617",
+   "title": "Capital of Kingdom of Denmark",
+   "text": "The capital of Kingdom of Denmark is Copenhagen.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q756617"
+   ]
+  },
+  {
+   "id": "capital:Q29999",
+   "title": "Capital of Kingdom of the Netherlands",
+   "text": "The capital of Kingdom of the Netherlands is Amsterdam.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q29999"
+   ]
+  },
+  {
+   "id": "capital:Q710",
+   "title": "Capital of Kiribati",
+   "text": "The capital of Kiribati is South Tarawa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q710"
+   ]
+  },
+  {
+   "id": "capital:Q1246",
+   "title": "Capital of Kosovo",
+   "text": "The capital of Kosovo is Pristina.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1246"
+   ]
+  },
+  {
+   "id": "capital:Q817",
+   "title": "Capital of Kuwait",
+   "text": "The capital of Kuwait is Kuwait City.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q817"
+   ]
+  },
+  {
+   "id": "capital:Q813",
+   "title": "Capital of Kyrgyzstan",
+   "text": "The capital of Kyrgyzstan is Bishkek.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q813"
+   ]
+  },
+  {
+   "id": "capital:Q819",
+   "title": "Capital of Laos",
+   "text": "The capital of Laos is Vientiane.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q819"
+   ]
+  },
+  {
+   "id": "capital:Q211",
+   "title": "Capital of Latvia",
+   "text": "The capital of Latvia is Riga.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q211"
+   ]
+  },
+  {
+   "id": "capital:Q822",
+   "title": "Capital of Lebanon",
+   "text": "The capital of Lebanon is Beirut.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q822"
+   ]
+  },
+  {
+   "id": "capital:Q1013",
+   "title": "Capital of Lesotho",
+   "text": "The capital of Lesotho is Maseru.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1013"
+   ]
+  },
+  {
+   "id": "capital:Q1014",
+   "title": "Capital of Liberia",
+   "text": "The capital of Liberia is Monrovia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1014"
+   ]
+  },
+  {
+   "id": "capital:Q1016",
+   "title": "Capital of Libya",
+   "text": "The capital of Libya is Tripoli.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1016"
+   ]
+  },
+  {
+   "id": "capital:Q347",
+   "title": "Capital of Liechtenstein",
+   "text": "The capital of Liechtenstein is Vaduz.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q347"
+   ]
+  },
+  {
+   "id": "capital:Q37",
+   "title": "Capital of Lithuania",
+   "text": "The capital of Lithuania is Vilnius.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q37"
+   ]
+  },
+  {
+   "id": "capital:Q32",
+   "title": "Capital of Luxembourg",
+   "text": "The capital of Luxembourg is Luxembourg.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q32"
+   ]
+  },
+  {
+   "id": "capital:Q1019",
+   "title": "Capital of Madagascar",
+   "text": "The capital of Madagascar is Antananarivo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1019"
+   ]
+  },
+  {
+   "id": "capital:Q1020",
+   "title": "Capital of Malawi",
+   "text": "The capital of Malawi is Lilongwe.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1020"
+   ]
+  },
+  {
+   "id": "capital:Q833",
+   "title": "Capital of Malaysia",
+   "text": "The capital of Malaysia is Kuala Lumpur.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q833"
+   ]
+  },
+  {
+   "id": "capital:Q826",
+   "title": "Capital of Maldives",
+   "text": "The capital of Maldives is Malé.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q826"
+   ]
+  },
+  {
+   "id": "capital:Q912",
+   "title": "Capital of Mali",
+   "text": "The capital of Mali is Bamako.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q912"
+   ]
+  },
+  {
+   "id": "capital:Q233",
+   "title": "Capital of Malta",
+   "text": "The capital of Malta is Valletta.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q233"
+   ]
+  },
+  {
+   "id": "capital:Q709",
+   "title": "Capital of Marshall Islands",
+   "text": "The capital of Marshall Islands is Majuro.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q709"
+   ]
+  },
+  {
+   "id": "capital:Q1025",
+   "title": "Capital of Mauritania",
+   "text": "The capital of Mauritania is Nouakchott.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1025"
+   ]
+  },
+  {
+   "id": "capital:Q1027",
+   "title": "Capital of Mauritius",
+   "text": "The capital of Mauritius is Port Louis.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1027"
+   ]
+  },
+  {
+   "id": "capital:Q96",
+   "title": "Capital of Mexico",
+   "text": "The capital of Mexico is Mexico City.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q96"
+   ]
+  },
+  {
+   "id": "capital:Q217",
+   "title": "Capital of Moldova",
+   "text": "The capital of Moldova is Chișinău.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q217"
+   ]
+  },
+  {
+   "id": "capital:Q235",
+   "title": "Capital of Monaco",
+   "text": "The capital of Monaco is Monaco.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q235"
+   ]
+  },
+  {
+   "id": "capital:Q711",
+   "title": "Capital of Mongolia",
+   "text": "The capital of Mongolia is Ulaanbaatar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q711"
+   ]
+  },
+  {
+   "id": "capital:Q236",
+   "title": "Capital of Montenegro",
+   "text": "The capital of Montenegro is Podgorica.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q236"
+   ]
+  },
+  {
+   "id": "capital:Q1028",
+   "title": "Capital of Morocco",
+   "text": "The capital of Morocco is Rabat.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1028"
+   ]
+  },
+  {
+   "id": "capital:Q1029",
+   "title": "Capital of Mozambique",
+   "text": "The capital of Mozambique is Maputo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1029"
+   ]
+  },
+  {
+   "id": "capital:Q836",
+   "title": "Capital of Myanmar",
+   "text": "The capital of Myanmar is Naypyidaw.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q836"
+   ]
+  },
+  {
+   "id": "capital:Q1030",
+   "title": "Capital of Namibia",
+   "text": "The capital of Namibia is Windhoek.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1030"
+   ]
+  },
+  {
+   "id": "capital:Q697",
+   "title": "Capital of Nauru",
+   "text": "The capital of Nauru is Yaren District.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q697"
+   ]
+  },
+  {
+   "id": "capital:Q837",
+   "title": "Capital of Nepal",
+   "text": "The capital of Nepal is Kathmandu.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q837"
+   ]
+  },
+  {
+   "id": "capital:Q55",
+   "title": "Capital of Netherlands",
+   "text": "The capital of Netherlands is Amsterdam.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q55"
+   ]
+  },
+  {
+   "id": "capital:Q664",
+   "title": "Capital of New Zealand",
+   "text": "The capital of New Zealand is Wellington.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q664"
+   ]
+  },
+  {
+   "id": "capital:Q811",
+   "title": "Capital of Nicaragua",
+   "text": "The capital of Nicaragua is Managua.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q811"
+   ]
+  },
+  {
+   "id": "capital:Q1032",
+   "title": "Capital of Niger",
+   "text": "The capital of Niger is Niamey.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1032"
+   ]
+  },
+  {
+   "id": "capital:Q1033",
+   "title": "Capital of Nigeria",
+   "text": "The capital of Nigeria is Abuja.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1033"
+   ]
+  },
+  {
+   "id": "capital:Q34020",
+   "title": "Capital of Niue",
+   "text": "The capital of Niue is Alofi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q34020"
+   ]
+  },
+  {
+   "id": "capital:Q423",
+   "title": "Capital of North Korea",
+   "text": "The capital of North Korea is Pyongyang.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q423"
+   ]
+  },
+  {
+   "id": "capital:Q221",
+   "title": "Capital of North Macedonia",
+   "text": "The capital of North Macedonia is Skopje.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q221"
+   ]
+  },
+  {
+   "id": "capital:Q23681",
+   "title": "Capital of Northern Cyprus",
+   "text": "The capital of Northern Cyprus is North Nicosia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q23681"
+   ]
+  },
+  {
+   "id": "capital:Q20",
+   "title": "Capital of Norway",
+   "text": "The capital of Norway is Oslo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q20"
+   ]
+  },
+  {
+   "id": "capital:Q842",
+   "title": "Capital of Oman",
+   "text": "The capital of Oman is Muscat.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q842"
+   ]
+  },
+  {
+   "id": "capital:Q843",
+   "title": "Capital of Pakistan",
+   "text": "The capitals of Pakistan are Islamabad and Rawalpindi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q843"
+   ]
+  },
+  {
+   "id": "capital:Q695",
+   "title": "Capital of Palau",
+   "text": "The capital of Palau is Ngerulmud.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q695"
+   ]
+  },
+  {
+   "id": "capital:Q219060",
+   "title": "Capital of Palestine",
+   "text": "The capitals of Palestine are East Jerusalem and Ramallah.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q219060"
+   ]
+  },
+  {
+   "id": "capital:Q804",
+   "title": "Capital of Panama",
+   "text": "The capital of Panama is Panama City.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q804"
+   ]
+  },
+  {
+   "id": "capital:Q691",
+   "title": "Capital of Papua New Guinea",
+   "text": "The capital of Papua New Guinea is Port Moresby.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q691"
+   ]
+  },
+  {
+   "id": "capital:Q733",
+   "title": "Capital of Paraguay",
+   "text": "The capital of Paraguay is Asunción.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q733"
+   ]
+  },
+  {
+   "id": "capital:Q148",
+   "title": "Capital of People's Republic of China",
+   "text": "The capital of People's Republic of China is Beijing.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q148"
+   ]
+  },
+  {
+   "id": "capital:Q419",
+   "title": "Capital of Peru",
+   "text": "The capital of Peru is Lima.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q419"
+   ]
+  },
+  {
+   "id": "capital:Q928",
+   "title": "Capital of Philippines",
+   "text": "The capital of Philippines is Manila.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q928"
+   ]
+  },
+  {
+   "id": "capital:Q36",
+   "title": "Capital of Poland",
+   "text": "The capital of Poland is Warsaw.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q36"
+   ]
+  },
+  {
+   "id": "capital:Q45",
+   "title": "Capital of Portugal",
+   "text": "The capital of Portugal is Lisbon.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q45"
+   ]
+  },
+  {
+   "id": "capital:Q846",
+   "title": "Capital of Qatar",
+   "text": "The capital of Qatar is Doha.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q846"
+   ]
+  },
+  {
+   "id": "capital:Q971",
+   "title": "Capital of Republic of the Congo",
+   "text": "The capital of Republic of the Congo is Brazzaville.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q971"
+   ]
+  },
+  {
+   "id": "capital:Q218",
+   "title": "Capital of Romania",
+   "text": "The capital of Romania is Bucharest.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q218"
+   ]
+  },
+  {
+   "id": "capital:Q159",
+   "title": "Capital of Russia",
+   "text": "The capital of Russia is Moscow.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q159"
+   ]
+  },
+  {
+   "id": "capital:Q1037",
+   "title": "Capital of Rwanda",
+   "text": "The capital of Rwanda is Kigali.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1037"
+   ]
+  },
+  {
+   "id": "capital:Q763",
+   "title": "Capital of Saint Kitts and Nevis",
+   "text": "The capital of Saint Kitts and Nevis is Basseterre.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q763"
+   ]
+  },
+  {
+   "id": "capital:Q760",
+   "title": "Capital of Saint Lucia",
+   "text": "The capital of Saint Lucia is Castries.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q760"
+   ]
+  },
+  {
+   "id": "capital:Q757",
+   "title": "Capital of Saint Vincent and the Grenadines",
+   "text": "The capital of Saint Vincent and the Grenadines is Kingstown.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q757"
+   ]
+  },
+  {
+   "id": "capital:Q683",
+   "title": "Capital of Samoa",
+   "text": "The capital of Samoa is Apia.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q683"
+   ]
+  },
+  {
+   "id": "capital:Q238",
+   "title": "Capital of San Marino",
+   "text": "The capital of San Marino is San Marino.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q238"
+   ]
+  },
+  {
+   "id": "capital:Q851",
+   "title": "Capital of Saudi Arabia",
+   "text": "The capital of Saudi Arabia is Riyadh.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q851"
+   ]
+  },
+  {
+   "id": "capital:Q1041",
+   "title": "Capital of Senegal",
+   "text": "The capital of Senegal is Dakar.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1041"
+   ]
+  },
+  {
+   "id": "capital:Q403",
+   "title": "Capital of Serbia",
+   "text": "The capital of Serbia is Belgrade.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q403"
+   ]
+  },
+  {
+   "id": "capital:Q1042",
+   "title": "Capital of Seychelles",
+   "text": "The capital of Seychelles is Victoria.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1042"
+   ]
+  },
+  {
+   "id": "capital:Q1044",
+   "title": "Capital of Sierra Leone",
+   "text": "The capital of Sierra Leone is Freetown.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1044"
+   ]
+  },
+  {
+   "id": "capital:Q334",
+   "title": "Capital of Singapore",
+   "text": "The capital of Singapore is Singapore.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q334"
+   ]
+  },
+  {
+   "id": "capital:Q26273",
+   "title": "Capital of Sint Maarten",
+   "text": "The capital of Sint Maarten is Philipsburg.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q26273"
+   ]
+  },
+  {
+   "id": "capital:Q214",
+   "title": "Capital of Slovakia",
+   "text": "The capital of Slovakia is Bratislava.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q214"
+   ]
+  },
+  {
+   "id": "capital:Q215",
+   "title": "Capital of Slovenia",
+   "text": "The capital of Slovenia is Ljubljana.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q215"
+   ]
+  },
+  {
+   "id": "capital:Q685",
+   "title": "Capital of Solomon Islands",
+   "text": "The capital of Solomon Islands is Honiara.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q685"
+   ]
+  },
+  {
+   "id": "capital:Q1045",
+   "title": "Capital of Somalia",
+   "text": "The capital of Somalia is Mogadishu.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1045"
+   ]
+  },
+  {
+   "id": "capital:Q34754",
+   "title": "Capital of Somaliland",
+   "text": "The capital of Somaliland is Hargeisa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q34754"
+   ]
+  },
+  {
+   "id": "capital:Q258",
+   "title": "Capital of South Africa",
+   "text": "The capitals of South Africa are Bloemfontein, Cape Town and Pretoria.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q258"
+   ]
+  },
+  {
+   "id": "capital:Q884",
+   "title": "Capital of South Korea",
+   "text": "The capital of South Korea is Seoul.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q884"
+   ]
+  },
+  {
+   "id": "capital:Q958",
+   "title": "Capital of South Sudan",
+   "text": "The capital of South Sudan is Juba.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q958"
+   ]
+  },
+  {
+   "id": "capital:Q29",
+   "title": "Capital of Spain",
+   "text": "The capital of Spain is Madrid.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q29"
+   ]
+  },
+  {
+   "id": "capital:Q854",
+   "title": "Capital of Sri Lanka",
+   "text": "The capitals of Sri Lanka are Colombo and Sri Jayawardenepura Kotte.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q854"
+   ]
+  },
+  {
+   "id": "capital:Q1049",
+   "title": "Capital of Sudan",
+   "text": "The capital of Sudan is Khartoum.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1049"
+   ]
+  },
+  {
+   "id": "capital:Q730",
+   "title": "Capital of Suriname",
+   "text": "The capital of Suriname is Paramaribo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q730"
+   ]
+  },
+  {
+   "id": "capital:Q34",
+   "title": "Capital of Sweden",
+   "text": "The capital of Sweden is Stockholm.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q34"
+   ]
+  },
+  {
+   "id": "capital:Q39",
+   "title": "Capital of Switzerland",
+   "text": "The capital of Switzerland is Bern.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q39"
+   ]
+  },
+  {
+   "id": "capital:Q858",
+   "title": "Capital of Syria",
+   "text": "The capital of Syria is Damascus.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q858"
+   ]
+  },
+  {
+   "id": "capital:Q1039",
+   "title": "Capital of São Tomé and Príncipe",
+   "text": "The capital of São Tomé and Príncipe is São Tomé.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1039"
+   ]
+  },
+  {
+   "id": "capital:Q863",
+   "title": "Capital of Tajikistan",
+   "text": "The capital of Tajikistan is Dushanbe.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q863"
+   ]
+  },
+  {
+   "id": "capital:Q924",
+   "title": "Capital of Tanzania",
+   "text": "The capital of Tanzania is Dodoma.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q924"
+   ]
+  },
+  {
+   "id": "capital:Q869",
+   "title": "Capital of Thailand",
+   "text": "The capital of Thailand is Bangkok.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q869"
+   ]
+  },
+  {
+   "id": "capital:Q778",
+   "title": "Capital of The Bahamas",
+   "text": "The capital of The Bahamas is Nassau.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q778"
+   ]
+  },
+  {
+   "id": "capital:Q1005",
+   "title": "Capital of The Gambia",
+   "text": "The capital of The Gambia is Banjul.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1005"
+   ]
+  },
+  {
+   "id": "capital:Q574",
+   "title": "Capital of Timor-Leste",
+   "text": "The capital of Timor-Leste is Dili.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q574"
+   ]
+  },
+  {
+   "id": "capital:Q945",
+   "title": "Capital of Togo",
+   "text": "The capital of Togo is Lomé.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q945"
+   ]
+  },
+  {
+   "id": "capital:Q678",
+   "title": "Capital of Tonga",
+   "text": "The capital of Tonga is Nukuʻalofa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q678"
+   ]
+  },
+  {
+   "id": "capital:Q754",
+   "title": "Capital of Trinidad and Tobago",
+   "text": "The capital of Trinidad and Tobago is Port of Spain.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q754"
+   ]
+  },
+  {
+   "id": "capital:Q948",
+   "title": "Capital of Tunisia",
+   "text": "The capital of Tunisia is Tunis.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q948"
+   ]
+  },
+  {
+   "id": "capital:Q43",
+   "title": "Capital of Turkey",
+   "text": "The capital of Turkey is Ankara.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q43"
+   ]
+  },
+  {
+   "id": "capital:Q874",
+   "title": "Capital of Turkmenistan",
+   "text": "The capital of Turkmenistan is Ashgabat.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q874"
+   ]
+  },
+  {
+   "id": "capital:Q672",
+   "title": "Capital of Tuvalu",
+   "text": "The capital of Tuvalu is Funafuti.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q672"
+   ]
+  },
+  {
+   "id": "capital:Q1036",
+   "title": "Capital of Uganda",
+   "text": "The capital of Uganda is Kampala.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q1036"
+   ]
+  },
+  {
+   "id": "capital:Q212",
+   "title": "Capital of Ukraine",
+   "text": "The capital of Ukraine is Kyiv.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q212"
+   ]
+  },
+  {
+   "id": "capital:Q878",
+   "title": "Capital of United Arab Emirates",
+   "text": "The capital of United Arab Emirates is Abu Dhabi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q878"
+   ]
+  },
+  {
+   "id": "capital:Q145",
+   "title": "Capital of United Kingdom",
+   "text": "The capital of United Kingdom is London.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q145"
+   ]
+  },
+  {
+   "id": "capital:Q30",
+   "title": "Capital of United States",
+   "text": "The capital of United States is Washington, D.C..",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q30"
+   ]
+  },
+  {
+   "id": "capital:Q77",
+   "title": "Capital of Uruguay",
+   "text": "The capital of Uruguay is Montevideo.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q77"
+   ]
+  },
+  {
+   "id": "capital:Q265",
+   "title": "Capital of Uzbekistan",
+   "text": "The capital of Uzbekistan is Tashkent.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q265"
+   ]
+  },
+  {
+   "id": "capital:Q686",
+   "title": "Capital of Vanuatu",
+   "text": "The capital of Vanuatu is Port Vila.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q686"
+   ]
+  },
+  {
+   "id": "capital:Q237",
+   "title": "Capital of Vatican City",
+   "text": "The capital of Vatican City is Vatican City.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q237"
+   ]
+  },
+  {
+   "id": "capital:Q717",
+   "title": "Capital of Venezuela",
+   "text": "The capital of Venezuela is Caracas.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q717"
+   ]
+  },
+  {
+   "id": "capital:Q881",
+   "title": "Capital of Vietnam",
+   "text": "The capital of Vietnam is Hanoi.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q881"
+   ]
+  },
+  {
+   "id": "capital:Q805",
+   "title": "Capital of Yemen",
+   "text": "The capitals of Yemen are Aden and Sanaa.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q805"
+   ]
+  },
+  {
+   "id": "capital:Q953",
+   "title": "Capital of Zambia",
+   "text": "The capital of Zambia is Lusaka.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q953"
+   ]
+  },
+  {
+   "id": "capital:Q954",
+   "title": "Capital of Zimbabwe",
+   "text": "The capital of Zimbabwe is Harare.",
+   "sources": [
+    "https://www.wikidata.org/wiki/Q954"
+   ]
+  },
+  {
+   "id": "si:metre",
+   "title": "SI base unit of length",
+   "text": "The SI base unit of length is the metre (symbol m).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:kilogram",
+   "title": "SI base unit of mass",
+   "text": "The SI base unit of mass is the kilogram (symbol kg).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:second",
+   "title": "SI base unit of time",
+   "text": "The SI base unit of time is the second (symbol s).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:ampere",
+   "title": "SI base unit of electric current",
+   "text": "The SI base unit of electric current is the ampere (symbol A).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:kelvin",
+   "title": "SI base unit of thermodynamic temperature",
+   "text": "The SI base unit of thermodynamic temperature is the kelvin (symbol K).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:mole",
+   "title": "SI base unit of amount of substance",
+   "text": "The SI base unit of amount of substance is the mole (symbol mol).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  },
+  {
+   "id": "si:candela",
+   "title": "SI base unit of luminous intensity",
+   "text": "The SI base unit of luminous intensity is the candela (symbol cd).",
+   "sources": [
+    "https://www.bipm.org/en/publications/si-brochure"
+   ]
+  }
+ ]
+}

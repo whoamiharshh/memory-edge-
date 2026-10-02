@@ -105,7 +105,7 @@ def check_output(raw: str, valid_keys: set[str], texts: dict[str, str] | None = 
         cites = {f"E{n}" for n in CITE.findall(s)}
         body = CITE.sub("", s)
         cited_text = " ".join((texts or {}).get(c, "") for c in cites)
-        bad_numbers = [n for n in NUMBER.findall(body) if texts is not None and not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d.])", cited_text)]
+        bad_numbers = [n for n in NUMBER.findall(body) if texts is not None and not re.search(rf"(?<![\d.]){re.escape(n)}(?!\d|\.\d)", cited_text)]
         if not cites:
             dropped.append({"sentence": s, "why": "no citation"})
         elif not cites <= valid_keys:
@@ -169,7 +169,6 @@ class LocalLLM:
                 {"role": "user", "content": EXAMPLE_USER}, {"role": "assistant", "content": EXAMPLE_ASSISTANT},
                 {"role": "user", "content": user}], max_tokens=max_tokens, temperature=0.0)
             return r["choices"][0]["message"]["content"]
-
 
 def brief(question: str, results: dict, llm: LocalLLM | None) -> dict[str, Any]:
     items = build_evidence(results)

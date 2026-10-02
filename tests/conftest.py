@@ -30,7 +30,9 @@ def _no_web_search_in_tests():
     """
     before = os.environ.get("EDGE_SEARCH_PROVIDER")
     os.environ["EDGE_SEARCH_PROVIDER"] = "none"
+    os.environ["EDGE_NO_SEED"] = "1"      # a test that starts edge.main must not begin loading the offline library
     yield
+    os.environ.pop("EDGE_NO_SEED", None)
     if before is None:
         os.environ.pop("EDGE_SEARCH_PROVIDER", None)
     else:

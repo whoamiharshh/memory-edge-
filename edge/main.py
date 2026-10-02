@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import secrets
+import threading
 
 import uvicorn
 
@@ -25,6 +27,21 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 TLS = ROOT / "runtime" / "tls"
 
 
+def _seed_in_background(dev: Device) -> None:
+    """Load the offline library (edge/seed.py) the first time this device starts. It runs beside the server, not
+    before it, so the UI is usable at once; what is already loaded is skipped, and a stop half-way resumes."""
+    from edge import seed
+    try:
+        todo = [p for p in seed.AUTO if p not in seed.seeded(dev)]
+        if not todo:
+            return
+        print(f"[{dev.cfg.device_id}] loading the offline library in the background: {', '.join(todo)}", flush=True)
+        r = seed.seed_if_empty(dev, todo)
+        print(f"[{dev.cfg.device_id}] offline library ready: {r['seeded']} record(s) loaded", flush=True)
+    except Exception as e:                      # a missing pack file must never stop the device from running
+        print(f"[{dev.cfg.device_id}] offline library not loaded: {e!r}", flush=True)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--name", required=True)
@@ -39,6 +56,8 @@ def main() -> None:
     p.add_argument("--denylist", default="", help="comma-separated staff/site names the redactor must catch")
     p.add_argument("--hash-embedder", action="store_true", help="use the lexical test embedder instead of bge-small")
     p.add_argument("--no-llm", action="store_true")
+    p.add_argument("--no-seed", action="store_true",
+                   help="do not load the built-in offline library (reference packs) on first start")
     p.add_argument("--no-sync", action="store_true")
     p.add_argument("--mirror-mode", choices=("auto", "snapshot", "scroll"), default="auto",
                    help="fleet mirror fill: auto (full Qdrant snapshot to bootstrap, then the cheaper of scroll delta "
@@ -79,6 +98,8 @@ def main() -> None:
         worker.start()
     op = a.operator_token or secrets.token_urlsafe(18 if network else 12)
     llm = None if a.no_llm else rag.LocalLLM()
+    if not (a.no_seed or os.environ.get("EDGE_NO_SEED")):
+        threading.Thread(target=_seed_in_background, args=(dev,), daemon=True, name="seed-library").start()
     scheme = "https" if a.tls else "http"
     print(f"[{a.name}] UI: {scheme}://{a.host}:{a.port}/   phone sensor: {scheme}://<this-ip>:{a.port}/sensor   "
           f"profile: {dev.profile.name}   operator token: {op}", flush=True)

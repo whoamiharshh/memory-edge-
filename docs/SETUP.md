@@ -89,6 +89,19 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
     (~480 MB) and converts the two Helsinki-NLP opus-mt models (hi-en, en-hi) to CTranslate2 int8 (~78 MB each) in a
     throwaway venv that carries torch and is deleted afterwards (needs `uv` and a network, once). Without it dictation
     falls back to the English-only Vosk model and a Hindi question is answered as if it were English.
+23. **Offline library** (nothing to install: it is in the repository and loads itself). Ask answers general questions
+    with no network by quoting a cited source. `knowledge/` carries the 212 capitals / SI-unit facts
+    (`general_facts.json`) and the 30,000 best-developed Simple English Wikipedia articles with their precomputed
+    vectors (`simple_wikipedia_core.jsonl.gz` 4.5 MB + `.vec.npz`, CC BY-SA 4.0, see
+    `knowledge/SIMPLE_WIKIPEDIA_LICENSE.md`). The first time a device starts, `edge.main` loads them in the background
+    (the UI is usable at once; `--no-seed` or `EDGE_NO_SEED=1` skips it). The vectors are used only if the device's own
+    text model is the same one (`BAAI/bge-small-en-v1.5`); otherwise the passages are embedded again, which takes
+    roughly 45 minutes on a laptop CPU (about 10 passages per second). To rebuild or extend: download
+    `https://dumps.wikimedia.org/simplewiki/latest/simplewiki-latest-pages-articles-multistream.xml.bz2` (~370 MB) into
+    `data\raw\`, run `.venv\Scripts\python.exe -m tools.extract_simplewiki` (~5 min) and
+    `.venv\Scripts\python.exe -m tools.build_wikipedia_core` (about 45 minutes, writes the two files in `knowledge/`).
+    The other ~197k articles are an optional pack: `POST /api/reference/load` with `{"packs": ["simple_wikipedia_rest"]}`.
+    With no match the device says it needs an internet connection; the local model never answers from its own training.
 
 ## Production checklist (beyond the localhost demo)
 - HTTPS everywhere: `tools\make_certs.py`, cloud `--tls` or `--mtls`, devices `--ca` (+ `--client-cert/--client-key`).

@@ -5,6 +5,31 @@ decisions (before code existed) are in [RESEARCH.md Appendix 3](RESEARCH.md#appe
 
 ---
 
+### D48 · Offline answers come only from cited text; the model never answers from its own training (2 Oct 2026)
+Ask with no network and no matching memory used to say "nothing relates to that". A first attempt let the local Qwen
+model answer from its training instead; on the live device it answered a nonsense question ("the ceiling of the zxqv
+chapel") from two loosely related articles and marked it grounded. Chosen instead:
+- **Offline library** loaded into Qdrant Edge as `reference` records: 212 capitals / SI-unit facts (Wikidata CC0, SI
+  Brochure) and the 30,000 best-developed Simple English Wikipedia articles (CC BY-SA, cited by URL). Embedding and
+  loading the core took 3,097 s on this CPU (~10 docs/s); the other ~197k articles are an optional pack
+  (`simple_wikipedia_rest`).
+- **Shipped in the repository** (so a second computer, or the finals machine, has it): the 30,000 passages
+  (`knowledge/simple_wikipedia_core.jsonl.gz`, 4.5 MB) and their bge-small vectors (`.vec.npz`, float16), with the CC BY-SA
+  attribution notice. A device reuses the vectors only when its own text model is the same; it loads them in the
+  background on first start (`edge.main`), so nobody waits ~45 minutes for 30,000 passages to embed. The rule "text
+  embeddings never leave the device" protects private notes; these are public Wikipedia passages.
+- **Relevance:** a library entry must cover >= 60 % of the question's content words (min. 2). One shared word is enough
+  for a note somebody typed in, but not for 30k articles.
+- **Library text is quoted word for word**; the model is not asked to paraphrase it. For device, fleet and web evidence a
+  model sentence may only use words found in the evidence it cites, otherwise the evidence is quoted.
+- **No match:** "needs an internet connection" (offline) and nothing else. No model answer, no fake source.
+- **Source separation:** answers name `device`, `fleet`, `offline_kb`, `web` separately; the model is never a source.
+- **Offline detection:** a dead network with the online switch ON is reported as offline (tested through a dead proxy).
+- **Qdrant failure:** each memory-search leg is isolated; the answer says which one failed instead of crashing.
+- Also fixed: `rag.check_output` rejected a correct number that ended a sentence in the evidence ("cabinet 7.").
+Cost: "Who wrote Hamlet?" is unanswered offline unless an article lead repeats the question's wording. Wrong-but-cited
+retrieval (an on-topic passage that does not answer the question) is still possible and is not measured.
+
 ### D47 · Microphone next to a louder machine: measured, and the answer is the existing confirmation (28 Sep 2026)
 The README limit "background noise from louder machines was not tested" is now measured with two REAL recordings mixed
 (BENCHMARKS §33). No new mechanism was added: the existing one-click "normal operation" confirmation removes the false

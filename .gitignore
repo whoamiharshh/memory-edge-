@@ -27,3 +27,7 @@ package-lock.json
 
 # browser-automation scratch output (screenshots, page snapshots)
 .playwright-mcp/
+
+# launcher / benchmark console captures
+runtime_*.log
+runtime_*.err

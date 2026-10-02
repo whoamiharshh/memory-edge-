@@ -52,6 +52,13 @@ a reason other than syncing with its own cloud, so it is stated here rather than
 
 Tests: `tests/unit/test_online.py` (routing, both off switches, the device-only rule, provider failure).
 
+**Offline means no connection is opened.** `tests/integration/test_source_separation.py` replaces the socket layer and
+asks questions with the device offline, and in "This device only" mode while the switch says online: zero connection
+attempts. A dead network with the switch ON is reported as offline, not as "the internet found nothing". The offline
+library (`edge/seed.py`, Wikidata + Simple English Wikipedia) is downloaded once by a person running
+`tools/extract_simplewiki.py`; the device itself never fetches it. Library text is third-party content: it is quoted
+word for word with its URL, never paraphrased by the model, and the local model never answers from its own training.
+
 ## Not built (stated, not hidden)
 - Hardware-rooted device identity (secure boot / TPM attestation); the code-integrity hash is tamper evidence only.
 - Encryption of structured fields and vectors inside the device shard (they must stay searchable): rely on OS disk

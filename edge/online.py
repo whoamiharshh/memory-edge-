@@ -31,6 +31,7 @@ from __future__ import annotations
 import html
 import os
 import re
+import threading
 import urllib.parse
 
 import httpx
@@ -42,6 +43,7 @@ MAX_SNIPPET = 400
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
        "Chrome/124.0 Safari/537.36")
 
+_state = threading.local()
 _TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
 
@@ -160,16 +162,22 @@ def search(question: str, limit: int = MAX_RESULTS) -> list[dict]:
     """
     q = (question or "").strip()
     p = provider()
+    _state.reachable = True
     if not q or p == "none":
         return []
     out: list[dict] = []
     seen: set[str] = set()
+    tried = unreachable = 0
     try:
         with httpx.Client(timeout=TIMEOUT_S, follow_redirects=True,
                           headers={"User-Agent": _UA, "Accept-Language": "en"}) as client:
             for fn in _PROVIDERS.get(p, _PROVIDERS["duckduckgo"]):
+                tried += 1
                 try:
                     found = fn(q, limit, client)
+                except (httpx.ConnectError, httpx.ConnectTimeout, httpx.NetworkError):
+                    unreachable += 1               # no connection at all: that is "offline", not "found nothing"
+                    continue
                 except Exception:
                     continue                       # one provider failing must not lose the other's hits
                 for hit in found:
@@ -179,8 +187,16 @@ def search(question: str, limit: int = MAX_RESULTS) -> list[dict]:
                 if len(out) >= limit:
                     break
     except Exception:
+        _state.reachable = False
         return []
+    _state.reachable = not (tried and unreachable == tried)
     return out[:limit]
+
+
+def reachable() -> bool:
+    """Whether the last `search` on this thread managed to connect to anything. False means the network is
+    down, whatever the device's own online switch says, so the caller can report "offline" truthfully."""
+    return getattr(_state, "reachable", True)
 
 
 def as_evidence(hits: list[dict]) -> list[dict]:

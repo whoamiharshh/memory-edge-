@@ -287,7 +287,7 @@ document.querySelectorAll("#retrievalChoices .choice").forEach(c =>
   }));
 
 /* ══════════ evidence panel ══════════ */
-const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet", reference: "reference pack", web: "from the internet", learned: "learned earlier, kept on this device" };
+const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet", reference: "offline library, built in", web: "from the internet", learned: "learned earlier, kept on this device" };
 function showEvidence(used) {
   const panel = $("ctxPanel");
   if (!used?.length) { panel.hidden = true; $("ctxToggle").hidden = true; return; }
@@ -365,7 +365,6 @@ function sourcesBlock(used) {
   if (!used?.length) return null;
   const det = el("details", { class: "sources" });
   det.append(el("summary", {}, `Where this came from (${used.length})`));
-  const WHERE = { memory: "you added", shared: "shared with you", record: "this device noticed", fleet: "from the fleet" };
   used.forEach(u => det.append(el("div", { class: "src" },
     el("span", { class: "src-key" }, u.key),
     el("span", { class: "src-text" },
@@ -426,11 +425,13 @@ async function send() {
     renderQdrant(lastRetrieval);
     // "answered on the device" is a promise about where the question went. Once a question can leave
     // the device, saying that unconditionally would be false, so the line follows what actually happened.
+    // each kind of evidence is named separately; the model is never listed as a source
+    const NAMES = { device: "this device's memory", fleet: "the fleet", offline_kb: "the offline library", web: "the internet" };
     const src = r.sources || [];
-    const origin = src.includes("web") && src.includes("device") ? "answered from this device and the internet"
-      : src.includes("web") ? "answered using the internet"
-      : r.from_learned ? "answered offline, from what it learned earlier"
-      : "answered on the device";
+    const origin = src.length ? "answered from " + src.map(s => NAMES[s] || s).join(" + ")
+        + (r.from_learned ? " (some learned earlier)" : "")
+      : "no evidence found";
+    if (r.memory_failed?.length) toast("Searching " + r.memory_failed.join(" and ") + " failed on this device.");
     $("composerNote").textContent =
       `${r.latency_ms} ms · ${origin}` + (r.mode === "llm" ? " · local model" : "");
     loadConversations();

@@ -181,6 +181,20 @@ Web search needs no account by default (DuckDuckGo + Wikipedia). To use a keyed 
 `EDGE_SEARCH_PROVIDER=brave` with `BRAVE_SEARCH_API_KEY`, or `=tavily` with `TAVILY_API_KEY`; `=none` disables
 it entirely.
 
+**Where an answer comes from.** Every answer names its evidence in four separate words: *this device's memory*,
+*the fleet*, *the offline library*, *the internet*. The **offline library** is reference text loaded into the
+device's own Qdrant memory (capitals and SI units from Wikidata and the SI Brochure, and the best-developed
+30,000 Simple English Wikipedia articles, CC BY-SA, each cited by URL). **It ships inside this repository**
+(`knowledge/`, about 30 MB with the precomputed vectors, see `knowledge/SIMPLE_WIKIPEDIA_LICENSE.md`) and a device
+loads it by itself, in the background, the first time it starts - no download and no setup on another computer.
+Library text is **quoted word for word with its link**, never paraphrased. If nothing in any of the four
+answers the question, the device says it needs an internet connection: **the local model never answers from its
+own training**, so there is no invented answer to mistake for evidence. For device, fleet and web evidence a model
+sentence may only use words found in the evidence it cites, otherwise the evidence is quoted. If the model or a
+Qdrant search fails, the answer degrades to that honest message and says which search failed; it never crashes and
+never invents a source. Tests: `tests/integration/test_source_separation.py`, `tests/unit/test_wikipedia_core.py`.
+Limit: retrieval can still surface an on-topic passage that does not answer the question; that is not measured.
+
 ## Measurements
 
 Laptop: Intel i5-1335U, 15.7 GB RAM, no GPU, Windows 11, Python 3.12. Raw JSON in `bench/results/`; methods and
@@ -239,7 +253,7 @@ real-time monitoring 16.5 % of one core, ~0.3 GB RAM. One shared fix is ~0.9 kB;
 
 ## Tests
 
-`.venv\Scripts\python.exe -m pytest` runs **399 tests, all passing** on the machine above (~12 min; 0 skipped with
+`.venv\Scripts\python.exe -m pytest` runs **428 tests, all passing** on the machine above (~10-18 min; 0 skipped with
 the data sets and language models downloaded; last run 2 Oct 2026). Some tests start the real Qdrant Server binary
 themselves.
 
@@ -323,7 +337,7 @@ For a phone, a second computer or production (HTTPS, mutual TLS, certificate rev
 - **Disk:** each Qdrant Edge shard pre-allocates ~200 MB (Windows NTFS compression measured 267 MB -> 1.9 MB).
 - **Asking it things is newer than the rest and less measured.** Known gaps: a single shared word is treated as a
   match, so an off-topic question can return a record that merely contains the word ("what is harsh" returns a
-  transmission code); first boot blocks for minutes while the reference pack is embedded; the device kind is fixed
+  transmission code); the library loads in the background on first start (about 30 s with the shipped vectors, ~45 min if the device's text model differs from bge-small, and the 9.5k vehicle codes are opt-in); the device kind is fixed
   at launch (it cannot be switched from the UI); video is not wired
   (the frame sampler exists, unused) and there is no OCR, so a nameplate or dashboard code in a photo is not read.
   Retrieval, follow-ups, pictures and sharing have tests; the speech, broadcast and Qdrant screens were checked

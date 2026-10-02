@@ -286,6 +286,20 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   - Test debris left in the user's live device by manual checks: one synthetic photo (`motor1-bearing.png`) and a
     few test chat turns. Pictures have no delete endpoint (not added).
   - Launcher gotcha: never pipe `start.ps1` (`| Out-Null` hangs, children inherit the pipe); use background run.
+- [x] (2 Oct, evening) **Offline library + no model answers from its own training** (docs/DECISIONS.md D48):
+  - Ask answers only from cited evidence. No match -> "needs an internet connection". The first attempt (Qwen answering
+    from training) was removed after it answered a nonsense question as grounded; `LocalLLM.chat` no longer exists.
+  - Library = `knowledge/general_facts.json` (212 Wikidata/SI facts) + 30,000 Simple English Wikipedia leads with
+    precomputed bge-small vectors (`simple_wikipedia_core.jsonl.gz` 4.2 MB + `.vec.npz` 20.3 MB, CC BY-SA 4.0, notice in
+    `knowledge/SIMPLE_WIKIPEDIA_LICENSE.md`), loaded in the background by `edge.main` on first start (`edge/seed.py`
+    `AUTO` packs; ~30 s with the shipped vectors; `--no-seed` / `EDGE_NO_SEED=1` skips). Rebuild: `tools/extract_simplewiki.py`
+    then `tools/build_wikipedia_core.py` (~45 min). Tests set `EDGE_NO_SEED=1` in `tests/conftest.py`.
+  - Library entries must cover >= 60 % of the question's words (min 2); library text is quoted verbatim; a model sentence
+    over device/fleet/web evidence may only use words found in the evidence it cites (`_supported` in `edge/device.py`).
+  - Answers carry `sources` in {device, fleet, offline_kb, web}; a dead network with the switch ON is reported as offline
+    (`online.reachable()`); each Qdrant search leg is isolated (`memory_failed`). `rag.check_output` number bug fixed.
+  - Verified: 428 tests pass; live scenario 9/9 (run on a backed-up, restored runtime); real dead-proxy network-cut test;
+    fresh-device simulation (library in 29 s, 217 texts embedded). Not measured: wrong-but-cited retrieval.
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).
