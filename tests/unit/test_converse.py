@@ -171,3 +171,15 @@ def test_the_module_names_no_subject():
     code = "\n".join(line for line in src.splitlines() if not line.lstrip().startswith("#"))
     for subject in ("dna", "cpu", "photosynthesis", "computer", "http", "gravity", "database", "japan", "hamlet"):
         assert not re.search(rf"(?<![a-z]){subject}(?![a-z])", code), subject
+
+
+# ---- wording that used to be misread ---------------------------------------------------------------------------------------
+@pytest.mark.parametrize("msg", ["how are you doing today my friend", "hello can you help me", "hi there my friend",
+                                 "good morning everyone", "hey, how are you today?"])
+def test_longer_greetings_are_still_casual(msg):
+    assert C.understand(msg, []).kind == "casual"
+
+
+def test_meaning_and_definition_are_part_of_the_question_not_framing():
+    assert "meaning" in [w.lower() for w in C.topic_words("What is the meaning of life?")]
+    assert C.understand("What is the meaning of life?", []).kind == "knowledge"

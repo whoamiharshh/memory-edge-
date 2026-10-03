@@ -292,6 +292,30 @@ def general_answer(llm: "LocalLLM", question: str, samples: int = 2) -> str | No
     return first
 
 
+CHAT_SYSTEM = ("You are a helpful assistant running offline on a device, with no internet. Answer the user's question "
+               "directly, in at most three short sentences, in plain words. If you are not sure, or the answer needs "
+               "current information, reply with exactly: I DON'T KNOW. Never invent names, numbers, dates or sources.")
+
+
+def chat_answer(llm: "LocalLLM", question: str, max_tokens: int = 130) -> str | None:
+    """A short assistant answer for questions that are not one-line facts (an explanation, a how-to, a joke, an opinion).
+
+    One pass, no self-consistency check - a three-sentence explanation never repeats word for word - so the caller labels the
+    result unverified and keeps it away from anything about faults, repairs or this device. Returns None if the model declines."""
+    def run(msgs):
+        with llm._lock:
+            m = llm._load()
+            return m.create_chat_completion(messages=msgs, max_tokens=max_tokens, temperature=0.0, seed=0)
+    try:
+        r = run([{"role": "system", "content": CHAT_SYSTEM}, {"role": "user", "content": question}])
+    except Exception:                                   # a chat template without a system role
+        r = run([{"role": "user", "content": CHAT_SYSTEM + "\n\nQuestion: " + question}])
+    ans = (r["choices"][0]["message"]["content"] or "").strip()
+    if not ans or _UNSURE.search(ans[:80]):
+        return None
+    return re.sub(r"\n{2,}", "\n", ans)
+
+
 def brief(question: str, results: dict, llm: LocalLLM | None) -> dict[str, Any]:
     items = build_evidence(results)
     base = {"question": question, "evidence": [asdict(i) for i in items], "template": template_summary(items),

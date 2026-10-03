@@ -441,6 +441,28 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
   - **Honest limits:** model recall is [Unverified] and ~8 s; follow-ups that need something to quote ("give me an example") often get
     "Needs internet connection for this."; the harness conversations were played against the live device, so they appear in its chat
     history sidebar (hide them with the x button; do NOT delete all chat history - it holds the user's real conversations).
+- [x] (3 Oct, afternoon; follow-up to D50) **"Needs internet connection for everything" fixed at the cause, library leads repaired, pitch written.**
+  Why: the user kept seeing "Needs internet connection for this." for ordinary questions. Reproduced through the gateway: the library
+  answered fine, but (a) `_simple_general` refused any question containing words like "engine"/"motor" and every "why/how to/tell me"
+  question, (b) casual detection only accepted messages made entirely of known social words, (c) the library had corrupted/skipped leads
+  (Cricket opened with a photo caption; Apple/Life with their SECOND paragraph), (d) "meaning" was treated as request framing.
+  - **Assistant mode:** when no source answers, `rag.chat_answer` (7B, one pass, <=3 sentences) answers general questions labelled
+    `[Unverified]`; short facts keep the 3-run consistency check. Two word lists now: `_DEVICE_STEMS` (faults, repairs, this device: model
+    NEVER answers) and `_ENGINEERING_STEMS` (only block design / calculation / what-if / troubleshooting advice). Calculations always go to
+    the exact calculator. Time-sensitive questions ("who is the president of ...") carry "may be out of date". A device code means 3+ digits
+    or "plot 91"-style labels, so "V8", "5G", "H2O" are ordinary words.
+  - **Library:** extractor now picks the first paragraph that names the article's subject (`tools/extract_simplewiki.py::clean`);
+    `tools/repair_wikipedia_core.py` re-extracts leads. The flagged-only pass finished (1,161 repaired, Cricket fixed). The `--all` pass
+    (re-check EVERY lead, so Apple/Life get their real first paragraph) hit the 30-minute background limit and did NOT finish: run
+    `python -m tools.repair_wikipedia_core --all` in a foreground terminal with the app stopped (needs free disk, ~15 min + re-embedding).
+  - **Pitch:** `docs/PITCH.md` - 5-minute script, proof table (each claim -> measured result -> command), 27 predicted judge questions with
+    follow-ups, plus section 9 (sync, retries, duplicates, access, what reaches the server, retention, running Qdrant locally, 30 days
+    offline, Play Store size, "Jev", accuracy).
+  - **Verified:** Ask-related tests pass in two batches (224 + 51). A full-suite run could NOT be completed cleanly: the disk was 97 % full
+    (~160 GB of leftover `%TEMP%\pytest-of-Sir` scratch from failed runs) and an 11-file combined run errored in fixtures. Free the disk,
+    then run `pytest` once with the app stopped before trusting a push.
+  - **Known limits (do not hide):** after >30 days offline a device token can expire (renewal only happens online with <7 days left) and
+    sync pauses until an admin issues a new token - data is safe in the outbox; there is no Android app (phone = web app sensor + screen).
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).

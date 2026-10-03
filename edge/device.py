@@ -187,16 +187,22 @@ def _trim_reference(items: list[dict], n_words: int) -> list[dict]:
 _GENERAL_START = re.compile(r"^\s*(?:what(?:'s|s)?|who(?:'s|s)?|whom|when|where|which|how (?:many|much|far|old|tall|long|big|large|high|deep|fast)"
                             r"|define|meaning of|capital of|full form of|name |tell me (?:about|a fact|the|what|who|where|when|how)|give me (?:a fact|the)|list |"
                             r"is |are |was |were |do |does |did |can |will |has |have )", re.I)
-_MACHINE_STEMS = ("machin", "bearing", "motor", "pump", "fault", "vibrat", "repair", "fix", "sensor", "devic", "episod",
-                  "fleet", "engine", "gearbox", "shaft", "fan", "compress", "turbin", "mainten", "technic", "torque",
-                  "rpm", "spindle", "coolant", "lubric", "misalign", "unbalanc", "imbalanc", "symptom", "diagnos",
-                  "brake", "clutch", "error", "dtc", "obd", "vehicle", "truck", "robot", "calibrat", "taught",
-                  "teach", "record", "plant", "site", "signal", "baseline", "novelty", "verif", "cloud", "sync",
-                  "mirror", "qdrant", "valve", "gasket", "piston", "cylinder", "hydraul", "pneumat", "conveyor",
-                  "weld", "install", "replac", "overheat", "leak", "noise", "wear", "crack", "plc", "scada", "kiosk",
-                  "ecu", "batter", "charg", "autonom", "lidar", "radar", "firmware", "protocol", "network", "hmi",
-                  "servo", "actuat", "encoder", "kinemat", "cyber", "secur", "safety", "reliab", "phone", "mobile",
-                  "circuit", "voltage", "current", "transistor", "inverter", "controller", "automat", "industrial")
+# Words that make a question about THIS device, its faults and its repairs - never the language model's to answer.
+_DEVICE_STEMS = ("devic", "episod", "fleet", "taught", "teach", "baseline", "novelty", "verif", "cloud", "sync", "mirror",
+                 "qdrant", "symptom", "diagnos", "troubleshoot", "fault", "repair", "fix", "error", "dtc", "obd", "leak",
+                 "overheat", "calibrat", "maintenan", "replac", "install", "unbalanc", "imbalanc", "misalign", "lubric",
+                 "vibrat", "bearing", "failure", "failing", "malfunction", "breakdown", "defect")
+# Engineering vocabulary. A model explaining how a car engine works is fine; a model giving DESIGN, CALCULATION or
+# TROUBLESHOOTING advice about an engineering system is not, so these only matter together with _OPEN_ENDED / advice wording.
+_ENGINEERING_STEMS = ("machin", "bearing", "motor", "pump", "vibrat", "sensor", "engine", "gearbox", "shaft", "fan", "compress",
+                      "turbin", "torque", "rpm", "spindle", "coolant", "brake", "clutch", "vehicle", "truck", "robot",
+                      "plant", "site", "signal", "valve", "gasket", "piston", "cylinder", "hydraul", "pneumat", "conveyor",
+                      "weld", "plc", "scada", "kiosk", "ecu", "batter", "charg", "autonom", "lidar", "radar", "firmware",
+                      "protocol", "network", "hmi", "servo", "actuat", "encoder", "kinemat", "cyber", "secur", "safety",
+                      "reliab", "circuit", "voltage", "transistor", "inverter", "controller", "automat", "industrial",
+                      "technic", "mainten", "wear", "crack", "noise", "design", "redundan", "architect", "optimi", "throughput",
+                      "latency", "oee")
+_ADVICE = re.compile(r"\b(?:how (?:to|do i|can i|should i)|what should|should i|best way|troubleshoot|recommend)\b", re.I)
 _PERSONAL = frozenset("my our your mine we i us this these those here".split())
 # Facts that depend on where or when the question is asked (or are private) cannot come from training at all. The
 # benchmark showed the model inventing "911" for "phone number of the nearest pharmacy".
@@ -211,10 +217,9 @@ def _simple_general(q: str) -> bool:
     if not 2 <= len(words) <= 16 or not _GENERAL_START.match((q or "").strip()):
         return False
     # a code like P0301 or plot91 names one thing on this device; a plain number ("boils at 100 degrees") does not
-    if (any(re.search(r"[a-z]", t) for t in _identifiers(q)) or _PERSONAL.intersection(words)
-            or _RELATIVE.search(q) or _OPEN_ENDED.match(q) or _LABELLED_NUMBER.search(q)):
+    if _device_code(q) or _PERSONAL.intersection(words) or _RELATIVE.search(q) or _OPEN_ENDED.match(q):
         return False
-    return not any(w.startswith(_MACHINE_STEMS) for w in words)
+    return not any(w.startswith(_DEVICE_STEMS) for w in words)
 
 
 # Words that appear in nearly every record of a maintenance device ("machine", "causes", "problem") say nothing about
@@ -290,6 +295,41 @@ def _arithmetic(q: str) -> tuple[str, str] | None:
         val = round(val, 10)
         val = int(val) if val == int(val) and abs(val) < 1e15 else val
     return t.replace("**", "^"), f"{val:,}" if isinstance(val, int) and abs(val) >= 10000 else str(val)
+
+
+_TIME_SENSITIVE = re.compile(r"\bwho (?:is|are|was) (?:the |our )?(?:current |present |new |latest |first )?(?:president|prime minister|pm|ceo|"
+                             r"chief minister|governor|king|queen|chancellor|mayor|speaker|chairman|captain|coach|leader|"
+                             r"head|champion|richest|owner|founder)\b|\b(?:current|latest|newest|richest|tallest|biggest|"
+                             r"largest|fastest) ", re.I)
+OUT_OF_DATE = " (From the offline library or the local model, so this may be out of date.)"
+
+
+def _device_code(q: str) -> bool:
+    """Does the question carry a code that names one thing ON THIS DEVICE (P0301, plot91, pump 7)? "V8", "5G", "H2O" and "MP3"
+    are ordinary words; a device code has three or more digits, or a label such as plot / unit / bay in front of a number."""
+    return bool(_LABELLED_NUMBER.search(q or "")) or any(
+        re.search(r"[a-z]", t) and len(re.findall(r"\d", t)) >= 3 for t in _identifiers(q))
+
+
+def _assistant_ok(q: str) -> bool:
+    """May the local model answer this as a general assistant (labelled unverified)?
+
+    Yes for explanations, how-tos, definitions, small talk requests and opinions about the WORLD. No for anything about this
+    device, its faults and repairs, an identifier, or something that depends on the time or place it is asked. And no for
+    design / calculation / what-if / troubleshooting questions about an ENGINEERING system: a small model improvising a
+    safety-relevant design is exactly the confident wrong answer this product exists to avoid."""
+    words = re.findall(r"[a-z0-9']+", (q or "").lower())
+    if not 1 <= len(words) <= 30:
+        return False
+    if (_device_code(q) or _PERSONAL.intersection(words) or _RELATIVE.search(q)
+            or any(w.startswith(_DEVICE_STEMS) for w in words)):
+        return False
+    if re.match(r"\s*(?:calculate|compute|solve|evaluate)\b", q, re.I):
+        return False                                   # sums belong to the calculator; a model must not do arithmetic
+    engineering = any(w.startswith(_ENGINEERING_STEMS) for w in words)
+    if engineering and (_OPEN_ENDED.match(q) or _ADVICE.search(q)):
+        return False
+    return True
 
 
 CHAT_CONTEXT_TURNS = 3
@@ -1715,12 +1755,18 @@ class Device:
                 seen_text = " ".join([c["text"], c.get("title") or ""] + list(c.get("aliases") or []))
                 if (qw - _SOFT_WORDS - _ASK_VERBS) - _covered(qw, seen_text):
                     continue
-            if r and r["margin"] >= self.QA_MARGIN and (best is None or r["margin"] > best[0]):
-                best = (r["margin"], c, r)
+            if r and r["margin"] >= self.QA_MARGIN:
+                # an entry the question NAMES beats a better-scoring passage from an unrelated article ("who is the president of
+                # India" must not be answered from an article about one election)
+                rank = r["margin"] + (100 if c.get("title_hit") else 0)
+                if best is None or rank > best[0]:
+                    best = (rank, c, r)
         if not best:
             return []
         _, c, r = best
         c["reader_answer"], c["answer_sentence"], c["margin"] = r["text"], r["sentence"], r["margin"]
+        if _TIME_SENSITIVE.search(q):
+            c["answer_sentence"] = r["sentence"] + OUT_OF_DATE
         return [c]
 
     def _session_id(self, session: str | None) -> str:
@@ -2017,12 +2063,15 @@ class Device:
             # (never anything about machines, faults, repairs or this device), only after agreeing with itself
             # across three runs, and the answer is labelled unverified because no source backs it. When it is
             # not sure it says it does not know. This is deliberately last: every sourced answer comes first.
-            if llm is not None and getattr(llm, "available", False) and _simple_general(q):
+            if llm is not None and getattr(llm, "available", False) and (_simple_general(q) or _assistant_ok(q)):
                 lt = time.perf_counter()
                 try:
-                    g = rag.general_answer(llm, q, samples=1 if rag.is_big_model() else 2)
+                    g = (rag.general_answer(llm, q, samples=1 if rag.is_big_model() else 2) if _simple_general(q)
+                         else rag.chat_answer(llm, q))
                 except Exception:                  # the optional model must never break the answer
                     g = None
+                if g and _TIME_SENSITIVE.search(q):
+                    g += OUT_OF_DATE
                 ms = round((time.perf_counter() - lt) * 1000)
                 if g:
                     out = {"answer": f"{rag.UNVERIFIED_PREFIX} {g}", "grounded": False, "mode": "model_unverified",

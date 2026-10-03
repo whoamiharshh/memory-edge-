@@ -78,15 +78,16 @@ COMPARE = [("PLC vs DCS?", ["programmable logic controller", "distributed contro
            ("Servo vs stepper motor?", ["servomotor", "stepper motor"]),
            ("LiDAR vs radar?", ["lidar", "radar"]), ("Bluetooth vs NFC?", ["bluetooth", "near-field communication"]),
            ("OLED vs LCD?", ["oled", "liquid-crystal display"])]
+# Engineering DESIGN, CALCULATION, DIAGNOSIS and WHAT-IF questions must be declined: a small model improvising a safety-relevant answer is
+# the confident wrong answer this product exists to avoid. General explanations ("why do robots use feedback", "which is better") are
+# answered by the local model, labelled [Unverified], so they are not in this list.
 DECLINE = [
     "Design a robot cell that safely works beside humans.", "Design a PLC-controlled packaging line.",
     "Design a kiosk capable of operating during internet outages.", "Design an EV battery-management system.",
     "How would you design redundancy without doubling the cost?", "How would you detect an actuator that is slowly degrading?",
     "What if the PLC loses power?", "What if a kiosk loses internet?", "What happens if the network disappears?",
     "What happens if two sensors disagree?", "Calculate robot joint torque.", "Calculate OEE for a line running 7 hours.",
-    "Calculate EV charging time.", "Diagnose a robot that suddenly stops.", "Why use PID?",
-    "Why do robots use feedback?", "Which is better, SCARA or delta, for high-speed sorting?",
-    "How do you prove a design is safe?", "How do you reduce cost by 30 percent?", "How would you redesign it from scratch?",
+    "Calculate EV charging time.", "Diagnose a robot that suddenly stops.", "How do you prove a design is safe?",
 ]
 
 

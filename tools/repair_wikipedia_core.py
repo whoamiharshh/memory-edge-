@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
-from tools.extract_simplewiki import DUMP, clean
+from tools.extract_simplewiki import DUMP, _title_words, clean
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEXT = ROOT / "knowledge" / "simple_wikipedia_core.jsonl.gz"
@@ -48,7 +48,15 @@ def main() -> None:
     blob = np.load(VEC, allow_pickle=False)
     vecs, model = blob["vecs"], str(blob["model"])
     assert len(vecs) == len(rows), "vectors and texts are out of step"
-    bad = {r["title"]: i for i, r in enumerate(rows) if looks_broken(r["text"])}
+    # A lead is re-checked when it looks broken OR does not name its own subject near the start (the cricket article opened
+    # with a photo caption, the apple article with its second paragraph).
+    def off_subject(r):
+        tw = _title_words(r["title"])
+        return bool(tw) and not any(w in r["text"][:160].lower() for w in tw)
+    # --all: re-extract EVERY lead with the current rule. The first extraction skipped one-line openings ("An apple is a
+    # fruit.") in favour of a later paragraph that still named the subject, so those leads were not flagged by any check.
+    every = "--all" in sys.argv
+    bad = {r["title"]: i for i, r in enumerate(rows) if every or looks_broken(r["text"]) or off_subject(r)}
     print(f"{len(bad)} of {len(rows)} leads look broken; re-extracting them from the dump", flush=True)
 
     fixed: dict[int, str] = {}
@@ -60,8 +68,8 @@ def main() -> None:
             title = ns["title"].text or ""
             if title in bad and (ns["ns"].text or "") == "0":
                 rev = next((c for c in ns["revision"] if c.tag.rsplit("}", 1)[-1] == "text"), None)
-                new = clean(rev.text or "") if rev is not None else ""
-                if new and not has_markup(new) and len(new) >= 40:
+                new = clean(rev.text or "", title) if rev is not None else ""
+                if new and not has_markup(new) and len(new) >= 40 and new != rows[bad[title]]["text"]:
                     fixed[bad[title]] = new
             el.clear()
     # What the fix could not improve stays if it is harmless (a lead that merely begins with a lowercase "is a ..."

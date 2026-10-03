@@ -377,3 +377,39 @@ def test_generic_words_do_not_pull_in_device_records(dev):
     assert out["used"] == [] and out["answer"] == "Needs internet connection for this."
     out = dev.ask("what is machine learning", None)
     assert out["used"] == []
+
+
+# ---- a general question the library lacks is answered by the model (labelled), engineering advice is not -----------------
+
+@pytest.mark.parametrize("q", ["how does a car engine work", "why is the sky blue", "how to make tea", "tell me a joke",
+                               "what is the meaning of life", "how many cylinders does a V8 have"])
+def test_general_questions_the_library_lacks_reach_the_model_labelled_unverified(dev, q):
+    out = dev.ask(q, Scripted("It works by burning fuel to push pistons.", "It works by burning fuel to push pistons.",
+                              "It works by burning fuel to push pistons."))
+    assert out["mode"] == "model_unverified" and out["unverified"] is True
+    assert out["answer"].startswith("[Unverified]") and out["sources"] == []
+
+
+@pytest.mark.parametrize("q", ["Design a PLC controlled packaging line", "What if the PLC loses power?",
+                               "Calculate robot joint torque", "How do I fix pump vibration",
+                               "How would you design redundancy without doubling the cost?",
+                               "What causes bearing vibration at 2x running speed?", "What is wrong with this device?"])
+def test_engineering_advice_design_and_calculation_never_reach_the_model(dev, q):
+    out = dev.ask(q, Forbidden())
+    assert out["answer"] == "Needs internet connection for this." and out["mode"] == "no_evidence"
+
+
+def test_the_assistant_says_nothing_when_it_declines(dev):
+    out = dev.ask("how does a car engine work", Scripted("I DON'T KNOW"))
+    assert out["mode"] == "no_evidence" and out["answer"] == "Needs internet connection for this."
+
+
+def test_office_holder_answers_carry_an_honest_out_of_date_note(dev):
+    out = dev.ask("who is the president of india", Scripted("Droupadi Murmu is the president of India."))
+    assert out["answer"].startswith("[Unverified]") and "may be out of date" in out["answer"]
+
+
+def test_codes_like_v8_and_5g_are_words_but_p0301_names_a_device_thing():
+    from edge.device import _device_code
+    assert not _device_code("how many cylinders does a V8 have") and not _device_code("what is 5G")
+    assert _device_code("how do I fix error P0301") and _device_code("what is the status of plot 91")

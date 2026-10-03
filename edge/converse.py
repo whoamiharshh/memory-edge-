@@ -32,7 +32,7 @@ _FUNC = frozenset("a an the of in on at to for with by from as into onto about a
                   "just really there here some any all one ones its it's that's".split())
 _REQUEST_CORE = frozenset("tell explain describe define give show teach discuss elaborate summarize summarise outline "
                           "overview introduction intro information info understand know learn help curious interested "
-                          "wondering details facts basics explanation description definition meaning idea".split())
+                          "wondering details facts basics explanation description definition idea".split())   # NOT "meaning": "the meaning of X" is the question
 _REQUEST_EXTRA = frozenset("me us you your i i'd i'll i'm im my let lets let's please pls kindly want wanna need like love "
                            "hear see find out simple simply basic brief briefly short quick detailed full complete "
                            "little bit more general okay ok well hmm um uh sure thanks thank".split())
@@ -72,7 +72,8 @@ _BYE = frozenset("bye byee goodbye cya later farewell alvida".split())
 _ACK = frozenset("ok okay cool nice great awesome alright fine good perfect sure fantastic wonderful".split())
 _SOCIAL_PAD = frozenset("good there buddy friend team everyone all you u so much very a lot again too to for your the "
                         "assistant bot dear mate man sir madam how are is r doing going it whats what's up thanks "
-                        "see take care night welcome youre you're no problem anytime sorry my".split())
+                        "see take care night welcome youre you're no problem anytime sorry my today tonight everyone guys "
+                        "folks".split())
 _HINDI = re.compile(r"[ऀ-ॿ]")
 
 
@@ -93,7 +94,7 @@ def casual(msg: str) -> tuple[str, str] | None:
     for kind, rx in _ABOUT_ME:                  # identity / capability questions name something to answer
         if rx.match(low.strip()):
             return kind, _REPLY[kind][0]
-    known = _SOCIAL_PAD | _GREET | _THANKS | _BYE | _ACK | _WH | _AUX
+    known = _SOCIAL_PAD | _GREET | _THANKS | _BYE | _ACK | _WH | _AUX | _REQUEST_CORE | _REQUEST_EXTRA | _FUNC
     if any(w not in known for w in t):
         return None
     has = lambda s: any(w in s for w in t)                                  # noqa: E731
