@@ -419,6 +419,7 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
     Known misses: the model's recall "Indian elephant" for India's national animal; the device's own taught note about a room.
     Candidate models (Qwen2.5-7B, Gemma-2-9B, Llama-3.2-3B, Phi-3.5-mini) were NOT tested: a transient 53 KB/s link made the
     downloads infeasible; the harness (`bench/general_qa.py <gguf>`) is ready (network was ~1 MB/s again later).
+  - **Accuracy scope (3 Oct evening, docs/BENCHMARKS.md §34):** measured on only 181 questions (58 general + 123 technical), both written by the builder; the 1,500-question list is not in the repo and ~1,380 of it were never run. Do not quote a figure for it.
   - **Not claimed:** "100 % on every question". The 1,500-question list has design / what-if / calculation / troubleshooting items
     with no single correct short answer; the app declines them. Wikipedia leads can themselves be wrong or outdated.
   - **User decisions pending:** `GATEGUARD_EXEMPT_GLOBS` for this project (the first-edit gate costs one retry per file; the

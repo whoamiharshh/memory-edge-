@@ -564,3 +564,27 @@ Reading: the gate correctly reports that the SOUND changed; it cannot tell a new
 "normal operation" confirmation removes the false alarms at every loudness, but a neighbour as loud as the machine or
 louder then hides a third to two thirds of the faulty windows. The microphone is a fallback for a quiet room or a
 dominant machine; with a louder neighbour use an accelerometer on the machine (vibration is local, sound is not).
+
+## 34. Ask accuracy: what is measured and what is NOT (3 Oct 2026, saved results in `bench/results/`)
+
+Measured on the real running app (`bench.ask_qa`, `bench.tech_qa`):
+
+| Set | Questions | Result |
+|---|---|---|
+| General (`ask_qa`) | 58 | 41 answered, 41 correct, 0 wrong; accuracy 97.6 %, coverage 91.1 %; 1 of 13 trap questions answered |
+| Technical, taken from the user's list (`tech_qa`) | 123 | 101 right, 0 wrong, 2 wrongly declined; 20 of 20 open-ended declined; median 0.8 s |
+
+Latency (median): library answers 0.4 s, model answers ~8.5 s.
+
+Limits, stated plainly:
+- Only 181 questions were measured. The 1,500-question engineering list is NOT in the repo; only the 123 technical
+  questions extracted from it were run. About 1,380 have never been tested, so there is no accuracy figure for that list.
+- The same builder wrote both sets and fixed the app until they passed, so the figures are optimistic. No set was written
+  by an independent person.
+- Many of the 1,500 (design, what-if, calculation, troubleshooting) have no single correct short answer; the app declines
+  them by design, which counts as unanswered, not correct.
+- Model answers are labelled `[Unverified]`; library answers quote Wikipedia leads, which can be wrong or out of date.
+- Wrong-but-cited retrieval is still unmeasured (CLAUDE.md roadmap item 3).
+
+To close the gap: put the 1,500 questions in a file with an expected answer for each, add questions from independent
+people, run against the live app, and report right / wrong / declined / unverified separately.
