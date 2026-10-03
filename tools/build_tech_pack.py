@@ -154,6 +154,15 @@ def main() -> None:
                         or a == r["title"]]
     for k in sorted(ambiguous):
         print(f"  ambiguous alias {k!r} dropped: {sorted(owners[k])}")
+    # Where the Simple English library already has the article and the term has no alias of its own to preserve, that entry
+    # serves the reader better (it is written for readers, not specialists), so the technical copy is not shipped twice.
+    import gzip as _gz
+    simple = {json.loads(line)["title"].lower() for line in
+              _gz.open(ROOT / "knowledge" / "simple_wikipedia_core.jsonl.gz", "rt", encoding="utf-8")}
+    for title in [t for t, r in records.items()
+                  if t.lower() in simple and {a.lower() for a in r["aliases"]} <= {t.lower()}]:
+        del records[title]
+        print(f"  not shipped twice (Simple English has it): {title}")
     rows = sorted(records.values(), key=lambda r: r["title"].lower())
     with gzip.open(OUT_TEXT, "wt", encoding="utf-8", compresslevel=9) as g:
         for r in rows:

@@ -12,9 +12,9 @@ headline differentiator). The cloud (Qdrant Server) groups fixes by fault signat
 evidence per site, **preserving disagreement** instead of overwriting it. Device B then benefits offline.
 The system shows evidence and never recommends an action.
 
-## Where we are now (snapshot: 3 Oct 2026, ~03:00) — read this before anything else
+## Where we are now (snapshot: 3 Oct 2026, ~14:30) — read this before anything else
 
-**State:** a working, tested system. Full suite on 3 Oct: **464 passed in 13 min**. The live 9-step scenario (`python -m demo.scenario`)
+**State:** a working, tested system. Full suite on 3 Oct afternoon: **573 passed, 0 failed** (17 min, app stopped). The live 9-step scenario (`python -m demo.scenario`)
 passes. Everything is pushed to https://github.com/whoamiharshh/memory-edge- (`main` = `1bdb282`, a merge that keeps the
 complete `edge/device.py`; a teammate's commit `5751604` that truncated that file is kept in history, not in the tree).
 
@@ -423,6 +423,24 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
     with no single correct short answer; the app declines them. Wikipedia leads can themselves be wrong or outdated.
   - **User decisions pending:** `GATEGUARD_EXEMPT_GLOBS` for this project (the first-edit gate costs one retry per file; the
     permission system refused me editing settings, user must do it); push to GitHub (not done); the room note in the live device.
+- [x] (3 Oct, daytime; docs/DECISIONS.md D50) **Conversation understanding layer + Qwen2.5-7B.** Why: the user kept getting wrong or
+  empty answers - "hi" answered with the previous topic, "Tell me about DNA" failing where "What is DNA?" worked, follow-ups ("what are
+  its inputs?") unanswered - and asked for a general fix, not per-example patches, proven on the real localhost stack.
+  - **Root cause:** every message was treated as a search; no session id from the UI; follow-ups guessed from pronouns and ALL recent
+    questions appended to the query; request words counted as content; greetings classed as follow-ups; device records matched on
+    incidental words. Details in D50.
+  - **One pipeline:** `edge/converse.py` (casual / topic request -> canonical question / follow-up with the reference replaced by the
+    current topic / clarification) in front of the unchanged retrieval + reader; `Device.ask(session=)`, API `AskBody.session`, UI sends
+    and adopts the session id; chat turns store their `topics`; every answer carries a `trace` (`EDGE_ASK_TRACE=1` prints it).
+  - **Model:** Qwen2.5-7B-Instruct is used automatically when `models_cache/llm/Qwen2.5-7B-Instruct-Q4_K_M.gguf` exists (1.5B stays as
+    the fast brief writer). Device A preloads both; needs ~7 GB free RAM - **close other heavy apps, and stop the app before running
+    the full test suite** (low memory made unrelated tests fail once).
+  - **Verified:** unit tests `tests/unit/test_converse.py` and device conversation tests `tests/integration/test_conversation.py`;
+    `python -m bench.conversations` 50/50 on the live app; the same chats typed into the real UI in a browser; `bench.ask_qa` 41/41 right
+    (91 % coverage); `bench.tech_qa` 101 right / 0 wrong / 20 of 20 declined. Full suite on 3 Oct afternoon: **573 passed** (17 min, app stopped).
+  - **Honest limits:** model recall is [Unverified] and ~8 s; follow-ups that need something to quote ("give me an example") often get
+    "Needs internet connection for this."; the harness conversations were played against the live device, so they appear in its chat
+    history sidebar (hide them with the x button; do NOT delete all chat history - it holds the user's real conversations).
 - [ ] LEFT FOR LATER (tried, not solved): naming misalignment (MaFaulDa 2-15 right of 197-301; needs e.g. phase between
   bearing housings); several cloud processes beyond ~0.8 cores (shared token registry + sequence counter); noise
   cancelling for the microphone; hardware attestation (needs TPM hardware).
@@ -431,6 +449,8 @@ Defect orders are from the CWRU bearing page (SKF 6205: BPFI 5.4152, BPFO 3.5848
 - [ ] USER ONLY: public GitHub repo + push, LinkedIn post. NEVER post/publish anything without their manual yes.
 
 ## How to run (current)
+- Conversations on the running app: `$env:PYTHONPATH="."; .venv\Scripts\python.exe -m bench.conversations` (exit code 1 if any turn fails).
+  Add `EDGE_ASK_TRACE=1` to the environment that starts the app to print each answer's trace.
 - Answer reader (needed for the accurate Wikipedia/technical path; once): `.venv\Scripts\python.exe -m tools.fetch_qa_model`
 - Accuracy / speed on the running app: `$env:PYTHONPATH="."; .venv\Scripts\python.exe -m bench.ask_qa` and `-m bench.tech_qa`
   (the app must be running; they need the real library loaded). Model comparison: `-m bench.general_qa models_cache\llm\<file>.gguf`.

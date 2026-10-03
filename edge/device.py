@@ -15,6 +15,7 @@ import collections
 import datetime as dt
 import json
 import math
+import os
 import pathlib
 import re
 import threading
@@ -124,6 +125,8 @@ does doing done down each even every for from get gets got had has have having h
 make many may more most much must not now off once only other our out over own same she should since some
 such than that the their them then there these they thing things this those through too under until use
 used using very was way were what when where which while who why will with would you your yours
+tell explain describe define give show teach discuss elaborate summarize summarise outline overview introduction information
+info details explanation description want wanna need know learn understand help please kindly briefly simple basic quick short
 """.split())
 
 
@@ -181,8 +184,9 @@ def _trim_reference(items: list[dict], n_words: int) -> list[dict]:
 
 # What counts as a SIMPLE general-knowledge question for the local model. Anything about machines, faults, repairs
 # or this device is excluded no matter how it is phrased: a 1.5B model has no business guessing at those.
-_GENERAL_START = re.compile(r"^(what|who|whom|when|where|which|how (?:many|much|far|old|tall|long|big|large|high|deep)"
-                            r"|define|meaning of|capital of|full form of)\b", re.I)
+_GENERAL_START = re.compile(r"^\s*(?:what(?:'s|s)?|who(?:'s|s)?|whom|when|where|which|how (?:many|much|far|old|tall|long|big|large|high|deep|fast)"
+                            r"|define|meaning of|capital of|full form of|name |tell me (?:about|a fact|the|what|who|where|when|how)|give me (?:a fact|the)|list |"
+                            r"is |are |was |were |do |does |did |can |will |has |have )", re.I)
 _MACHINE_STEMS = ("machin", "bearing", "motor", "pump", "fault", "vibrat", "repair", "fix", "sensor", "devic", "episod",
                   "fleet", "engine", "gearbox", "shaft", "fan", "compress", "turbin", "mainten", "technic", "torque",
                   "rpm", "spindle", "coolant", "lubric", "misalign", "unbalanc", "imbalanc", "symptom", "diagnos",
@@ -193,7 +197,7 @@ _MACHINE_STEMS = ("machin", "bearing", "motor", "pump", "fault", "vibrat", "repa
                   "ecu", "batter", "charg", "autonom", "lidar", "radar", "firmware", "protocol", "network", "hmi",
                   "servo", "actuat", "encoder", "kinemat", "cyber", "secur", "safety", "reliab", "phone", "mobile",
                   "circuit", "voltage", "current", "transistor", "inverter", "controller", "automat", "industrial")
-_PERSONAL = frozenset("my our your mine we i me us this these those here".split())
+_PERSONAL = frozenset("my our your mine we i us this these those here".split())
 # Facts that depend on where or when the question is asked (or are private) cannot come from training at all. The
 # benchmark showed the model inventing "911" for "phone number of the nearest pharmacy".
 _RELATIVE = re.compile(r"\b(nearest|nearby|near me|yesterday|today|tomorrow|tonight|currently|right now|latest|current"
@@ -206,11 +210,22 @@ def _simple_general(q: str) -> bool:
     words = re.findall(r"[a-z0-9']+", (q or "").lower())
     if not 2 <= len(words) <= 16 or not _GENERAL_START.match((q or "").strip()):
         return False
-    if _identifiers(q) or _PERSONAL.intersection(words) or _RELATIVE.search(q) or _OPEN_ENDED.match(q):
+    # a code like P0301 or plot91 names one thing on this device; a plain number ("boils at 100 degrees") does not
+    if (any(re.search(r"[a-z]", t) for t in _identifiers(q)) or _PERSONAL.intersection(words)
+            or _RELATIVE.search(q) or _OPEN_ENDED.match(q) or _LABELLED_NUMBER.search(q)):
         return False
     return not any(w.startswith(_MACHINE_STEMS) for w in words)
 
 
+# Words that appear in nearly every record of a maintenance device ("machine", "causes", "problem") say nothing about
+# whether a record is about the question: "what causes rain" was answered with a fleet case about bearings, and "what is
+# machine learning" was mixed with episode records, because they share one of these words.
+_GENERIC = frozenset("machine machines cause causes caused problem problems issue issues happen happens happened thing "
+                     "things good bad new old time example kind type way fix fixed work works working help used use "
+                     "device devices site sites record records episode episodes data info information".split())
+# question verbs that a correct passage words differently ("wrote" / "written", "invented" / "inventor")
+_ASK_VERBS = frozenset("wrote written write writes invented invent discovered discover painted paint founded found built "
+                       "build created create called known made make born died located situated named designed".split())
 _ENCYCLOPEDIC = ("Simple English Wikipedia", "Technical concepts (Wikipedia)")
 # Questions that ask for a design, a calculation, a diagnosis or a judgment have no passage to quote: a lead paragraph
 # about the same topic would be a confident non-answer. They are answered from the device's own notes and procedures, or
@@ -225,11 +240,57 @@ _OPEN_ENDED = re.compile(
     r"|which\b.*\b(?:better|best|worse|superior|suitable)\b"
     r"|when (?:is|would|should|does) .*\b(?:better|best|worse|superior)\b"
     r"|where should\b)", re.I)
-_COMPARE = re.compile(r"\b(?:vs\.?|versus)\b|\bdifference between\b|\bcompare\b", re.I)
+from edge.converse import _COMPARE   # noqa: E402  (one definition of "this asks to compare things")
 _DEFINITIONAL = re.compile(r"^\s*(?:what (?:is|are|was|were) (?:an? |the )?|who (?:is|was|are|were) |define |"
                            r"tell me about |explain |how (?:does|do) (?:an? |the )?.+ work)", re.I)
 _SOFT_WORDS = frozenset("city name called country place town work works working robot robots motor sensor "
                         "system device protocol network algorithm".split())    # filler a curated fact need not repeat
+
+_LABELLED_NUMBER = re.compile(r"\b(?:plot|unit|line|bay|zone|batch|lot|id|serial|episode|window|step|tag|ticket|record|site|row"
+                              r"|device|machine|bearing|pump|motor)\s*#?\d+", re.I)
+_NUM_WORDS = (("multiplied by", "*"), ("divided by", "/"), ("to the power of", "**"), ("raised to", "**"),
+              ("plus", "+"), ("minus", "-"), ("times", "*"), ("into", "*"), ("over", "/"), ("mod", "%"), ("x", "*"),
+              ("×", "*"), ("÷", "/"), ("^", "**"))
+
+
+def _arithmetic(q: str) -> tuple[str, str] | None:
+    """(expression, result) when the whole question is plain arithmetic ("what is 12 times 7", "2+2*3"); else None.
+    Evaluated with a restricted parser - numbers and + - * / % ** and brackets only - so it is exact, instant, and cannot
+    run anything else. A language model is never asked to do sums."""
+    import ast
+    import operator as op
+    t = (q or "").lower().strip().rstrip("?=. ")
+    t = re.sub(r"^(?:what(?:'s|s| is| was)?|calculate|compute|solve|find|evaluate|how much is|tell me)\s+", "", t).strip()
+    for word, sym in _NUM_WORDS:
+        t = re.sub(rf"(?<=[\d)\s]){re.escape(word)}(?=[\d(\s])" if word.isalpha() else re.escape(word), f" {sym} ", t)
+    t = re.sub(r"\s+", " ", t.replace(",", "")).strip()
+    if not re.fullmatch(r"[\d\s.+\-*/%()]+", t) or not re.search(r"\d", t) or not re.search(r"[+\-*/%]", t):
+        return None
+    ops = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul, ast.Div: op.truediv, ast.Mod: op.mod,
+           ast.Pow: op.pow, ast.USub: op.neg, ast.UAdd: op.pos}
+
+    def ev(n):
+        if isinstance(n, ast.Expression):
+            return ev(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return n.value
+        if isinstance(n, ast.BinOp) and type(n.op) in ops:
+            a, b = ev(n.left), ev(n.right)
+            if isinstance(n.op, ast.Pow) and (abs(b) > 64 or abs(a) > 1e12):
+                raise ValueError("too large")
+            return ops[type(n.op)](a, b)
+        if isinstance(n, ast.UnaryOp) and type(n.op) in ops:
+            return ops[type(n.op)](ev(n.operand))
+        raise ValueError("not arithmetic")
+    try:
+        val = ev(ast.parse(t.replace("**", "**"), mode="eval"))
+    except Exception:
+        return None
+    if isinstance(val, float):
+        val = round(val, 10)
+        val = int(val) if val == int(val) and abs(val) < 1e15 else val
+    return t.replace("**", "^"), f"{val:,}" if isinstance(val, int) and abs(val) >= 10000 else str(val)
+
 
 CHAT_CONTEXT_TURNS = 3
 NEEDS_INTERNET = "Needs internet connection for this."
@@ -267,39 +328,9 @@ def _supported(sentence: str, texts: dict[str, str], question: str) -> bool:
 
 
 def _is_follow_up(q: str) -> bool:
-    """Does this question lean on the conversation instead of standing on its own?
-
-    Two signals, either is enough: it uses a referring word ("how does *it* work"), or it names no subject
-    at all ("why?", "and then?").
-
-    One content word is NOT enough on its own. "what is harsh" names a subject — a new one — and treating
-    it as a follow-up made it inherit the previous topic and answer a question about a person with a
-    catalytic-converter entry. Getting this wrong in the cautious direction is cheap: a fresh question
-    simply keeps its own words and, if nothing matches, the device says so.
-    """
-    words = re.findall(r"[a-z']+", (q or "").lower())
-    if not words:
-        return False
-    # "it", "they", "he" point back at something. "this/these/those/there" only do when the question has nothing of
-    # its own to say ("how does this work?"): "what is wrong with this device?" is a complete question, and treating
-    # it as a follow-up made it inherit "2x" from the previous question and answer with a misalignment procedure.
-    own = len(_content_words(q))
-    if _REFERRING.difference(_DEMONSTRATIVE).intersection(words):
-        return True
-    return not own or (own <= 1 and bool(_DEMONSTRATIVE.intersection(words)))
-
-
-def _carry_context(history: list[dict]) -> tuple[str, set[str], set[str]]:
-    """Subject of the recent conversation: the text to widen the search with, plus its words and
-    identifiers for the relevance check. Only the questions are carried, never the answers — an answer
-    would feed the device's own wording back into what counts as a match."""
-    asked = []
-    for turn in history[-CHAT_CONTEXT_TURNS:]:
-        m = re.match(r"^Q:\s*(.+?)(?:\nA:|$)", turn.get("note_text", ""), re.S)
-        if m:
-            asked.append(m.group(1).strip())
-    text = " ".join(asked)
-    return text, _content_words(text), _identifiers(text)
+    """Does this question lean on the conversation? Decided once, in edge/converse.py."""
+    from edge import converse
+    return converse.is_followup(q)
 
 
 def _attach_lone_citation(raw: str, key: str) -> str:
@@ -1299,7 +1330,7 @@ class Device:
                    "device_id": self.cfg.device_id, "machine_id": self.cfg.machine_id,
                    "share_state": "local"} | (meta or {})
         if kind == "chat":
-            payload["session"] = self.current_session()
+            payload["session"] = (meta or {}).get("session") or self.current_session()
         with self._lock:
             self._upsert([StorePoint(mid, payload,
                                      note=self.embedder.embed_documents([text])[0], bm25_text=text)])
@@ -1467,11 +1498,11 @@ class Device:
                                  filter={"type": "shared", "device_id": self.cfg.device_id})
         return [{"id": h.id, "score": round(h.score, 4)} | self._plain(h.payload) for h in hits]
 
-    def recent_chat(self, limit: int = 8) -> list[dict]:
+    def recent_chat(self, limit: int = 8, session: str | None = None) -> list[dict]:
         """The last few conversation turns, newest last — used to resolve follow-up questions."""
         rows = [self._plain(r.payload) | {"id": r.id}
                 for r in self.store.scroll(filter={"type": "memory", "kind": "chat",
-                                                   "session": self.current_session(),
+                                                   "session": session or self.current_session(),
                                                    "device_id": self.cfg.device_id})]
         rows.sort(key=lambda r: r.get("created_at", ""))
         return rows[-limit:]
@@ -1677,6 +1708,13 @@ class Device:
                 r = qa.answer(self._as_question(q), c["text"])
             except Exception:                      # a broken reader must not cost the answer
                 continue
+            if r and r["margin"] >= self.QA_MARGIN:
+                # The reader found a span, but is it the right ENTITY? "first prime minister of India" matched Tunisia's
+                # article. Every real word of the question (not filler, not the question verb) must occur in the passage
+                # or in the entry's names.
+                seen_text = " ".join([c["text"], c.get("title") or ""] + list(c.get("aliases") or []))
+                if (qw - _SOFT_WORDS - _ASK_VERBS) - _covered(qw, seen_text):
+                    continue
             if r and r["margin"] >= self.QA_MARGIN and (best is None or r["margin"] > best[0]):
                 best = (r["margin"], c, r)
         if not best:
@@ -1685,18 +1723,57 @@ class Device:
         c["reader_answer"], c["answer_sentence"], c["margin"] = r["text"], r["sentence"], r["margin"]
         return [c]
 
-    def ask(self, text: str, llm=None, use_fleet: bool = True, limit: int = 5) -> dict:
-        """One conversational turn over everything this device remembers.
+    def _session_id(self, session: str | None) -> str:
+        """The conversation this turn belongs to: the one the caller names, else the device's current one."""
+        if session and re.fullmatch(r"[A-Za-z0-9_.:-]{1,96}", session):
+            return session
+        return self.current_session()
 
-        Retrieval covers three sources: free text the user taught it, its own sensor records, and the
-        fleet mirror. A question whose words match nothing in memory is answered with "I do not know"
-        rather than with the closest record — retrieval always returns *something*, so relevance has to
-        be decided separately or the device appears to answer questions it has no evidence for.
+    def _plain_reply(self, q: str, answer: str, mode: str, sid: str, lang: str, trace: dict | None = None) -> dict:
+        """A turn answered without retrieval (arithmetic, casual talk, a clarifying question)."""
+        out = {"question": q, "answer": answer, "grounded": mode != "clarify", "mode": mode, "model": None, "llm_ms": 0,
+               "used": [],
+               "sources": [], "web_reason": mode, "memory_failed": [], "retrieval_mode": self.retrieval_mode(),
+               "language": lang, "translated": False, "answer_en": None, "pictures": [], "retrieval": None,
+               "needs_internet": False, "latency_ms": 0, "session": sid, "trace": {"session": sid, **(trace or {})}}
+        if mode == "clarify":      # the person's next message may answer it, so the question and the reply are kept
+            self._log_turn(q, answer, sid, [], q)
+        return out
+
+    def _log_turn(self, q: str, answer: str, sid: str, topics: list[str], resolved: str) -> None:
+        try:
+            self.remember(f"Q: {q}\nA: {answer}", kind="chat",
+                          meta={"session": sid, "topics": topics, "resolved": resolved})
+        except Exception:
+            pass                                   # a store that cannot save the chat must not lose the answer
+
+    def ask(self, text: str, llm=None, use_fleet: bool = True, limit: int = 5, session: str | None = None) -> dict:
+        """One conversational turn.
+
+        The pipeline is one line of decisions, each made once (docs/DECISIONS.md D50):
+          1. arithmetic -> exact answer, no model
+          2. edge/converse.py understands the message against THIS conversation: casual talk gets a conversational reply
+             (no retrieval); a request for a topic becomes a canonical question; a follow-up has its reference replaced by
+             the current topic; an unclear reference gets a clarifying question
+          3. retrieval over everything this device can reach (taught notes, sensor records, the fleet mirror, the offline
+             library), each hit filtered by whether it actually ANSWERS (relevance + the extractive reader)
+          4. the answer, with its sources named separately; the turn and its topic are stored for the next follow-up
+
+        `session` is the conversation this turn belongs to. The UI sends it; without one the device's current session is used.
         """
-        from edge import rag                       # local import: rag pulls in the optional LLM stack
+        from edge import converse, rag             # local import: rag pulls in the optional LLM stack
         q = (text or "").strip()
         if not q:
             raise ValueError("ask needs a question")
+        sid = self._session_id(session)
+        calc = _arithmetic(q)
+        if calc:
+            return self._plain_reply(q, f"{calc[0]} = {calc[1]}", "calculated", sid, "en")
+        # casual talk is decided on the raw text (it must work in Hindi too) and never touches retrieval
+        talk = converse.casual(q)
+        if talk:
+            return self._plain_reply(q, talk[1], "smalltalk", sid, "hi" if re.search(r"[ऀ-ॿ]", q) else "en",
+                                     trace={"message_type": "casual", "kind": talk[0]})
         # Everything below is English: retrieval, the grounding check, the evidence texts. A question in
         # Hindi is translated once here, answered by that same pipeline, and the answer is translated back
         # at the end, so the person is answered in the language they asked in.
@@ -1708,15 +1785,23 @@ class Device:
             except Exception:                      # a missing or broken model must not cost the answer
                 q = original_q
         t0 = time.perf_counter()
-        history = self.recent_chat(CHAT_CONTEXT_TURNS)
-        follow_up = _is_follow_up(q)
-        # "how does it work?" carries almost no words of its own. Searching for it alone finds nothing, so a
-        # follow-up inherits the subject of the recent conversation; a fresh question never does, or every
-        # later question would drag the previous topic along with it.
-        carried = _carry_context(history) if follow_up else ({}, set(), set())
-        ctx_text, ctx_words, ctx_ids = carried
-        query = f"{q} {ctx_text}".strip() if follow_up else q
-        qw = _content_words(q) | (ctx_words if follow_up else set())
+        history = self.recent_chat(8, session=sid)
+        # "what problems have you seen?", "what do you know about me?" ask about this device's own record as a whole. They
+        # are complete questions with no subject to resolve, so they bypass reference resolution (D46: overview intents).
+        if not _identifiers(q) and _overview_intent(q):
+            und = converse.Understanding("knowledge", resolved=q, topics=[], notes={"followup": False, "overview": True})
+        else:
+            und = converse.understand(q, history)
+        if und.kind in ("casual", "clarify"):
+            return self._plain_reply(original_q, und.reply, "smalltalk" if und.kind == "casual" else "clarify", sid,
+                                     "en", trace={"message_type": und.kind, **und.notes})
+        follow_up = und.kind == "followup"
+        # the self-contained question: "what are its inputs?" has become "what are system's inputs?" before anything is
+        # searched. A standalone question is left exactly as asked, so an old topic never leaks into a new one.
+        asked_as, q = q, und.resolved or q
+        ctx_text, ctx_words, ctx_ids = "", set(), set()
+        query = q
+        qw = _content_words(q)
 
         cands: list[dict] = []
         # A failing store (a Qdrant error, a locked shard) must cost this answer its device memory, not the
@@ -1780,9 +1865,22 @@ class Device:
         from shared import qa as _qa
         qa_on = _qa.available()                    # the offline reader that decides whether a passage answers
 
+        # The topic(s) the understanding layer found. A device record, fleet case, shared note or cached web page must be about
+        # the topic: "where is DNA found" shares the word "found" with a bearing episode, which says nothing about DNA.
+        topic_stems = {_stem(t.lower()) for tp in und.topics for t in re.findall(r"[A-Za-z0-9]+", tp)
+                       if t.lower() not in _GENERIC and len(t) > 1}
+
+        def _on_topic(c: dict) -> bool:
+            if not topic_stems:
+                return True
+            hay = (c.get("title") or "") + " " + (c["text"][:160] if c["source"] == "learned" else c["text"])
+            return bool(topic_stems & {_stem(t) for t in re.findall(r"[a-z0-9]+", hay.lower())})
+
         def _relevant(c: dict) -> bool:
             if q_ids:
                 return bool(c["ids"])
+            if c["source"] != "reference" and not _on_topic(c):
+                return False
             # Text nobody on this tenant wrote - the library, a page cached from the web - has to cover most of the
             # question. Notes people typed in (here or on another device of the fleet) and this device's own sensor
             # records may match on a single word. Without this a cached page about the Great Wall of China answered
@@ -1800,7 +1898,7 @@ class Device:
                     return bool(c["overlap"])      # topic is enough to be READ; the reader decides whether it answers
                 ratio = 0.6 if c.get("title_hit") else 0.75
                 return len(c["overlap"]) >= max(2, math.ceil(len(qw) * ratio - 1e-9))
-            return bool(c["overlap"])
+            return bool(set(c["overlap"]) - _GENERIC)
         used = [c for c in cands if _relevant(c)]
         # A record that IS the thing asked about must outrank one that merely mentions it: the entry for
         # P0305 says "same family as P0301", so asking about P0301 otherwise answers with P0305.
@@ -1905,9 +2003,6 @@ class Device:
                                            "Settings → Ask will let it use the internet as well.",
                                            "no web search configured": " No web search is configured on this "
                                            "device. Set EDGE_SEARCH_PROVIDER, or teach it."}.get(web_reason, "")
-                if searched_anything:              # a near miss: say what to try as well
-                    answer += (" This device holds records that touch on some of those words, but none of them "
-                               "answers the question: try naming the part, code or symptom directly, or teach it.")
             elif searched_anything:
                 answer = ("I found nothing close enough to answer that. This device does hold records that "
                           "touch on some of those words, but none of them answer the question. Try naming "
@@ -1925,7 +2020,7 @@ class Device:
             if llm is not None and getattr(llm, "available", False) and _simple_general(q):
                 lt = time.perf_counter()
                 try:
-                    g = rag.general_answer(llm, q)
+                    g = rag.general_answer(llm, q, samples=1 if rag.is_big_model() else 2)
                 except Exception:                  # the optional model must never break the answer
                     g = None
                 ms = round((time.perf_counter() - lt) * 1000)
@@ -2049,12 +2144,20 @@ class Device:
             except Exception:
                 translated, answer_en = False, None   # say it in English rather than not at all
 
-        try:
-            self.remember(f"Q: {original_q}\nA: {out['answer']}", kind="chat")
-        except Exception:
-            pass                                   # a store that cannot save the chat must not lose the answer
+        self._log_turn(original_q, out["answer"], sid, und.topics, q)
+        trace = {"session": sid, "message_type": und.kind, "original": original_q, "asked_as": asked_as,
+                 "resolved": q, "topics": und.topics, "context_turns": len(history), **und.notes,
+                 "retrieval_query": query, "mode": out.get("mode"), "sources": out.get("sources"),
+                 "candidates": [{"source": c["source"], "title": c.get("title"), "overlap": c.get("overlap")}
+                                for c in cands[:10]],
+                 "selected": [{"key": c.get("key"), "source": c["source"], "title": c.get("title")} for c in used]}
+        if os.environ.get("EDGE_ASK_TRACE") == "1":
+            try:                                   # logging must never be able to cost a person their answer
+                print("[ask-trace] " + json.dumps(trace, ensure_ascii=True, default=str), flush=True)
+            except Exception:
+                pass
         return {"question": original_q, **out, "language": lang, "translated": translated,
-                "answer_en": answer_en, "pictures": pics,
+                "answer_en": answer_en, "pictures": pics, "session": sid, "trace": trace,
                 "retrieval": self._retrieval_report(cands, used, res, follow_up, query),
                 "latency_ms": round((time.perf_counter() - t0) * 1000, 2)}
 

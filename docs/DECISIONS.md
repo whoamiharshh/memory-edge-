@@ -26,6 +26,40 @@ excluded), ONLY when no source anywhere had an answer, ONLY after agreeing with 
 **Measured (scratchpad `qwen_eval.py`, 30 questions, 28 answerable + 2 unanswerable):** 24 right, 0 wrong, 6 "I don't know".
 Small sample: evidence the gate works, not proof it never fails.
 
+### D50 · One conversation-understanding layer; stronger local model (3 Oct 2026)
+**Root cause (traced through UI -> gateway -> API -> Device.ask):** Ask treated every message as a search. (1) The UI never sent a
+session id; the device kept one global "current session", and opening an old chat in the sidebar did not switch it. (2) Follow-ups were
+guessed from a few pronouns and then ALL of the last three questions were appended to the query, so topics leaked
+(DNA -> CPU -> "what does it do" searched both) and nothing was ever resolved or clarified. (3) Request words ("tell", "explain",
+"overview", "please") counted as content words, so "Tell me about X" failed the "this question IS the entry's name" test and the
+reader was asked "What is Tell me about X?". (4) A greeting has no content words, so it was classed a follow-up, inherited the previous
+topic and fell through retrieval to "no evidence". (5) Device records, fleet cases and cached web pages matched on any shared word
+("found", "causes", "machine"). (6) The 7B model also wrote the evidence brief, making device answers take up to a minute.
+**Fix, one pipeline:** `edge/converse.py` (pure, no I/O, no subject in it - a test checks the source) decides, in order: casual talk
+(a conversational reply, no retrieval, no model) -> request for a topic (framing words are a closed class; the rest is the topic ->
+canonical "What is X?") -> follow-up (pronouns / "the above" / a demonstrative with nothing of its own / no topic at all -> the
+reference is replaced by the CURRENT topic, the subject of the most recent standalone question in THIS conversation) -> unclear
+reference (two candidate topics, or none -> a clarifying question, never a guess) -> otherwise the question as asked.
+`Device.ask(..., session=)` takes an explicit session; the API accepts it, the UI sends `activeSession` and adopts the id the device
+returns. Turns are stored with their topics. Every answer carries a `trace` (message type, resolved question, topics, retrieval
+query, candidates, selection, mode, sources); `EDGE_ASK_TRACE=1` prints it, ASCII-safe and failure-proof.
+Relevance: device / fleet / shared / cached-web hits must match the TOPIC (not an incidental word); request words and "machine /
+causes / found..." are not evidence; "X vs Y" and "how is X different from Y" show both definitions; overview intents ("what do you
+know about me") bypass reference resolution.
+**Model:** Qwen2.5-7B-Instruct (Q4_K_M, Apache-2.0, 4.7 GB) is picked automatically when present (`rag._pick_model`, `EDGE_LLM_PATH`
+overrides); it answers general recall with one repeat (2 runs) instead of 3. The 1.5B model stays as the fast evidence-brief writer.
+Device A preloads both models at start (the weights are only read from disk on the first generation, so the warm-up generates a
+token); B and C do not (three copies would not fit in 16 GB).
+**Library:** +50 computing / networking / science concepts (System, HTTP, DNS, Internet, Router ...); where the Simple English
+library already has an article and the term needs no alias, only the Simple English one ships (it is written for readers).
+**Measured on the real running app:** `bench/conversations.py` 50/50 turns (12 conversations: casual, paraphrases x3 topics,
+follow-ups, topic switches both ways, ambiguity, isolation, fresh conversation); the same conversations typed into the real UI in a
+browser; `bench/ask_qa.py` 41 answered, 41 correct, 0 wrong, coverage 91 % (was 80 %); `bench/tech_qa.py` 101 correct / 0 wrong /
+20 of 20 open-ended declined. Library answers ~0.45 s median; model recall ~8.5 s (7B on a laptop CPU, no GPU).
+**Not claimed / known limits:** answers from the model are labelled [Unverified] and can still be wrong; library answers are quoted
+Wikipedia leads (no paraphrase), so a follow-up like "give me an example" often has nothing to quote and says
+"Needs internet connection for this."; a pronoun after a question that named two things is asked, not guessed.
+
 ### D49a · A passage that is merely about the topic is not an answer: extractive reader + technical library (3 Oct 2026)
 **Measured problem:** end to end through the real app, general questions were only **66.7 %** accurate: "largest mammal"
 returned the article on elephants, "father of computers" returned Alan Turing's biography, "15th president of Mars" a Taiwan

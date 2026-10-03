@@ -26,8 +26,37 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
-MODEL_PATH = pathlib.Path(__file__).resolve().parents[1] / "models_cache" / "llm" / "qwen2.5-1.5b-instruct-q4_k_m.gguf"
-MODEL_NAME = "Qwen2.5-1.5B-Instruct (Q4_K_M GGUF, Apache-2.0)"
+_LLM_DIR = pathlib.Path(__file__).resolve().parents[1] / "models_cache" / "llm"
+# Strongest first. The device uses the first file that exists, so dropping a bigger model into models_cache/llm is
+# enough to upgrade it (restart the device); EDGE_LLM_PATH overrides the choice.
+_CANDIDATES = (
+    ("Qwen2.5-7B-Instruct-Q4_K_M.gguf", "Qwen2.5-7B-Instruct (Q4_K_M GGUF, Apache-2.0)"),
+    ("qwen2.5-7b-instruct-q4_k_m.gguf", "Qwen2.5-7B-Instruct (Q4_K_M GGUF, Apache-2.0)"),
+    ("qwen2.5-1.5b-instruct-q4_k_m.gguf", "Qwen2.5-1.5B-Instruct (Q4_K_M GGUF, Apache-2.0)"),
+)
+
+
+def _pick_model() -> tuple[pathlib.Path, str]:
+    env = os.environ.get("EDGE_LLM_PATH")
+    if env and pathlib.Path(env).exists():
+        return pathlib.Path(env), pathlib.Path(env).stem
+    for fname, label in _CANDIDATES:
+        if (_LLM_DIR / fname).exists():
+            return _LLM_DIR / fname, label
+    return _LLM_DIR / _CANDIDATES[-1][0], _CANDIDATES[-1][1]
+
+
+MODEL_PATH, MODEL_NAME = _pick_model()
+
+
+def is_big_model(path: pathlib.Path | None = None) -> bool:
+    """A 7B model is ~5x slower than the 1.5B one on a laptop CPU, so it is checked with one repeat instead of two."""
+    try:
+        return (path or MODEL_PATH).stat().st_size > 3_000_000_000
+    except OSError:
+        return False
+
+
 CITE = re.compile(r"\[E(\d+)\]")
 PRESCRIPTIVE = re.compile(r"\b(should|recommend\w*|must|ought|advis\w+|best (?:action|fix|option)|go ahead"
                           r"|consider \w+ing|it is (?:best|advisable)|make sure|always|never (?:use|do|try))\b", re.I)
@@ -144,9 +173,18 @@ EXAMPLE_ASSISTANT = ("For pump imbalance, rebalancing worked at 2 sites and all 
                      "Cleaning was reported as failed at 1 site [E1].")
 
 
+LIGHT_PATH = _LLM_DIR / "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+
+
 class LocalLLM:
-    def __init__(self, path: pathlib.Path = MODEL_PATH, threads: int | None = None):
+    """The on-device language model. When the strong (7B) model is installed, the short evidence brief that summarises
+    device / fleet records is still written by the fast 1.5B model: it only rephrases text it is shown, so a bigger model
+    adds seconds and no accuracy, while recall of general knowledge (`general_answer`) uses the strong one."""
+
+    def __init__(self, path: pathlib.Path = MODEL_PATH, threads: int | None = None, light: bool = True):
         self.path, self.threads = pathlib.Path(path), threads or max(1, (os.cpu_count() or 4) - 2)
+        self._light = (LocalLLM(LIGHT_PATH, self.threads, light=False)
+                       if light and is_big_model(self.path) and LIGHT_PATH.exists() else None)
         self._llm = None
         self._lock = threading.Lock()
         self.error: str | None = None
@@ -162,6 +200,8 @@ class LocalLLM:
         return self._llm
 
     def complete(self, user: str, max_tokens: int = 180) -> str:
+        if self._light is not None:
+            return self._light.complete(user, max_tokens)
         with self._lock:
             llm = self._load()
             r = llm.create_chat_completion(messages=[

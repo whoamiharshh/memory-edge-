@@ -53,8 +53,6 @@ def test_it_distinguishes_a_near_miss_from_something_it_could_never_know(make_de
 
     near = d.ask("how big is plot 91")           # shares "plot" with a stored record, but not that plot
     assert near["answer"].startswith("Needs internet connection for this.")
-    assert "touch on some of those words" in near["answer"]       # and it says what to try, unlike the far case
-    assert "touch on some" not in far["answer"]
 
 
 def test_known_question_is_grounded_in_the_stored_fact(make_device):

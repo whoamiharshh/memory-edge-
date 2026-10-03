@@ -98,6 +98,24 @@ def main() -> None:
         worker.start()
     op = a.operator_token or secrets.token_urlsafe(18 if network else 12)
     llm = None if a.no_llm else rag.LocalLLM()
+    # Only the device that serves the UI preloads: the demo starts three devices, and three copies of a 4.7 GB model
+    # would not fit in 16 GB of RAM. The others still load it on first use, if they are ever asked.
+    if (llm is not None and llm.available and not os.environ.get("EDGE_NO_SEED")
+            and (os.environ.get("EDGE_PRELOAD_MODELS") == "1" or a.name == "devA")):
+        def _warm() -> None:
+            """Load the language model and the answer reader now, in the background: the first question otherwise waits
+            up to a minute for a 4.7 GB model to come off the disk (the 7B model measured 45 s on first use)."""
+            try:
+                m = llm._load()
+                # loading maps the file; the weights are only read from disk on the first generation, so make one
+                m.create_chat_completion(messages=[{"role": "user", "content": "Say OK."}], max_tokens=2, temperature=0.0)
+                from shared import qa
+                if qa.available():
+                    qa.answer("warm up", "warm up the reader")
+                print(f"[{dev.cfg.device_id}] language model ready: {rag.MODEL_NAME}", flush=True)
+            except Exception as e:
+                print(f"[{dev.cfg.device_id}] language model not preloaded: {e!r}", flush=True)
+        threading.Thread(target=_warm, daemon=True, name="warm-models").start()
     if not (a.no_seed or os.environ.get("EDGE_NO_SEED")):
         threading.Thread(target=_seed_in_background, args=(dev,), daemon=True, name="seed-library").start()
     scheme = "https" if a.tls else "http"

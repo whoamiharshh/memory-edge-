@@ -19,6 +19,12 @@ Everything below was run on the build laptop on 27-28 Sep 2026.
    .venv\Scripts\python.exe -c "from huggingface_hub import hf_hub_download; hf_hub_download('Qwen/Qwen2.5-1.5B-Instruct-GGUF','qwen2.5-1.5b-instruct-q4_k_m.gguf', local_dir='models_cache/llm')"
    ```
    Without it, the evidence brief falls back to a deterministic template.
+5a. **Stronger local model** (optional, 4.7 GB, Apache-2.0; needs about 7 GB of free RAM): Qwen2.5-7B-Instruct answers general
+   questions far more accurately than the 1.5B model. The device uses it automatically when the file is present, and keeps the 1.5B
+   model for the short evidence brief:
+   ```powershell
+   .venv\Scripts\python.exe -c "from huggingface_hub import hf_hub_download; hf_hub_download('bartowski/Qwen2.5-7B-Instruct-GGUF','Qwen2.5-7B-Instruct-Q4_K_M.gguf', local_dir='models_cache/llm')"
+   ```
 5b. **Answer reader** (about 130 MB; deepset/roberta-base-squad2, CC-BY-4.0, ONNX int8, no torch). It reads each retrieved
    Wikipedia/technical passage and either extracts the sentence that answers the question or declines, which is what keeps
    Ask from quoting an article that is merely *about* the topic (docs/DECISIONS.md D49):

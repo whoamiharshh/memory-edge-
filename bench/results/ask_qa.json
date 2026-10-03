@@ -1,23 +1,23 @@
 {
  "summary": {
-  "answered": 36,
-  "correct": 35,
-  "wrong": 1,
+  "answered": 41,
+  "correct": 41,
+  "wrong": 0,
   "traps_answered": 1,
   "traps": 13,
-  "accuracy_pct": 94.6,
-  "coverage_pct": 80.0,
+  "accuracy_pct": 97.6,
+  "coverage_pct": 91.1,
   "latency_ms_median_by_mode": {
-   "quoted": 311,
-   "no_evidence": 1780,
-   "model_unverified": 3140,
-   "llm": 8396
+   "quoted": 442,
+   "no_evidence": 4419,
+   "model_unverified": 8525,
+   "llm": 13491
   },
   "latency_ms_max_by_mode": {
-   "quoted": 1137,
-   "no_evidence": 4587,
-   "model_unverified": 4781,
-   "llm": 8396
+   "quoted": 3144,
+   "no_evidence": 12644,
+   "model_unverified": 13540,
+   "llm": 13491
   }
  },
  "rows": [
@@ -28,7 +28,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 977,
+   "ms": 3144,
    "answer": "Pride and Prejudice: Pride and Prejudice is a book by Jane Austen. [E1]",
    "answered": true,
    "correct": true
@@ -40,7 +40,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 378,
+   "ms": 442,
    "answer": "The capital of Canada is Ottawa. [E1]",
    "answered": true,
    "correct": true
@@ -50,7 +50,7 @@
    "kind": "known",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1369,
+   "ms": 10352,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -60,28 +60,28 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2526,
-   "answer": "[Unverified] Vincent van Gogh",
+   "ms": 10238,
+   "answer": "[Unverified] Vincent van Gogh painted Starry Night.",
    "answered": true,
    "correct": true
   },
   {
    "q": "What is the largest mammal?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 2775,
-   "answer": "Needs internet connection for this.",
-   "answered": false,
-   "correct": false
+   "ms": 4949,
+   "answer": "[Unverified] Blue whale.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "How many sides does a hexagon have?",
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2994,
-   "answer": "[Unverified] A hexagon has six sides.",
+   "ms": 4647,
+   "answer": "[Unverified] Six.",
    "answered": true,
    "correct": true
   },
@@ -90,7 +90,7 @@
    "kind": "known",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 3216,
+   "ms": 12644,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -100,8 +100,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2000,
-   "answer": "[Unverified] Mercury",
+   "ms": 9121,
+   "answer": "[Unverified] Mercury is closest to the sun.",
    "answered": true,
    "correct": true
   },
@@ -110,8 +110,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2824,
-   "answer": "[Unverified] Sir Isaac Newton discovered gravity.",
+   "ms": 7038,
+   "answer": "[Unverified] Isaac Newton discovered gravity.",
    "answered": true,
    "correct": true
   },
@@ -122,7 +122,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 309,
+   "ms": 445,
    "answer": "The capital of Brazil is Brasília. [E1]",
    "answered": true,
    "correct": true
@@ -130,22 +130,22 @@
   {
    "q": "Who wrote the Odyssey?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 2135,
-   "answer": "Needs internet connection for this.",
-   "answered": false,
-   "correct": false
+   "ms": 6878,
+   "answer": "[Unverified] Homer wrote the Odyssey.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "What is the largest hot desert in the world?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 3413,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
-   "answered": false,
-   "correct": false
+   "ms": 11473,
+   "answer": "[Unverified] The Sahara Desert is the largest hot desert in the world.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "What is the capital of Egypt?",
@@ -154,7 +154,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 313,
+   "ms": 408,
    "answer": "The capital of Egypt is Cairo. [E1]",
    "answered": true,
    "correct": true
@@ -164,32 +164,28 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3983,
-   "answer": "[Unverified] George Washington was the first president of the United States.",
+   "ms": 5576,
+   "answer": "[Unverified] George Washington.",
    "answered": true,
    "correct": true
   },
   {
    "q": "In which year did World War II end?",
    "kind": "known",
-   "mode": "quoted",
-   "sources": [
-    "offline_kb"
-   ],
-   "ms": 1035,
-   "answer": "It began in 1941 with Operation Barbarossa and ended in 1945 by the Soviet soldiers capturing Berlin. [E1]",
-   "answered": true,
-   "correct": true
+   "mode": "no_evidence",
+   "sources": [],
+   "ms": 1183,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
   },
   {
    "q": "What is the chemical formula of water?",
    "kind": "known",
-   "mode": "quoted",
-   "sources": [
-    "offline_kb"
-   ],
-   "ms": 950,
-   "answer": "Water: Water is a simple chemical compound made of two hydrogen atoms and one oxygen atom. [E1]",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 5581,
+   "answer": "[Unverified] H2O",
    "answered": true,
    "correct": true
   },
@@ -198,7 +194,7 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2767,
+   "ms": 7086,
    "answer": "[Unverified] 206 bones.",
    "answered": true,
    "correct": true
@@ -210,7 +206,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 296,
+   "ms": 405,
    "answer": "The capital of Kenya is Nairobi. [E1]",
    "answered": true,
    "correct": true
@@ -218,12 +214,10 @@
   {
    "q": "Who composed the Moonlight Sonata?",
    "kind": "known",
-   "mode": "quoted",
-   "sources": [
-    "offline_kb"
-   ],
-   "ms": 1137,
-   "answer": "2, popularly known as the Moonlight Sonata, is a piano sonata by Ludwig van Beethoven. [E1]",
+   "mode": "model_unverified",
+   "sources": [],
+   "ms": 8847,
+   "answer": "[Unverified] Beethoven composed the Moonlight Sonata.",
    "answered": true,
    "correct": true
   },
@@ -232,20 +226,20 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3167,
-   "answer": "[Unverified] The tallest animal is the giraffe.",
+   "ms": 8530,
+   "answer": "[Unverified] The giraffe is the tallest animal.",
    "answered": true,
    "correct": true
   },
   {
    "q": "Who is known as the father of computers?",
    "kind": "known",
-   "mode": "model_unverified",
+   "mode": "no_evidence",
    "sources": [],
-   "ms": 3303,
-   "answer": "[Unverified] Charles Babbage is known as the father of computers.",
-   "answered": true,
-   "correct": true
+   "ms": 4557,
+   "answer": "Needs internet connection for this.",
+   "answered": false,
+   "correct": false
   },
   {
    "q": "What is the capital of Turkey?",
@@ -254,7 +248,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 298,
+   "ms": 426,
    "answer": "The capital of Turkey is Ankara. [E1]",
    "answered": true,
    "correct": true
@@ -264,8 +258,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2408,
-   "answer": "[Unverified] Hydrogen",
+   "ms": 5961,
+   "answer": "[Unverified] Hydrogen.",
    "answered": true,
    "correct": true
   },
@@ -276,7 +270,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 1074,
+   "ms": 1229,
    "answer": "Romeo and Juliet: Romeo and Juliet is a play written by William Shakespeare. [E1]",
    "answered": true,
    "correct": true
@@ -286,8 +280,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3113,
-   "answer": "[Unverified] The Amazon River.",
+   "ms": 10416,
+   "answer": "[Unverified] The longest river in South America is the Amazon.",
    "answered": true,
    "correct": true
   },
@@ -298,7 +292,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 301,
+   "ms": 475,
    "answer": "The capital of South Korea is Seoul. [E1]",
    "answered": true,
    "correct": true
@@ -308,47 +302,47 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3047,
-   "answer": "[Unverified] Thomas Edison invented the light bulb.",
+   "ms": 10539,
+   "answer": "[Unverified] Thomas Edison invented the practical incandescent light bulb.",
    "answered": true,
    "correct": true
   },
   {
    "q": "What is the currency of the United Kingdom?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 3694,
-   "answer": "Needs internet connection for this.",
-   "answered": false,
-   "correct": false
+   "ms": 6252,
+   "answer": "[Unverified] British Pound Sterling.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "How many players of one team are on the field in football (soccer)?",
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2771,
-   "answer": "[Unverified] 11 players.",
+   "ms": 7836,
+   "answer": "[Unverified] Eleven players per team.",
    "answered": true,
    "correct": true
   },
   {
    "q": "What is the smallest country in the world?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 2142,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
-   "answered": false,
-   "correct": false
+   "ms": 10259,
+   "answer": "[Unverified] The smallest country in the world is Vatican City.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "Who was the first woman to win a Nobel Prize?",
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 4781,
+   "ms": 12891,
    "answer": "[Unverified] Marie Curie was the first woman to win a Nobel Prize.",
    "answered": true,
    "correct": true
@@ -360,7 +354,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 372,
+   "ms": 598,
    "answer": "The capital of Argentina is Buenos Aires. [E1]",
    "answered": true,
    "correct": true
@@ -370,7 +364,7 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 2266,
+   "ms": 6304,
    "answer": "[Unverified] Nitrogen.",
    "answered": true,
    "correct": true
@@ -380,7 +374,7 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 4155,
+   "ms": 12119,
    "answer": "[Unverified] Michelangelo painted the ceiling of the Sistine Chapel.",
    "answered": true,
    "correct": true
@@ -392,7 +386,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 290,
+   "ms": 453,
    "answer": "The capital of Nigeria is Abuja. [E1]",
    "answered": true,
    "correct": true
@@ -404,7 +398,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 299,
+   "ms": 350,
    "answer": "The Taj Mahal is a Mughal Historical Site, mosque and tomb in India. It was built in the 17th century by Mughal Emperor Shah Jahan as a mausoleum in memory of his wife, Mumtaz Mahal. [E1]",
    "answered": true,
    "correct": true
@@ -414,8 +408,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3498,
-   "answer": "[Unverified] The largest organ of the human body is the skin.",
+   "ms": 4833,
+   "answer": "[Unverified] Skin.",
    "answered": true,
    "correct": true
   },
@@ -424,7 +418,7 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 4249,
+   "ms": 11693,
    "answer": "[Unverified] George Orwell wrote Nineteen Eighty-Four.",
    "answered": true,
    "correct": true
@@ -434,8 +428,8 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3252,
-   "answer": "[Unverified] 1440 minutes.",
+   "ms": 13540,
+   "answer": "[Unverified] 24 hours * 60 minutes = 1440 minutes.",
    "answered": true,
    "correct": true
   },
@@ -446,7 +440,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 310,
+   "ms": 435,
    "answer": "The capitals of Pakistan are Islamabad and Rawalpindi. [E1]",
    "answered": true,
    "correct": true
@@ -456,7 +450,7 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3510,
+   "ms": 7822,
    "answer": "[Unverified] Mercury is liquid at room temperature.",
    "answered": true,
    "correct": true
@@ -464,22 +458,22 @@
   {
    "q": "Who was the first Mughal emperor?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 2050,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
-   "answered": false,
-   "correct": false
+   "ms": 10915,
+   "answer": "[Unverified] Babur was the first Mughal emperor.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "Who wrote the Indian national anthem?",
    "kind": "known",
-   "mode": "no_evidence",
+   "mode": "model_unverified",
    "sources": [],
-   "ms": 4142,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
-   "answered": false,
-   "correct": false
+   "ms": 10898,
+   "answer": "[Unverified] Rabindranath Tagore wrote the Indian national anthem.",
+   "answered": true,
+   "correct": true
   },
   {
    "q": "What is the capital of Bangladesh?",
@@ -488,7 +482,7 @@
    "sources": [
     "offline_kb"
    ],
-   "ms": 306,
+   "ms": 340,
    "answer": "The capital of Bangladesh is Dhaka. [E1]",
    "answered": true,
    "correct": true
@@ -498,17 +492,17 @@
    "kind": "known",
    "mode": "model_unverified",
    "sources": [],
-   "ms": 3722,
-   "answer": "[Unverified] The national animal of India is the Indian elephant.",
+   "ms": 8521,
+   "answer": "[Unverified] The national animal of India is the tiger.",
    "answered": true,
-   "correct": false
+   "correct": true
   },
   {
    "q": "Who is the mayor of Tromso?",
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1780,
+   "ms": 4281,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -518,7 +512,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1035,
+   "ms": 1329,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -528,8 +522,8 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 366,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "ms": 4807,
+   "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
   },
@@ -538,7 +532,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 856,
+   "ms": 909,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -548,7 +542,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1112,
+   "ms": 1147,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -560,7 +554,7 @@
    "sources": [
     "device"
    ],
-   "ms": 8396,
+   "ms": 13491,
    "answer": "The room can carry more than 3 people [E1].",
    "answered": true,
    "correct": false
@@ -570,8 +564,8 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 4587,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "ms": 6106,
+   "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
   },
@@ -580,7 +574,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 3005,
+   "ms": 9915,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -590,7 +584,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1003,
+   "ms": 2664,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -600,8 +594,8 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 419,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "ms": 7793,
+   "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
   },
@@ -610,7 +604,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1059,
+   "ms": 2213,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -620,7 +614,7 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 1004,
+   "ms": 1570,
    "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
@@ -630,8 +624,8 @@
    "kind": "trap",
    "mode": "no_evidence",
    "sources": [],
-   "ms": 552,
-   "answer": "Needs internet connection for this. This device holds records that touch on some of those words, but none of them answers the question: try naming the part, code or symptom directly, or teach it.",
+   "ms": 7206,
+   "answer": "Needs internet connection for this.",
    "answered": false,
    "correct": false
   }

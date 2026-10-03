@@ -1155,3 +1155,60 @@ Buoyancy
 Thruster
 Agricultural robot
 Telepresence
+
+# ---- computing, networking and general-systems basics (added 3 Oct: conversations about "system", "HTTP", "computers")
+System
+Input/output
+Algorithm
+Computer program
+Software
+Computer hardware
+Computer
+Internet
+World Wide Web
+HTTP
+HTTPS
+Web server
+Web browser
+URL
+IP address
+Domain Name System
+DNS => Domain Name System
+Router => Router (computing)
+Local area network
+Wide area network
+Internet protocol suite
+TCP/IP => Internet protocol suite
+Ethernet
+Server => Server (computing)
+Client => Client (computing)
+Computer memory
+Hard disk drive
+Solid-state drive
+Motherboard
+Computer keyboard
+Computer mouse
+Computer monitor
+Programming language
+Source code
+Compiler
+Bit
+Byte
+Binary number
+Cryptography
+Computer security
+Cybersecurity => Computer security
+Virtual machine
+Open-source software
+Firewall => Firewall (computing)
+Protein
+Gene
+Chromosome
+Cell => Cell (biology)
+Atom
+Molecule
+Electricity
+Magnet
+Photosynthesis
+Evolution
+Ecosystem

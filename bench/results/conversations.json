@@ -1,0 +1,1304 @@
+{
+ "1  hi -> computers -> inputs -> outputs -> thanks": [
+  {
+   "message": "Hi",
+   "answer": "Hi! How can I help?",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "14810314-c36e-5508-ac53-154c0b28b674",
+   "ms": 68,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  },
+  {
+   "message": "Tell me about computers.",
+   "answer": "A computer is a machine that can be programmed to automatically carry out sequences of arithmetic or logical operations (computation). Modern digital electronic computers can perform generic sets of operations known as programs, which enable computers to perform a wide range of tasks. The term computer system may refer to a nominally complete computer that includes the hardware, operating system, software, and peripheral equipment needed and used for full operation, or to a group of computers that are linked and function together, such as a computer network or computer cluster. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "14810314-c36e-5508-ac53-154c0b28b674",
+   "ms": 2934,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Tell me about computers.",
+    "asked_as": "Tell me about computers.",
+    "resolved": "What are computers?",
+    "topics": [
+     "computers"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Computer"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What are their inputs?",
+   "answer": "Inputs are the signals or data received by the system and outputs are the signals or data sent from it. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "14810314-c36e-5508-ac53-154c0b28b674",
+   "ms": 2158,
+   "trace": {
+    "message_type": "followup",
+    "original": "What are their inputs?",
+    "asked_as": "What are their inputs?",
+    "resolved": "What are computers' inputs?",
+    "topics": [
+     "computers"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Input/output"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What are their outputs?",
+   "answer": "Inputs are the signals or data received by the system and outputs are the signals or data sent from it. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "14810314-c36e-5508-ac53-154c0b28b674",
+   "ms": 2255,
+   "trace": {
+    "message_type": "followup",
+    "original": "What are their outputs?",
+    "asked_as": "What are their outputs?",
+    "resolved": "What are computers' outputs?",
+    "topics": [
+     "computers"
+    ],
+    "context_turns": 2,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Input/output"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Thanks",
+   "answer": "You're welcome!",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "14810314-c36e-5508-ac53-154c0b28b674",
+   "ms": 120,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  }
+ ],
+ "2  hello -> DNA -> tell me about it -> does -> found": [
+  {
+   "message": "Hello",
+   "answer": "Hi! How can I help?",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "16d46b8e-0e3b-5dde-a35b-1b21c1d4b1f3",
+   "ms": 107,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  },
+  {
+   "message": "What is DNA?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "16d46b8e-0e3b-5dde-a35b-1b21c1d4b1f3",
+   "ms": 773,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is DNA?",
+    "asked_as": "What is DNA?",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Tell me about it.",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "16d46b8e-0e3b-5dde-a35b-1b21c1d4b1f3",
+   "ms": 680,
+   "trace": {
+    "message_type": "followup",
+    "original": "Tell me about it.",
+    "asked_as": "Tell me about it.",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What does it do?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "16d46b8e-0e3b-5dde-a35b-1b21c1d4b1f3",
+   "ms": 680,
+   "trace": {
+    "message_type": "followup",
+    "original": "What does it do?",
+    "asked_as": "What does it do?",
+    "resolved": "What does DNA do?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 2,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Where is it found?",
+   "answer": "[Unverified] DNA is found in the nucleus and mitochondria of cells.",
+   "mode": "model_unverified",
+   "sources": [],
+   "session": "16d46b8e-0e3b-5dde-a35b-1b21c1d4b1f3",
+   "ms": 19394,
+   "trace": {
+    "message_type": "followup",
+    "original": "Where is it found?",
+    "asked_as": "Where is it found?",
+    "resolved": "Where is DNA found?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 3,
+    "selected": []
+   },
+   "problems": []
+  }
+ ],
+ "3  system -> inputs and outputs -> example": [
+  {
+   "message": "What is a system?",
+   "answer": "System: A system is a group of interacting or interrelated elements that act according to a set of rules or set of constraints to form a unified whole. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "66d2c4ec-1663-55d1-8016-9d12389a7d0a",
+   "ms": 1277,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is a system?",
+    "asked_as": "What is a system?",
+    "resolved": "What is a system?",
+    "topics": [
+     "system"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "System"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What are its inputs and outputs?",
+   "answer": "Inputs are the signals or data received by the system and outputs are the signals or data sent from it. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "66d2c4ec-1663-55d1-8016-9d12389a7d0a",
+   "ms": 1426,
+   "trace": {
+    "message_type": "followup",
+    "original": "What are its inputs and outputs?",
+    "asked_as": "What are its inputs and outputs?",
+    "resolved": "What are system's inputs and outputs?",
+    "topics": [
+     "system"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Input/output"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Give me an example.",
+   "answer": "Needs internet connection for this.",
+   "mode": "no_evidence",
+   "sources": [],
+   "session": "66d2c4ec-1663-55d1-8016-9d12389a7d0a",
+   "ms": 1096,
+   "trace": {
+    "message_type": "followup",
+    "original": "Give me an example.",
+    "asked_as": "Give me an example.",
+    "resolved": "Give me an example of system",
+    "topics": [
+     "system"
+    ],
+    "context_turns": 2,
+    "selected": []
+   },
+   "problems": []
+  }
+ ],
+ "4  CPU -> does -> parts -> example": [
+  {
+   "message": "What is a CPU?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "1c24c673-ee1e-5a23-b974-4977a3a7948a",
+   "ms": 626,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is a CPU?",
+    "asked_as": "What is a CPU?",
+    "resolved": "What is a CPU?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What does it do?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "1c24c673-ee1e-5a23-b974-4977a3a7948a",
+   "ms": 530,
+   "trace": {
+    "message_type": "followup",
+    "original": "What does it do?",
+    "asked_as": "What does it do?",
+    "resolved": "What does CPU do?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What are its main parts?",
+   "answer": "Needs internet connection for this.",
+   "mode": "no_evidence",
+   "sources": [],
+   "session": "1c24c673-ee1e-5a23-b974-4977a3a7948a",
+   "ms": 4757,
+   "trace": {
+    "message_type": "followup",
+    "original": "What are its main parts?",
+    "asked_as": "What are its main parts?",
+    "resolved": "What are CPU's main parts?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 2,
+    "selected": []
+   },
+   "problems": []
+  },
+  {
+   "message": "Give me an example.",
+   "answer": "Needs internet connection for this.",
+   "mode": "no_evidence",
+   "sources": [],
+   "session": "1c24c673-ee1e-5a23-b974-4977a3a7948a",
+   "ms": 1446,
+   "trace": {
+    "message_type": "followup",
+    "original": "Give me an example.",
+    "asked_as": "Give me an example.",
+    "resolved": "Give me an example of CPU",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 3,
+    "selected": []
+   },
+   "problems": []
+  }
+ ],
+ "5  topic switch DNA -> CPU -> it": [
+  {
+   "message": "What is DNA?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "2f13a297-2456-51ab-9f1a-e956f67b2862",
+   "ms": 552,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is DNA?",
+    "asked_as": "What is DNA?",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What is a CPU?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "2f13a297-2456-51ab-9f1a-e956f67b2862",
+   "ms": 599,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is a CPU?",
+    "asked_as": "What is a CPU?",
+    "resolved": "What is a CPU?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What does it do?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "2f13a297-2456-51ab-9f1a-e956f67b2862",
+   "ms": 536,
+   "trace": {
+    "message_type": "followup",
+    "original": "What does it do?",
+    "asked_as": "What does it do?",
+    "resolved": "What does CPU do?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 2,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  }
+ ],
+ "6  topic switch CPU -> DNA -> it": [
+  {
+   "message": "What is a CPU?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "ac64452c-1ba5-5a8f-a220-11ed6ed2d449",
+   "ms": 525,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is a CPU?",
+    "asked_as": "What is a CPU?",
+    "resolved": "What is a CPU?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What is DNA?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "ac64452c-1ba5-5a8f-a220-11ed6ed2d449",
+   "ms": 466,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is DNA?",
+    "asked_as": "What is DNA?",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Where is it found?",
+   "answer": "[Unverified] DNA is found in the nucleus and mitochondria of cells.",
+   "mode": "model_unverified",
+   "sources": [],
+   "session": "ac64452c-1ba5-5a8f-a220-11ed6ed2d449",
+   "ms": 11066,
+   "trace": {
+    "message_type": "followup",
+    "original": "Where is it found?",
+    "asked_as": "Where is it found?",
+    "resolved": "Where is DNA found?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 2,
+    "selected": []
+   },
+   "problems": []
+  }
+ ],
+ "7  casual only": [
+  {
+   "message": "Hi",
+   "answer": "Hi! How can I help?",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "ddfa2dbb-4762-5138-965b-e340932bd4e6",
+   "ms": 138,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  },
+  {
+   "message": "How are you?",
+   "answer": "I'm doing well, thanks for asking. How can I help?",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "ddfa2dbb-4762-5138-965b-e340932bd4e6",
+   "ms": 106,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  },
+  {
+   "message": "Thanks",
+   "answer": "You're welcome!",
+   "mode": "smalltalk",
+   "sources": [],
+   "session": "ddfa2dbb-4762-5138-965b-e340932bd4e6",
+   "ms": 139,
+   "trace": {
+    "message_type": "casual",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  }
+ ],
+ "8  same meaning, different wording (3 unrelated topics, 5 wordings each)": [
+  {
+   "message": "What is photosynthesis?",
+   "answer": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds (complex compounds containing carbon), typically carbohydrates like sugars (mainly glucose, fructose and sucrose), starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 627,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is photosynthesis?",
+    "asked_as": "What is photosynthesis?",
+    "resolved": "What is photosynthesis?",
+    "topics": [
+     "photosynthesis"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Photosynthesis"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Tell me about photosynthesis.",
+   "answer": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds (complex compounds containing carbon), typically carbohydrates like sugars (mainly glucose, fructose and sucrose), starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 567,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Tell me about photosynthesis.",
+    "asked_as": "Tell me about photosynthesis.",
+    "resolved": "What is photosynthesis?",
+    "topics": [
+     "photosynthesis"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Photosynthesis"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Explain photosynthesis.",
+   "answer": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds (complex compounds containing carbon), typically carbohydrates like sugars (mainly glucose, fructose and sucrose), starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 574,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Explain photosynthesis.",
+    "asked_as": "Explain photosynthesis.",
+    "resolved": "What is photosynthesis?",
+    "topics": [
+     "photosynthesis"
+    ],
+    "context_turns": 2,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Photosynthesis"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Can you explain photosynthesis?",
+   "answer": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds (complex compounds containing carbon), typically carbohydrates like sugars (mainly glucose, fructose and sucrose), starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 588,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Can you explain photosynthesis?",
+    "asked_as": "Can you explain photosynthesis?",
+    "resolved": "What is photosynthesis?",
+    "topics": [
+     "photosynthesis"
+    ],
+    "context_turns": 3,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Photosynthesis"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Give me an overview of photosynthesis.",
+   "answer": "Photosynthesis is a system of biological processes by which photopigment-bearing autotrophic organisms, such as most plants, algae and cyanobacteria, convert light energy—typically from sunlight—into the chemical energy necessary to fuel their metabolism. The term photosynthesis usually refers to oxygenic photosynthesis, a process that releases oxygen as a byproduct of water splitting. Photosynthetic organisms store the converted chemical energy within the bonds of intracellular organic compounds (complex compounds containing carbon), typically carbohydrates like sugars (mainly glucose, fructose and sucrose), starches, phytoglycogen and cellulose. When needing to use this stored energy, an organism's cells then metabolize the organic compounds through cellular respiration. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 648,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Give me an overview of photosynthesis.",
+    "asked_as": "Give me an overview of photosynthesis.",
+    "resolved": "What is photosynthesis?",
+    "topics": [
+     "photosynthesis"
+    ],
+    "context_turns": 4,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Photosynthesis"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What is HTTP?",
+   "answer": "HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information systems. HTTP is the foundation of data communication for the World Wide Web, where hypertext documents include hyperlinks to other resources that the user can easily access, for example by a mouse click or by tapping the screen in a web browser. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 494,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is HTTP?",
+    "asked_as": "What is HTTP?",
+    "resolved": "What is HTTP?",
+    "topics": [
+     "HTTP"
+    ],
+    "context_turns": 5,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "HTTP"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Tell me about HTTP.",
+   "answer": "HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information systems. HTTP is the foundation of data communication for the World Wide Web, where hypertext documents include hyperlinks to other resources that the user can easily access, for example by a mouse click or by tapping the screen in a web browser. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 460,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Tell me about HTTP.",
+    "asked_as": "Tell me about HTTP.",
+    "resolved": "What is HTTP?",
+    "topics": [
+     "HTTP"
+    ],
+    "context_turns": 6,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "HTTP"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Explain HTTP.",
+   "answer": "HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information systems. HTTP is the foundation of data communication for the World Wide Web, where hypertext documents include hyperlinks to other resources that the user can easily access, for example by a mouse click or by tapping the screen in a web browser. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 532,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Explain HTTP.",
+    "asked_as": "Explain HTTP.",
+    "resolved": "What is HTTP?",
+    "topics": [
+     "HTTP"
+    ],
+    "context_turns": 7,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "HTTP"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Can you explain HTTP?",
+   "answer": "HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information systems. HTTP is the foundation of data communication for the World Wide Web, where hypertext documents include hyperlinks to other resources that the user can easily access, for example by a mouse click or by tapping the screen in a web browser. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 489,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Can you explain HTTP?",
+    "asked_as": "Can you explain HTTP?",
+    "resolved": "What is HTTP?",
+    "topics": [
+     "HTTP"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "HTTP"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Give me an overview of HTTP.",
+   "answer": "HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information systems. HTTP is the foundation of data communication for the World Wide Web, where hypertext documents include hyperlinks to other resources that the user can easily access, for example by a mouse click or by tapping the screen in a web browser. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 482,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Give me an overview of HTTP.",
+    "asked_as": "Give me an overview of HTTP.",
+    "resolved": "What is HTTP?",
+    "topics": [
+     "HTTP"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "HTTP"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What is gravity?",
+   "answer": "Gravity, or gravitation is one of the fundamental forces of the universe. It is an attraction, or pull, between any two objects with mass. We discuss it here in three parts: [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 435,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is gravity?",
+    "asked_as": "What is gravity?",
+    "resolved": "What is gravity?",
+    "topics": [
+     "gravity"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Gravity"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Tell me about gravity.",
+   "answer": "Gravity, or gravitation is one of the fundamental forces of the universe. It is an attraction, or pull, between any two objects with mass. We discuss it here in three parts: [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 430,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Tell me about gravity.",
+    "asked_as": "Tell me about gravity.",
+    "resolved": "What is gravity?",
+    "topics": [
+     "gravity"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Gravity"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Explain gravity.",
+   "answer": "Gravity, or gravitation is one of the fundamental forces of the universe. It is an attraction, or pull, between any two objects with mass. We discuss it here in three parts: [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 496,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Explain gravity.",
+    "asked_as": "Explain gravity.",
+    "resolved": "What is gravity?",
+    "topics": [
+     "gravity"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Gravity"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Can you explain gravity?",
+   "answer": "Gravity, or gravitation is one of the fundamental forces of the universe. It is an attraction, or pull, between any two objects with mass. We discuss it here in three parts: [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 441,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Can you explain gravity?",
+    "asked_as": "Can you explain gravity?",
+    "resolved": "What is gravity?",
+    "topics": [
+     "gravity"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Gravity"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Give me an overview of gravity.",
+   "answer": "Gravity, or gravitation is one of the fundamental forces of the universe. It is an attraction, or pull, between any two objects with mass. We discuss it here in three parts: [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "9608fb34-feaf-516e-adfc-4c7b2aea27fc",
+   "ms": 428,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "Give me an overview of gravity.",
+    "asked_as": "Give me an overview of gravity.",
+    "resolved": "What is gravity?",
+    "topics": [
+     "gravity"
+    ],
+    "context_turns": 8,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Gravity"
+     }
+    ]
+   },
+   "problems": []
+  }
+ ],
+ "9  standalone question after a topic does not inherit it": [
+  {
+   "message": "What is DNA?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "92166619-3016-5643-a96d-82bf915fa51d",
+   "ms": 458,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is DNA?",
+    "asked_as": "What is DNA?",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What is the capital of Japan?",
+   "answer": "The capital of Japan is Tokyo. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "92166619-3016-5643-a96d-82bf915fa51d",
+   "ms": 469,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is the capital of Japan?",
+    "asked_as": "What is the capital of Japan?",
+    "resolved": "What is the capital of Japan?",
+    "topics": [
+     "Japan"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Capital of Japan"
+     }
+    ]
+   },
+   "problems": []
+  }
+ ],
+ "10 ambiguous reference is asked, not guessed": [
+  {
+   "message": "How is a CPU different from a GPU?",
+   "answer": "The library holds each definition, not a side-by-side comparison:\n\nA central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]\n\nA graphics processing unit (GPU) is a specialized electronic circuit designed for digital image processing and to accelerate computer graphics, being present either as a component on a discrete graphics card or embedded on motherboards, mobile phones, personal computers, workstations, and game consoles. GPUs are also increasingly being used for artificial intelligence (AI) processing and model training due to linear algebra acceleration, which is also used extensively in graphics processing. [E2]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "85f5e076-e6c8-54de-bd68-ac639f60f5f0",
+   "ms": 592,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "How is a CPU different from a GPU?",
+    "asked_as": "How is a CPU different from a GPU?",
+    "resolved": "How is a CPU different from a GPU?",
+    "topics": [
+     "CPU",
+     "GPU"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     },
+     {
+      "key": "E2",
+      "source": "reference",
+      "title": "Graphics processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What does it do?",
+   "answer": "Do you mean the CPU or the GPU?",
+   "mode": "clarify",
+   "sources": [],
+   "session": "85f5e076-e6c8-54de-bd68-ac639f60f5f0",
+   "ms": 220,
+   "trace": {
+    "message_type": "clarify",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  }
+ ],
+ "11 isolation: two conversations at once": [
+  {
+   "message": "What is DNA?",
+   "answer": "DNA, short for deoxyribonucleic acid, is the molecule that contains the genetic code of living organisms. This includes animals, plants, protists, archaea and bacteria. It is made up of two polynucleotide chains in a double helix. [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "6d0c7ffa-bb62-572b-97f4-b9e6a2ea8816",
+   "ms": 437,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is DNA?",
+    "asked_as": "What is DNA?",
+    "resolved": "What is DNA?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "DNA"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "Where is it found?",
+   "answer": "[Unverified] DNA is found in the nucleus and mitochondria of cells.",
+   "mode": "model_unverified",
+   "sources": [],
+   "session": "6d0c7ffa-bb62-572b-97f4-b9e6a2ea8816",
+   "ms": 10094,
+   "trace": {
+    "message_type": "followup",
+    "original": "Where is it found?",
+    "asked_as": "Where is it found?",
+    "resolved": "Where is DNA found?",
+    "topics": [
+     "DNA"
+    ],
+    "context_turns": 1,
+    "selected": []
+   },
+   "problems": []
+  },
+  {
+   "message": "What is a CPU?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "4bad4bf8-8059-55a1-94f5-2a58404bcad6",
+   "ms": 501,
+   "trace": {
+    "message_type": "knowledge",
+    "original": "What is a CPU?",
+    "asked_as": "What is a CPU?",
+    "resolved": "What is a CPU?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 0,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  },
+  {
+   "message": "What does it do?",
+   "answer": "A central processing unit (CPU), also known as a central processor, main processor, or simply processor, is the primary processor in a given computer. Its electronic circuitry executes instructions of a computer program, such as arithmetic, logic, controlling, and input/output (I/O) operations. This role contrasts with that of external components, such as main memory and I/O circuitry, and specialized coprocessors such as graphics processing units (GPUs). [E1]",
+   "mode": "quoted",
+   "sources": [
+    "offline_kb"
+   ],
+   "session": "4bad4bf8-8059-55a1-94f5-2a58404bcad6",
+   "ms": 498,
+   "trace": {
+    "message_type": "followup",
+    "original": "What does it do?",
+    "asked_as": "What does it do?",
+    "resolved": "What does CPU do?",
+    "topics": [
+     "CPU"
+    ],
+    "context_turns": 1,
+    "selected": [
+     {
+      "key": "E1",
+      "source": "reference",
+      "title": "Central processing unit"
+     }
+    ]
+   },
+   "problems": []
+  }
+ ],
+ "12 a brand-new conversation has nothing to refer to": [
+  {
+   "message": "What does it do?",
+   "answer": "I'm not sure what you're referring to yet. Which topic do you mean? Ask me about it by name and I'll look it up.",
+   "mode": "clarify",
+   "sources": [],
+   "session": "2b347096-1bb2-526d-b8de-454c3fccf190",
+   "ms": 305,
+   "trace": {
+    "message_type": "clarify",
+    "original": null,
+    "asked_as": null,
+    "resolved": null,
+    "topics": null,
+    "context_turns": null,
+    "selected": null
+   },
+   "problems": []
+  }
+ ]
+}

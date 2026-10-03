@@ -117,7 +117,7 @@ def test_model_answers_a_simple_general_question_and_labels_it_unverified(dev):
     assert out["mode"] == "model_unverified" and out["unverified"] is True and out["grounded"] is False
     assert out["answer"].startswith("[Unverified]") and "Pacific" in out["answer"]
     assert out["sources"] == [] and out["used"] == [] and "Unverified" in out["label"]
-    assert llm.calls == 3                                  # once greedy, twice again to check it agrees with itself
+    assert llm.calls == (2 if rag.is_big_model() else 3)   # greedy once, then again to check it agrees with itself
 
 
 def test_model_that_changes_its_answer_is_treated_as_guessing(dev):
@@ -312,3 +312,68 @@ def test_an_alias_that_points_at_two_articles_is_dropped_not_guessed():
         for a in r["aliases"]:
             owner.setdefault("".join(ch for ch in a.lower() if ch.isalnum()), set()).add(r["title"])
     assert [k for k, v in owner.items() if len(v) > 1] == []
+
+
+# ---- small talk: "hi" is not a question --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("msg,kind", [("hi", "greeting"), ("Hello!", "greeting"), ("hey there", "greeting"),
+                                      ("thanks", "thanks"), ("bye", "bye"), ("how are you?", "how_are_you"),
+                                      ("who are you", "identity"), ("what can you do", "help")])
+def test_small_talk_gets_a_direct_reply_and_never_touches_retrieval(dev, msg, kind):
+    out = dev.ask(msg, Forbidden())
+    assert out["mode"] == "smalltalk" and out["grounded"] is True and out["used"] == [] and out["sources"] == []
+    assert "Needs internet" not in out["answer"]
+
+
+def test_a_greeting_after_a_question_does_not_inherit_the_old_topic(dev):
+    _lib(dev, TAMIL)
+    dev.ask("capital of tamilnadu", None)
+    out = dev.ask("hi", None)
+    assert out["mode"] == "smalltalk" and "Chennai" not in out["answer"]
+
+
+def test_a_greeting_with_a_real_question_is_still_a_question(dev):
+    _lib(dev, TAMIL)
+    out = dev.ask("hi what is the capital of tamilnadu", None)
+    assert out["mode"] != "smalltalk"
+
+
+def test_hindi_greeting_gets_a_hindi_reply(dev):
+    out = dev.ask("नमस्ते", None)
+    assert out["mode"] == "smalltalk" and out["language"] == "hi" and "नमस्ते" in out["answer"]
+
+
+@pytest.mark.parametrize("q,expect", [("what is 12 times 7", "12 * 7 = 84"), ("2+2*3", "2+2*3 = 8"),
+                                      ("what's 100 divided by 8", "100 / 8 = 12.5"), ("what is 2 to the power of 10", "2 ^ 10 = 1024")])
+def test_arithmetic_is_calculated_exactly_not_asked_of_a_model(dev, q, expect):
+    out = dev.ask(q, Forbidden())
+    assert out["mode"] == "calculated" and out["answer"] == expect
+
+
+def test_a_question_with_a_plain_number_can_still_reach_the_model(dev):
+    from edge.device import _simple_general
+    assert _simple_general("Does water boil at 100 degrees Celsius?") and _simple_general("Tell me a fact about the sun")
+    assert not _simple_general("what is the status of plot91")
+
+
+def test_declining_is_just_the_one_sentence(dev):
+    dev.remember("The pump house key is in the blue cabinet.", kind="fact")
+    out = dev.ask("who was the first person on mars", None)
+    assert out["answer"] == "Needs internet connection for this."
+
+
+def test_a_passage_about_another_entity_is_not_an_answer(dev):
+    """'first prime minister of India' was answered with Tunisia's first prime minister."""
+    _lib(dev, ("wiki:Prime Minister of Tunisia", "Prime Minister of Tunisia",
+               "Prime Minister of Tunisia: Mustapha Dinguizli was Tunisia's first Prime Minister. He served in 1922.",
+               "Simple English Wikipedia"))
+    out = dev.ask("who is the first prime minister of india", None)
+    assert out["used"] == [] and out["answer"] == "Needs internet connection for this."
+
+
+def test_generic_words_do_not_pull_in_device_records(dev):
+    dev.remember("Local episode on this machine: bearing inner race, the likely cause is wear.", kind="fact")
+    out = dev.ask("what causes rain", None)
+    assert out["used"] == [] and out["answer"] == "Needs internet connection for this."
+    out = dev.ask("what is machine learning", None)
+    assert out["used"] == []

@@ -402,7 +402,10 @@ async function send() {
   scroll.scrollTop = scroll.scrollHeight;
 
   try {
-    const r = await api(DEV + "ask", { text: q, use_fleet: true, limit: 5 });
+    const r = await api(DEV + "ask", { text: q, use_fleet: true, limit: 5, session: activeSession });
+    // the device names the conversation on the first turn; every later message goes back to it, so a follow-up can
+    // never land in a different chat than the one on screen
+    if (r.session) activeSession = r.session;
     thinking.remove();
     lastRetrieval = r.retrieval || null;
     const b = bubble("bot", r.answer, sourcesBlock(r.used));
@@ -412,7 +415,7 @@ async function send() {
       // a model-written answer has no source behind it, so the page says so on the answer itself
       b.querySelector(".bubble").append(el("div", { class: "unverified" }, r.label || "Unverified answer from the on-device model."));
     }
-    if (!r.grounded) {
+    if (!r.grounded && r.mode !== "clarify") {
       const act = el("div", { class: "offer" },
         el("button", { class: "btn small", on: { click: () => openTeach(q) } }, "Teach it about this"));
       b.querySelector(".bubble").append(act);
@@ -434,6 +437,8 @@ async function send() {
     const src = r.sources || [];
     const origin = src.length ? "answered from " + src.map(s => NAMES[s] || s).join(" + ")
         + (r.from_learned ? " (some learned earlier)" : "")
+      : r.mode === "calculated" ? "calculated on this device"
+      : r.mode === "smalltalk" ? "reply"
       : r.unverified ? "answered by the local model · UNVERIFIED, no source"
       : "no evidence found";
     if (r.memory_failed?.length) toast("Searching " + r.memory_failed.join(" and ") + " failed on this device.");

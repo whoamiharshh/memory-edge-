@@ -171,6 +171,8 @@ class AskBody(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
     use_fleet: bool = True
     limit: int = Field(default=5, ge=1, le=20)
+    # the conversation this message belongs to; the UI sends the one it is showing, so follow-ups stay in their own chat
+    session: str | None = Field(default=None, max_length=96, pattern=r"^[A-Za-z0-9_.:-]+$")
 
 
 class BriefBody(SearchBody):
@@ -527,7 +529,7 @@ def create_app(device: Device, worker: SyncWorker, operator_token: str, llm: rag
         plus the recent conversation for follow-ups. If nothing relevant is found it says so instead of
         answering from records that do not match the question.
         """
-        return guard(lambda: device.ask(b.text, llm, b.use_fleet, b.limit))
+        return guard(lambda: device.ask(b.text, llm, b.use_fleet, b.limit, b.session))
 
     @app.get("/api/retrieval", dependencies=[api])
     def retrieval():

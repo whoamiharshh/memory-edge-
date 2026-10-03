@@ -204,8 +204,11 @@ def title_ref_ids(question: str, max_words: int = 6) -> list[tuple[str, int]]:
     for n in range(min(max_words, len(words)), 0, -1):
         for i in range(len(words) - n + 1):
             key = _compact("".join(words[i:i + n]))
-            if len(key) >= 3 and key in idx:
-                hits.append((i, i + n, n, key))
+            # people ask about "computers" and "CPUs"; the entries are titled "Computer" and "CPU"
+            for k in ((key, key[:-1], key[:-2]) if key.endswith(("s", "es")) else (key,)):
+                if len(k) >= 3 and k in idx:
+                    hits.append((i, i + n, n, k))
+                    break
     taken: list[tuple[int, int]] = []
     out: list[tuple[str, int]] = []
     for s, e, n, key in sorted(hits, key=lambda h: -h[2]):
